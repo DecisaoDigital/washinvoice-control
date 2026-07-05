@@ -41,6 +41,9 @@ dependencies:
   timeago: ^3.6.0
   intl: ^0.19.0
   url_launcher: ^6.2.0
+  crypto: ^3.0.0            # assinatura HMAC da licença (mesma da CLI WashFactura)
+  share_plus: ^10.0.0      # partilhar o licenca.json gerado
+  path_provider: ^2.1.0    # ficheiro temporário para partilha
 
 dev_dependencies:
   flutter_test:

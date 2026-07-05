@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../core/app_colors.dart';
@@ -12,6 +16,7 @@ import '../../models/licenca.dart';
 import '../../models/pedido_renovacao.dart';
 import '../../models/ping.dart';
 import '../../repositories/providers.dart';
+import '../../services/licenca_emissao.dart';
 
 class _DetalheData {
   final Licenca licenca;
@@ -127,6 +132,83 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
     }
   }
 
+  /// **Acção manual e separada** (só o Cesar, após confirmar o pagamento): gera
+  /// o `licenca.json` assinado para este terminal e abre a partilha. NUNCA é
+  /// automática — o convite (insert + email) é outro fluxo. Verifica colisão de
+  /// série antes de gerar (bloqueia se a série já estiver activa noutro terminal).
+  Future<void> _gerarLicenca(Licenca l) async {
+    final controller = TextEditingController(text: l.serie ?? '');
+    final serie = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar pagamento e gerar licença'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Gera o ficheiro licenca.json assinado para este terminal e '
+              'abre a partilha. Cada terminal usa a sua própria série.',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(
+                labelText: 'Série do terminal',
+                hintText: 'ex.: FT-T1',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Gerar'),
+          ),
+        ],
+      ),
+    );
+    if (serie == null) return; // cancelado
+
+    try {
+      final licencasRepo = ref.read(licencasRepoProvider);
+      // Gera COM verificação de colisão — lança (e bloqueia) se a série já
+      // estiver activa noutro terminal.
+      final conteudo = await gerarLicencaJsonComVerificacao(
+        licenca: l,
+        serie: serie,
+        verificarColisao: (s, exceto) =>
+            licencasRepo.licencaActivaComSerie(s, excetoMachineId: exceto),
+      );
+      // Regista a série e garante activa (pagamento confirmado).
+      await licencasRepo.definirSerie(l.id, serie.trim());
+      if (!l.activa) await licencasRepo.activar(l.id, activa: true);
+
+      // Escreve o ficheiro (com \n final, idêntico à CLI) e abre a partilha.
+      final dir = await getTemporaryDirectory();
+      final ficheiro = File('${dir.path}/licenca.json');
+      await ficheiro.writeAsString('$conteudo\n');
+      await Share.shareXFiles(
+        [XFile(ficheiro.path)],
+        text: r'Licença WashInvoice — colocar em C:\WashInvoice\licenca.json',
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Licença gerada (série ${serie.trim()}).')),
+      );
+      _recarregar();
+    } catch (e, st) {
+      mostrarErro(e, stack: st);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -160,6 +242,7 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
                   _Linha('Plano', l.plano),
                   _Linha('Validade', Dates.data(l.validade)),
                   _Linha('Machine ID', l.machineId, monospace: true),
+                  if (l.serie != null) _Linha('Série', l.serie!),
                 ],
                 extra: Padding(
                   padding: const EdgeInsets.only(top: 8),
@@ -236,6 +319,21 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
                     ),
                   ),
                 ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    icon: const Icon(Icons.receipt_long),
+                    label: const Text('Confirmar pagamento e gerar licença'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.verde,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    onPressed: () => _gerarLicenca(l),
+                  ),
+                ),
+              ),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(

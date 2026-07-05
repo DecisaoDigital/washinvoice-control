@@ -9,6 +9,11 @@ class Licenca {
   final String plano; // mensal | trimestral | anual
   final DateTime validade;
   final bool activa;
+
+  /// Série documental do terminal (ex.: FT-T1), definida quando a licença é
+  /// gerada (após pagamento). `null` enquanto é só um pedido/convite.
+  final String? serie;
+
   final DateTime criadoEm;
 
   const Licenca({
@@ -20,6 +25,7 @@ class Licenca {
     required this.plano,
     required this.validade,
     required this.activa,
+    this.serie,
     required this.criadoEm,
   });
 
@@ -44,6 +50,7 @@ class Licenca {
         plano: json['plano'] as String,
         validade: DateTime.parse(json['validade'] as String),
         activa: json['activa'] as bool? ?? true,
+        serie: json['serie'] as String?,
         criadoEm: DateTime.parse(json['created_at'] as String),
       );
 
@@ -56,6 +63,7 @@ class Licenca {
         'plano': plano,
         'validade': validade.toIso8601String(),
         'activa': activa,
+        'serie': serie,
         'created_at': criadoEm.toIso8601String(),
       };
 
@@ -68,6 +76,7 @@ class Licenca {
     String? plano,
     DateTime? validade,
     bool? activa,
+    String? serie,
     DateTime? criadoEm,
   }) =>
       Licenca(
@@ -79,6 +88,7 @@ class Licenca {
         plano: plano ?? this.plano,
         validade: validade ?? this.validade,
         activa: activa ?? this.activa,
+        serie: serie ?? this.serie,
         criadoEm: criadoEm ?? this.criadoEm,
       );
 }

@@ -76,6 +76,30 @@ class LicencasRepository {
     };
   }
 
+  /// **Colisão de série**: devolve uma licença **activa** com a mesma [serie]
+  /// mas machine_id **diferente** de [excetoMachineId] (dois terminais a apontar
+  /// para a mesma série — exactamente o que "série por terminal" evita), ou
+  /// `null` se não houver. Usado ANTES de gerar um licenca.json com série.
+  Future<Licenca?> licencaActivaComSerie(
+    String serie, {
+    required String excetoMachineId,
+  }) async {
+    final rows = await _client
+        .from('licencas')
+        .select()
+        .eq('serie', serie)
+        .eq('activa', true)
+        .neq('machine_id', excetoMachineId);
+    final lista = rows as List;
+    if (lista.isEmpty) return null;
+    return Licenca.fromJson(lista.first as Map<String, dynamic>);
+  }
+
+  /// Regista a série do terminal na licença (ao gerar o licenca.json).
+  Future<void> definirSerie(String id, String serie) async {
+    await _client.from('licencas').update({'serie': serie}).eq('id', id);
+  }
+
   Future<void> activar(String id, {required bool activa}) async {
     await _client.from('licencas').update({'activa': activa}).eq('id', id);
   }
