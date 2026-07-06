@@ -5,6 +5,7 @@ import '../../core/app_colors.dart';
 import '../../core/erros.dart';
 import '../nav/home_shell.dart';
 
+// Credenciais: ver Supabase Dashboard → Authentication → Users
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
