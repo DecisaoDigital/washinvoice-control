@@ -27,12 +27,31 @@ class _AtivarInstalacaoScreenState
   final _emailCtrl = TextEditingController();
   final _telemovelCtrl = TextEditingController();
   final _notasCtrl = TextEditingController();
-  final _mesesCtrl = TextEditingController(text: '1');
+  final _mesesCtrl = TextEditingController();
 
-  String _plano = 'mensal';
+  /// Plano interno gravado no Supabase.
+  String _plano = 'personalizado';
+
+  /// Botão de atalho seleccionado (3, 6 ou 12 meses). `null` = duração
+  /// personalizada (editada à mão, sem botão activo).
+  int? _mesesSelecionado;
+
+  /// Licença gratuita (oferta) quando `true`; paga quando `false`.
+  bool _oferta = false;
+
   bool _aGravar = false;
 
-  static const _mesesPorPlano = {'mensal': 1, 'trimestral': 3, 'anual': 12};
+  /// Planos oferecidos e a duração correspondente em meses. Fonte única de
+  /// verdade — os botões de atalho (3/6/12) derivam daqui o plano nomeado.
+  static const _mesesPorPlano = {
+    'trimestral': 3,
+    'semestral': 6,
+    'anual': 12,
+  };
+
+  /// Plano nomeado correspondente a uma duração de atalho (3/6/12 meses).
+  String _planoParaMeses(int meses) =>
+      _mesesPorPlano.entries.firstWhere((e) => e.value == meses).key;
 
   @override
   void initState() {
@@ -85,6 +104,7 @@ class _AtivarInstalacaoScreenState
         plano: _plano,
         validade: validade,
         activa: true,
+        oferta: _oferta,
       );
 
       if (!mounted) return;
@@ -108,16 +128,24 @@ class _AtivarInstalacaoScreenState
       return;
     }
     final validade = _novaValidade;
-    final assunto = 'WashInvoice — Licença e instruções de pagamento';
-    final corpo = 'Olá,\n\n'
-        'A sua licença WashInvoice foi preparada com o plano "$_plano", '
-        'válida até ${Dates.data(validade)}.\n\n'
-        'Instruções de pagamento:\n'
-        '- IBAN: PT50 0000 0000 0000 0000 0000 0\n'
-        '- Valor: (a indicar)\n'
-        '- Referência: ${widget.ping.nif ?? widget.ping.machineId}\n\n'
-        'Após confirmação do pagamento a licença fica ativa.\n\n'
-        'Obrigado.';
+    final assunto = _oferta
+        ? 'WashInvoice — Licença gratuita (oferta)'
+        : 'WashInvoice — Licença e instruções de pagamento';
+    final corpo = _oferta
+        ? 'Olá,\n\n'
+            'A sua licença foi oferecida gratuitamente, '
+            'válida até ${Dates.data(validade)}. '
+            'Não é necessário qualquer pagamento.\n\n'
+            'Obrigado.'
+        : 'Olá,\n\n'
+            'A sua licença WashInvoice foi preparada com o plano "$_plano", '
+            'válida até ${Dates.data(validade)}.\n\n'
+            'Instruções de pagamento:\n'
+            '- IBAN: PT50 0000 0000 0000 0000 0000 0\n'
+            '- Valor: (a indicar)\n'
+            '- Referência: ${widget.ping.nif ?? widget.ping.machineId}\n\n'
+            'Após confirmação do pagamento a licença fica ativa.\n\n'
+            'Obrigado.';
     final uri = Uri(
       scheme: 'mailto',
       path: email,
@@ -193,25 +221,43 @@ class _AtivarInstalacaoScreenState
               ),
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              value: _plano,
-              decoration: const InputDecoration(
-                labelText: 'Plano',
-                border: OutlineInputBorder(),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'mensal', child: Text('Mensal')),
-                DropdownMenuItem(
-                    value: 'trimestral', child: Text('Trimestral')),
-                DropdownMenuItem(value: 'anual', child: Text('Anual')),
+            const Text('Plano',
+                style: TextStyle(color: AppColors.textSecondary)),
+            const SizedBox(height: 6),
+            // Atalhos: carregar preenche a duração e fixa o plano nomeado.
+            // Editar a duração à mão limpa a selecção (plano personalizado).
+            SegmentedButton<int>(
+              emptySelectionAllowed: true,
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(value: 3, label: Text('3 meses')),
+                ButtonSegment(value: 6, label: Text('6 meses')),
+                ButtonSegment(value: 12, label: Text('12 meses')),
               ],
-              onChanged: (v) {
-                if (v == null) return;
+              selected:
+                  _mesesSelecionado == null ? <int>{} : {_mesesSelecionado!},
+              onSelectionChanged: (sel) {
                 setState(() {
-                  _plano = v;
-                  _mesesCtrl.text = '${_mesesPorPlano[v] ?? 1}';
+                  if (sel.isEmpty) {
+                    _mesesSelecionado = null;
+                    _plano = 'personalizado';
+                  } else {
+                    final meses = sel.first;
+                    _mesesSelecionado = meses;
+                    _plano = _planoParaMeses(meses);
+                    _mesesCtrl.text = '$meses';
+                  }
                 });
               },
+            ),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _oferta,
+              onChanged: (v) => setState(() => _oferta = v),
+              title: const Text('Oferta (licença gratuita)'),
+              subtitle: const Text(
+                  'Sem pagamento — o email de instruções muda em conformidade'),
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -222,7 +268,11 @@ class _AtivarInstalacaoScreenState
                 helperText: 'Quantos meses a licença fica ativa',
                 border: OutlineInputBorder(),
               ),
-              onChanged: (_) => setState(() {}),
+              onChanged: (_) => setState(() {
+                // Edição manual → sem botão activo, plano personalizado.
+                _mesesSelecionado = null;
+                _plano = 'personalizado';
+              }),
               validator: (v) {
                 final n = int.tryParse(v?.trim() ?? '');
                 if (n == null || n <= 0) return 'Indica um nº de meses válido';

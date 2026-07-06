@@ -56,6 +56,7 @@ class LicencasRepository {
     required String plano,
     required DateTime validade,
     bool activa = true,
+    bool oferta = false,
   }) async {
     await _client.from('licencas').insert({
       'machine_id': machineId,
@@ -65,6 +66,7 @@ class LicencasRepository {
       'plano': plano,
       'validade': validade.toIso8601String(),
       'activa': activa,
+      'oferta': oferta,
     });
   }
 

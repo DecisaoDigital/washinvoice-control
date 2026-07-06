@@ -6,9 +6,12 @@ class Licenca {
   final String machineId;
   final String nif;
   final String? nome;
-  final String plano; // mensal | trimestral | anual
+  final String plano; // trimestral | semestral | anual | personalizado
   final DateTime validade;
   final bool activa;
+
+  /// `true` quando a licença é uma oferta (gratuita); `false` = licença paga.
+  final bool oferta;
 
   /// Série documental do terminal (ex.: FT-T1), definida quando a licença é
   /// gerada (após pagamento). `null` enquanto é só um pedido/convite.
@@ -25,6 +28,7 @@ class Licenca {
     required this.plano,
     required this.validade,
     required this.activa,
+    this.oferta = false,
     this.serie,
     required this.criadoEm,
   });
@@ -41,6 +45,25 @@ class Licenca {
     return EstadoLicenca.activa;
   }
 
+  /// Nome do plano para exibição em PT. Planos legados/desconhecidos (ex.:
+  /// 'mensal') são capitalizados de forma segura.
+  String get planoLabel {
+    switch (plano) {
+      case 'trimestral':
+        return 'Trimestral';
+      case 'semestral':
+        return 'Semestral';
+      case 'anual':
+        return 'Anual';
+      case 'personalizado':
+        return 'Personalizado';
+      default:
+        return plano.isEmpty
+            ? plano
+            : plano[0].toUpperCase() + plano.substring(1);
+    }
+  }
+
   factory Licenca.fromJson(Map<String, dynamic> json) => Licenca(
         id: json['id'] as String,
         clienteId: json['cliente_id'] as String?,
@@ -50,6 +73,7 @@ class Licenca {
         plano: json['plano'] as String,
         validade: DateTime.parse(json['validade'] as String),
         activa: json['activa'] as bool? ?? true,
+        oferta: json['oferta'] as bool? ?? false,
         serie: json['serie'] as String?,
         criadoEm: DateTime.parse(json['created_at'] as String),
       );
@@ -63,6 +87,7 @@ class Licenca {
         'plano': plano,
         'validade': validade.toIso8601String(),
         'activa': activa,
+        'oferta': oferta,
         'serie': serie,
         'created_at': criadoEm.toIso8601String(),
       };
@@ -76,6 +101,7 @@ class Licenca {
     String? plano,
     DateTime? validade,
     bool? activa,
+    bool? oferta,
     String? serie,
     DateTime? criadoEm,
   }) =>
@@ -88,6 +114,7 @@ class Licenca {
         plano: plano ?? this.plano,
         validade: validade ?? this.validade,
         activa: activa ?? this.activa,
+        oferta: oferta ?? this.oferta,
         serie: serie ?? this.serie,
         criadoEm: criadoEm ?? this.criadoEm,
       );
