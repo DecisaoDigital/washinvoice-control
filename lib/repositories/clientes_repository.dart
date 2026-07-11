@@ -23,7 +23,7 @@ class ClientesRepository {
   }
 
   Future<void> criar(Cliente c) async {
-    await _client.from('clientes').insert(c.toJson());
+    await _client.from('clientes').insert(c.toInsertJson());
   }
 
   /// Cria um cliente novo (id e created_em gerados pela base de dados) e
@@ -50,6 +50,7 @@ class ClientesRepository {
   }
 
   Future<void> actualizar(Cliente c) async {
-    await _client.from('clientes').update(c.toJson()).eq('id', c.id);
+    // toUpdateJson exclui id/created_at (evita enviá-los no UPDATE).
+    await _client.from('clientes').update(c.toUpdateJson()).eq('id', c.id);
   }
 }

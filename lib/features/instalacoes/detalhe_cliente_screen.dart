@@ -36,8 +36,8 @@ class _DetalheData {
 }
 
 class DetalheClienteScreen extends ConsumerStatefulWidget {
-  final String nif;
-  const DetalheClienteScreen({super.key, required this.nif});
+  final String machineId;
+  const DetalheClienteScreen({super.key, required this.machineId});
 
   @override
   ConsumerState<DetalheClienteScreen> createState() =>
@@ -59,12 +59,13 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
     final pingsRepo = ref.read(pingsRepoProvider);
     final aceitesRepo = ref.read(aceitesRepoProvider);
 
-    final licenca = await licencasRepo.porNif(widget.nif);
+    final licenca = await licencasRepo.porMachineId(widget.machineId);
     if (licenca == null) {
-      throw Exception('Licença não encontrada para o NIF ${widget.nif}.');
+      throw Exception(
+          'Licença não encontrada para a máquina ${widget.machineId}.');
     }
     final historico = await pingsRepo.historico(licenca.machineId, limite: 1);
-    final pedido = await pedidosRepo.pendentePorNif(widget.nif);
+    final pedido = await pedidosRepo.pendentePorNif(licenca.nif);
     final aceite = await aceitesRepo.ultimoPorMachineId(licenca.machineId);
 
     // Referência global de versão: a mais evoluída entre todas as instalações.
@@ -217,7 +218,7 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
           future: _future,
           builder: (context, snapshot) {
             final l = snapshot.data?.licenca;
-            return Text(l?.nome ?? widget.nif);
+            return Text(l?.nome ?? widget.machineId);
           },
         ),
       ),

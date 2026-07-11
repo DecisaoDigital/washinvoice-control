@@ -15,6 +15,14 @@ class LicencasRepository {
         .toList();
   }
 
+  /// Licença de um terminal pelo seu [machineId] — a chave natural única por
+  /// terminal. É o caminho de abertura do detalhe (uma instalação = um terminal
+  /// = uma licença).
+  ///
+  /// Usa `maybeSingle()`: devolve `null` se não houver, e **lança** se houver
+  /// mais do que uma linha com o mesmo `machine_id` (não devia acontecer). Esse
+  /// erro é intencional — é reportado de forma visível na UI em vez de escolher
+  /// silenciosamente uma das licenças.
   Future<Licenca?> porMachineId(String machineId) async {
     final row = await _client
         .from('licencas')
@@ -25,11 +33,14 @@ class LicencasRepository {
     return Licenca.fromJson(row);
   }
 
-  Future<Licenca?> porNif(String nif) async {
-    final row =
-        await _client.from('licencas').select().eq('nif', nif).maybeSingle();
-    if (row == null) return null;
-    return Licenca.fromJson(row);
+  /// Todas as licenças de um NIF. Um NIF (cliente) pode ter **várias** licenças
+  /// (um terminal cada), por isso devolve `List` — **não** usar para abrir o
+  /// detalhe (usar [porMachineId]). Destinado a contextos de pesquisa.
+  Future<List<Licenca>> porNif(String nif) async {
+    final rows = await _client.from('licencas').select().eq('nif', nif);
+    return (rows as List)
+        .map((e) => Licenca.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<List<Licenca>> aExpirar({int dias = 15}) async {
@@ -48,6 +59,11 @@ class LicencasRepository {
   }
 
   /// Cria uma licença nova (id e created_em gerados pela base de dados).
+  ///
+  /// [userId] liga a licença ao utilizador Supabase Auth do terminal (POS).
+  /// É o que o RLS usa para o POS ler só a SUA licença (`user_id = auth.uid()`).
+  /// Fica `null` quando ainda não há utilizador criado — a licença fica órfã
+  /// (o POS não a consegue ler) até ser reemitida com o `user_id` preenchido.
   Future<void> criar({
     required String machineId,
     required String nif,
@@ -57,6 +73,7 @@ class LicencasRepository {
     required DateTime validade,
     bool activa = true,
     bool oferta = false,
+    String? userId,
   }) async {
     await _client.from('licencas').insert({
       'machine_id': machineId,
@@ -67,6 +84,7 @@ class LicencasRepository {
       'validade': validade.toIso8601String(),
       'activa': activa,
       'oferta': oferta,
+      'user_id': userId,
     });
   }
 
@@ -107,6 +125,8 @@ class LicencasRepository {
   }
 
   Future<void> actualizar(Licenca l) async {
-    await _client.from('licencas').update(l.toJson()).eq('id', l.id);
+    // toUpdateJson exclui id/created_at/machine_id/user_id — só envia campos
+    // mutáveis, evitando erros/drift ao actualizar (ex.: renovação).
+    await _client.from('licencas').update(l.toUpdateJson()).eq('id', l.id);
   }
 }

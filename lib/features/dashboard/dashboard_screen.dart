@@ -14,6 +14,7 @@ import '../../repositories/providers.dart';
 import '../ativacao/ativar_instalacao_screen.dart';
 import '../auth/login_screen.dart';
 import '../instalacoes/detalhe_cliente_screen.dart';
+import '../sobre/sobre_screen.dart';
 
 class _DashboardData {
   final List<Licenca> licencas;
@@ -98,10 +99,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  void _abrirDetalhe(String nif) {
+  void _abrirDetalhe(String machineId) {
     Navigator.of(context)
         .push(
-          MaterialPageRoute(builder: (_) => DetalheClienteScreen(nif: nif)),
+          MaterialPageRoute(
+            builder: (_) => DetalheClienteScreen(machineId: machineId),
+          ),
         )
         .then((_) => _recarregar());
   }
@@ -121,6 +124,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         title: const Text('WashInvoice Control'),
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _recarregar),
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            tooltip: 'Sobre / Sistema',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SobreScreen()),
+            ),
+          ),
           IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
         ],
       ),
@@ -187,7 +197,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ...data.aExpirar.map(
                     (l) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
-                      child: _LinhaLicenca(l, onTap: () => _abrirDetalhe(l.nif)),
+                      child: _LinhaLicenca(l,
+                          onTap: () => _abrirDetalhe(l.machineId)),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -197,7 +208,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ...data.pedidosPendentes.map(
                     (p) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
-                      child: _LinhaPedido(p, onVer: () => _abrirDetalhe(p.nif)),
+                      child: _LinhaPedido(p,
+                          onVer: () => _abrirDetalhe(p.machineId)),
                     ),
                   ),
                   const SizedBox(height: 12),

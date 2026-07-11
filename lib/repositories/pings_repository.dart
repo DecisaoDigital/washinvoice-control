@@ -25,6 +25,19 @@ class PingsRepository {
     return ultimos;
   }
 
+  /// Último ping recebido de qualquer máquina (o mais recente de todos).
+  /// Usado no ecrã Sobre/Sistema para mostrar a última actividade global.
+  Future<Ping?> ultimoGlobal() async {
+    final row = await _client
+        .from('pings')
+        .select()
+        .order('created_at', ascending: false)
+        .limit(1)
+        .maybeSingle();
+    if (row == null) return null;
+    return Ping.fromJson(row);
+  }
+
   /// Histórico de pings de um machine_id específico.
   Future<List<Ping>> historico(String machineId, {int limite = 20}) async {
     final rows = await _client

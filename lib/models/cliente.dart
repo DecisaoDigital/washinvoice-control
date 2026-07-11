@@ -27,6 +27,8 @@ class Cliente {
         criadoEm: DateTime.parse(json['created_at'] as String),
       );
 
+  /// Serialização completa (inclui `id` e `created_at`). Para round-trip/testes.
+  /// **Não usar em INSERT/UPDATE** — usar [toInsertJson] / [toUpdateJson].
   Map<String, dynamic> toJson() => {
         'id': id,
         'nif': nif,
@@ -35,6 +37,25 @@ class Cliente {
         'telemovel': telemovel,
         'notas': notas,
         'created_at': criadoEm.toIso8601String(),
+      };
+
+  /// Campos para **INSERT**. Exclui `id` e `created_at` (gerados pela BD).
+  Map<String, dynamic> toInsertJson() => {
+        'nif': nif,
+        'nome': nome,
+        'email': email,
+        'telemovel': telemovel,
+        'notas': notas,
+      };
+
+  /// Campos para **UPDATE**. Exclui `id` e `created_at` (geridos pela BD) —
+  /// evita o erro de os enviar no UPDATE.
+  Map<String, dynamic> toUpdateJson() => {
+        'nif': nif,
+        'nome': nome,
+        'email': email,
+        'telemovel': telemovel,
+        'notas': notas,
       };
 
   Cliente copyWith({

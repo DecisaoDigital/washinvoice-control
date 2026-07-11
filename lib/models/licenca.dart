@@ -78,6 +78,9 @@ class Licenca {
         criadoEm: DateTime.parse(json['created_at'] as String),
       );
 
+  /// Serialização completa (inclui `id` e `created_at`). Mantida para
+  /// desserialização/round-trip em testes. **Não usar em INSERT/UPDATE** — usar
+  /// [toInsertJson] / [toUpdateJson], que excluem os campos geridos pela BD.
   Map<String, dynamic> toJson() => {
         'id': id,
         'cliente_id': clienteId,
@@ -90,6 +93,37 @@ class Licenca {
         'oferta': oferta,
         'serie': serie,
         'created_at': criadoEm.toIso8601String(),
+      };
+
+  /// Campos para **INSERT**. Exclui `id` e `created_at` (gerados pela BD).
+  /// Inclui `machine_id` (identidade do terminal, definida na criação).
+  /// Nota: `user_id` (ligação ao POS para RLS) não vive no modelo — é definido
+  /// à parte por `LicencasRepository.criar`.
+  Map<String, dynamic> toInsertJson() => {
+        'cliente_id': clienteId,
+        'machine_id': machineId,
+        'nif': nif,
+        'nome': nome,
+        'plano': plano,
+        'validade': validade.toIso8601String(),
+        'activa': activa,
+        'oferta': oferta,
+        'serie': serie,
+      };
+
+  /// Campos para **UPDATE**. Exclui `id`, `created_at` (geridos pela BD),
+  /// `machine_id` (identidade imutável do terminal) e `user_id` (ligação
+  /// imutável ao POS, definida só na criação). É isto que evita o erro de
+  /// enviar `id`/`created_at` no UPDATE.
+  Map<String, dynamic> toUpdateJson() => {
+        'cliente_id': clienteId,
+        'nif': nif,
+        'nome': nome,
+        'plano': plano,
+        'validade': validade.toIso8601String(),
+        'activa': activa,
+        'oferta': oferta,
+        'serie': serie,
       };
 
   Licenca copyWith({
