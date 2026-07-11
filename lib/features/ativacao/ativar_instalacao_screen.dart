@@ -7,6 +7,7 @@ import '../../core/dates.dart';
 import '../../core/erros.dart';
 import '../../models/ping.dart';
 import '../../repositories/providers.dart';
+import 'email_acolhimento.dart';
 
 /// Formulário para iniciar a atividade de uma instalação nova (máquina que
 /// está a comunicar mas ainda não tem licença). Cria o cliente (se necessário)
@@ -28,6 +29,14 @@ class _AtivarInstalacaoScreenState
   final _telemovelCtrl = TextEditingController();
   final _notasCtrl = TextEditingController();
   final _mesesCtrl = TextEditingController();
+  final _userIdCtrl = TextEditingController();
+
+  /// Valida o formato UUID do `user_id` do POS (campo opcional). Vazio = licença
+  /// órfã (aceite); preenchido tem de ser um UUID válido.
+  static final _uuidRegex = RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-'
+    r'[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+  );
 
   /// Plano interno gravado no Supabase.
   String _plano = 'personalizado';
@@ -66,15 +75,13 @@ class _AtivarInstalacaoScreenState
     _telemovelCtrl.dispose();
     _notasCtrl.dispose();
     _mesesCtrl.dispose();
+    _userIdCtrl.dispose();
     super.dispose();
   }
 
-  DateTime _adicionarMeses(DateTime d, int meses) =>
-      DateTime(d.year, d.month + meses, d.day, d.hour, d.minute);
-
   DateTime get _novaValidade {
     final meses = int.tryParse(_mesesCtrl.text.trim()) ?? 0;
-    return _adicionarMeses(DateTime.now(), meses);
+    return Dates.adicionarMeses(DateTime.now(), meses);
   }
 
   Future<void> _criar() async {
@@ -96,6 +103,7 @@ class _AtivarInstalacaoScreenState
       );
 
       final validade = _novaValidade;
+      final userId = _userIdCtrl.text.trim();
       await licencasRepo.criar(
         machineId: widget.ping.machineId,
         nif: nif,
@@ -105,6 +113,7 @@ class _AtivarInstalacaoScreenState
         validade: validade,
         activa: true,
         oferta: _oferta,
+        userId: userId.isEmpty ? null : userId,
       );
 
       if (!mounted) return;
@@ -121,36 +130,17 @@ class _AtivarInstalacaoScreenState
     }
   }
 
-  Future<void> _enviarInstrucoes() async {
+  Future<void> _enviarAcolhimento() async {
     final email = _emailCtrl.text.trim();
     if (email.isEmpty) {
-      mostrarErro('Preenche o email antes de enviar instruções.');
+      mostrarErro('Preenche o email antes de enviar.');
       return;
     }
-    final validade = _novaValidade;
-    final assunto = _oferta
-        ? 'WashInvoice — Licença gratuita (oferta)'
-        : 'WashInvoice — Licença e instruções de pagamento';
-    final corpo = _oferta
-        ? 'Olá,\n\n'
-            'A sua licença foi oferecida gratuitamente, '
-            'válida até ${Dates.data(validade)}. '
-            'Não é necessário qualquer pagamento.\n\n'
-            'Obrigado.'
-        : 'Olá,\n\n'
-            'A sua licença WashInvoice foi preparada com o plano "$_plano", '
-            'válida até ${Dates.data(validade)}.\n\n'
-            'Instruções de pagamento:\n'
-            '- IBAN: PT50 0000 0000 0000 0000 0000 0\n'
-            '- Valor: (a indicar)\n'
-            '- Referência: ${widget.ping.nif ?? widget.ping.machineId}\n\n'
-            'Após confirmação do pagamento a licença fica ativa.\n\n'
-            'Obrigado.';
     final uri = Uri(
       scheme: 'mailto',
       path: email,
-      query: 'subject=${Uri.encodeComponent(assunto)}'
-          '&body=${Uri.encodeComponent(corpo)}',
+      query: 'subject=${Uri.encodeComponent(assuntoAcolhimento)}'
+          '&body=${Uri.encodeComponent(corpoAcolhimento())}',
     );
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!ok) mostrarErro('Não foi possível abrir a aplicação de email.');
@@ -199,7 +189,7 @@ class _AtivarInstalacaoScreenState
               controller: _emailCtrl,
               keyboardType: TextInputType.emailAddress,
               decoration: const InputDecoration(
-                labelText: 'Email (para fatura / instruções de pagamento)',
+                labelText: 'Email (para contacto)',
                 border: OutlineInputBorder(),
               ),
               validator: (v) {
@@ -256,8 +246,7 @@ class _AtivarInstalacaoScreenState
               value: _oferta,
               onChanged: (v) => setState(() => _oferta = v),
               title: const Text('Oferta (licença gratuita)'),
-              subtitle: const Text(
-                  'Sem pagamento — o email de instruções muda em conformidade'),
+              subtitle: const Text('Sem pagamento — a licença é gratuita'),
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -293,6 +282,23 @@ class _AtivarInstalacaoScreenState
                 border: OutlineInputBorder(),
               ),
             ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _userIdCtrl,
+              decoration: const InputDecoration(
+                labelText: 'User ID do terminal (UUID, opcional)',
+                helperText: 'UUID do utilizador criado em Authentication → '
+                    'Users. Liga a licença ao POS (RLS). Vazio = licença órfã.',
+                helperMaxLines: 3,
+                border: OutlineInputBorder(),
+              ),
+              validator: (v) {
+                final t = v?.trim() ?? '';
+                if (t.isEmpty) return null; // opcional
+                if (!_uuidRegex.hasMatch(t)) return 'UUID inválido';
+                return null;
+              },
+            ),
             const SizedBox(height: 20),
             FilledButton.icon(
               onPressed: _aGravar ? null : _criar,
@@ -312,9 +318,9 @@ class _AtivarInstalacaoScreenState
             ),
             const SizedBox(height: 10),
             OutlinedButton.icon(
-              onPressed: _enviarInstrucoes,
+              onPressed: _enviarAcolhimento,
               icon: const Icon(Icons.email_outlined),
-              label: const Text('Enviar instruções de pagamento por email'),
+              label: const Text('Enviar email de acolhimento'),
             ),
           ],
         ),
