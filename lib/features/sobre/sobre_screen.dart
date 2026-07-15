@@ -16,6 +16,7 @@ import '../../core/widgets/widgets.dart';
 import '../../repositories/providers.dart';
 import '../../services/fcm_service.dart';
 import '../auth/login_screen.dart';
+import '../backup/backup_screen.dart';
 
 /// Ecrã Sobre/Sistema: identifica a app, o ambiente Supabase, o utilizador
 /// autenticado e a última actividade recebida. Inclui terminar sessão.
@@ -184,6 +185,22 @@ class _SobreScreenState extends ConsumerState<SobreScreen> {
                 ],
               ),
               const SizedBox(height: AppSpacing.xl),
+
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.download_outlined),
+                  label: const Text('Exportar dados'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.azul700,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const BackupScreen()),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
 
               SizedBox(
                 width: double.infinity,
