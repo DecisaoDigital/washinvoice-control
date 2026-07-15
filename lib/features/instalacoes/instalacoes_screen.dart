@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../core/app_colors.dart';
@@ -26,6 +27,25 @@ class _InstalacoesData {
   _InstalacoesData(this.licencas, this.pingPorMachine, this.ctx);
 }
 
+enum OrdenacaoInstalacoes { ultimoAcesso, nome, validade, localidade }
+
+extension OrdenacaoLabel on OrdenacaoInstalacoes {
+  String get label {
+    switch (this) {
+      case OrdenacaoInstalacoes.ultimoAcesso:
+        return 'Último acesso';
+      case OrdenacaoInstalacoes.nome:
+        return 'Nome do cliente';
+      case OrdenacaoInstalacoes.validade:
+        return 'Validade';
+      case OrdenacaoInstalacoes.localidade:
+        return 'Localidade';
+    }
+  }
+}
+
+const _kPrefOrdenacao = 'instalacoes_ordenacao';
+
 class InstalacoesScreen extends ConsumerStatefulWidget {
   const InstalacoesScreen({super.key});
 
@@ -42,11 +62,61 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
   String? _versao;
   String? _cidade;
   int? _semPingDias;
+  OrdenacaoInstalacoes _ordenacao = OrdenacaoInstalacoes.ultimoAcesso;
 
   @override
   void initState() {
     super.initState();
     _future = _carregar();
+    // Recupera a ordenação preferida (persistida entre sessões).
+    SharedPreferences.getInstance().then((prefs) {
+      final nome = prefs.getString(_kPrefOrdenacao);
+      if (nome == null || !mounted) return;
+      final match = OrdenacaoInstalacoes.values.where((e) => e.name == nome);
+      if (match.isNotEmpty) setState(() => _ordenacao = match.first);
+    });
+  }
+
+  void _mudarOrdenacao(OrdenacaoInstalacoes o) {
+    setState(() => _ordenacao = o);
+    SharedPreferences.getInstance()
+        .then((prefs) => prefs.setString(_kPrefOrdenacao, o.name));
+  }
+
+  List<Licenca> _ordenar(List<Licenca> lista, _InstalacoesData data) {
+    final l = [...lista];
+    switch (_ordenacao) {
+      case OrdenacaoInstalacoes.ultimoAcesso:
+        l.sort((a, b) {
+          final pa = data.pingPorMachine[a.machineId]?.criadoEm;
+          final pb = data.pingPorMachine[b.machineId]?.criadoEm;
+          if (pa == null && pb == null) return 0;
+          if (pa == null) return 1; // sem ping vai para o fim
+          if (pb == null) return -1;
+          return pb.compareTo(pa); // mais recente primeiro
+        });
+      case OrdenacaoInstalacoes.nome:
+        l.sort((a, b) => data.ctx
+            .nomeDe(machineId: a.machineId, nif: a.nif)
+            .toLowerCase()
+            .compareTo(data.ctx
+                .nomeDe(machineId: b.machineId, nif: b.nif)
+                .toLowerCase()));
+      case OrdenacaoInstalacoes.validade:
+        l.sort((a, b) => a.validade.compareTo(b.validade)); // fim mais próximo
+      case OrdenacaoInstalacoes.localidade:
+        String loc(Licenca x) {
+          final c = data.ctx.clienteDe(machineId: x.machineId, nif: x.nif);
+          if (c?.localidade != null && c!.localidade!.trim().isNotEmpty) {
+            return c.localidade!.trim().toLowerCase();
+          }
+          return Localidades.traduzir(data.pingPorMachine[x.machineId]?.cidade)
+              .toLowerCase();
+        }
+
+        l.sort((a, b) => loc(a).compareTo(loc(b)));
+    }
+    return l;
   }
 
   Future<_InstalacoesData> _carregar() async {
@@ -107,6 +177,19 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
         children: [
+          PopupMenuButton<OrdenacaoInstalacoes>(
+            onSelected: _mudarOrdenacao,
+            position: PopupMenuPosition.under,
+            itemBuilder: (_) => OrdenacaoInstalacoes.values
+                .map((o) => PopupMenuItem(value: o, child: Text(o.label)))
+                .toList(),
+            child: WiChipFiltro(
+              label: 'Ordenar: ${_ordenacao.label}',
+              activo: true,
+              comSeta: true,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
           WiChipFiltro(
             label: 'Activas',
             activo: _soActivas,
@@ -198,7 +281,7 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
                     .toSet()
                     .toList()
                   ..sort();
-                final licencas = _filtrar(data);
+                final licencas = _ordenar(_filtrar(data), data);
                 return Column(
                   children: [
                     _barraFiltros(versoes, cidades),
