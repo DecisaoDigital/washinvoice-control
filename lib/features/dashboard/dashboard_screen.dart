@@ -28,6 +28,7 @@ import '../../repositories/providers.dart';
 import '../ativacao/ativar_instalacao_screen.dart';
 import '../auth/login_screen.dart';
 import '../instalacoes/detalhe_cliente_screen.dart';
+import '../instalacoes/instalacoes_por_estado_screen.dart';
 import '../pedidos_ajuda/detalhe_pedido_ajuda_screen.dart';
 import '../pedidos_ajuda/pedidos_ajuda_screen.dart';
 import '../pesquisa/pesquisa_global_screen.dart';
@@ -198,6 +199,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         .then((_) => _recarregar());
   }
 
+  void _abrirPorEstado(FiltroKpi filtro) {
+    Navigator.of(context)
+        .push(MaterialPageRoute(
+          builder: (_) => InstalacoesPorEstadoScreen(filtro: filtro),
+        ))
+        .then((_) => _recarregar());
+  }
+
   void _abrirDetalhePedido(PedidoAjuda p) {
     Navigator.of(context)
         .push(MaterialPageRoute(
@@ -261,7 +270,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             child: ListView(
               padding: const EdgeInsets.all(AppSpacing.lg),
               children: [
-                _KpiRow(data: data),
+                _KpiRow(data: data, onAbrir: _abrirPorEstado),
                 const SizedBox(height: AppSpacing.lg),
 
                 if (data.novasInstalacoes.isNotEmpty) ...[
@@ -447,7 +456,8 @@ class _Wordmark extends StatelessWidget {
 
 class _KpiRow extends StatelessWidget {
   final _DashboardData data;
-  const _KpiRow({required this.data});
+  final void Function(FiltroKpi) onAbrir;
+  const _KpiRow({required this.data, required this.onAbrir});
 
   @override
   Widget build(BuildContext context) {
@@ -466,6 +476,7 @@ class _KpiRow extends StatelessWidget {
               valor: data.totalActivas,
               label: 'Activas',
               cor: AppColors.verde,
+              onTap: () => onAbrir(FiltroKpi.activas),
             ),
           ),
           const SizedBox(width: 6),
@@ -475,6 +486,7 @@ class _KpiRow extends StatelessWidget {
               valor: data.pedidosPendentes.length,
               label: 'Pendentes',
               cor: AppColors.roxo,
+              onTap: () => onAbrir(FiltroKpi.pendentes),
             ),
           ),
           const SizedBox(width: 6),
@@ -484,6 +496,7 @@ class _KpiRow extends StatelessWidget {
               valor: data.totalAExpirar,
               label: 'A expirar',
               cor: AppColors.laranja,
+              onTap: () => onAbrir(FiltroKpi.aExpirar),
             ),
           ),
           const SizedBox(width: 6),
@@ -493,6 +506,7 @@ class _KpiRow extends StatelessWidget {
               valor: data.totalExpiradas,
               label: 'Expiradas',
               cor: AppColors.vermelho,
+              onTap: () => onAbrir(FiltroKpi.expiradas),
             ),
           ),
         ],

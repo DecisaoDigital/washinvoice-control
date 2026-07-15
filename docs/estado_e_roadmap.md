@@ -82,6 +82,18 @@ Marca comercial: **WashInvoice**. "WashControl" é nome interno para diferenciar
 
 ## 6. O que foi entregue (por ronda)
 
+### Ronda 1.5.0 — KPIs navegáveis + acertos (branch `feature/1.5-kpi-navegavel`)
+
+1. **KPIs do Dashboard clicáveis** — tocar em Activas / Pendentes / A expirar /
+   Expiradas abre `InstalacoesPorEstadoScreen` com a lista dessas instalações
+   (ou dos pedidos de renovação pendentes). Cards navegam para o DetalheCliente.
+2. **Ordem dos KPIs**: Activas, Pendentes, A expirar, Expiradas (v1.4.4).
+3. **Identidade consistente do terminal** (v1.4.4): o mesmo terminal mostra a
+   mesma etiqueta em todo o lado ("Sem NIF ainda" via `nomeDe`, também no card
+   de Início de actividade).
+4. Testes: `kpi_navegacao_test`. **72 verdes**. Versão **1.5.0+19**.
+
+
 ### Ronda 1.4.3 — auditoria/segurança backend + melhorias Flutter (branch `feature/1.4.3-melhorias`)
 
 **Backend (aplicado em produção via MCP):**
