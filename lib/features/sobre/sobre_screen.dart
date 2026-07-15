@@ -4,10 +4,15 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
+import '../../core/acoes.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_radius.dart';
+import '../../core/app_spacing.dart';
+import '../../core/app_theme.dart';
 import '../../core/config.dart';
 import '../../core/erros.dart';
 import '../../core/supabase_config.dart';
+import '../../core/widgets/widgets.dart';
 import '../../repositories/providers.dart';
 import '../../services/fcm_service.dart';
 import '../auth/login_screen.dart';
@@ -38,7 +43,6 @@ class _SobreScreenState extends ConsumerState<SobreScreen> {
 
   Future<_SobreData> _carregar() async {
     final info = await PackageInfo.fromPlatform();
-    // Último ping é opcional/barato — se falhar, não estraga o ecrã.
     DateTime? ultimo;
     try {
       final ping = await ref.read(pingsRepoProvider).ultimoGlobal();
@@ -49,8 +53,6 @@ class _SobreScreenState extends ConsumerState<SobreScreen> {
     return _SobreData(info, ultimo);
   }
 
-  /// Prefixo do projeto Supabase, extraído do subdomínio da URL
-  /// (ex.: https://oefqbkhioncakojipqyx.supabase.co → oefqbkhioncakojipqyx).
   String get _prefixoProjeto {
     final host = Uri.parse(SupabaseConfig.url).host;
     return host.split('.').first;
@@ -84,57 +86,105 @@ class _SobreScreenState extends ConsumerState<SobreScreen> {
           }
           final data = snapshot.data!;
           final v = data.packageInfo;
+          final ano = DateTime.now().year;
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
-              _Seccao('Aplicação'),
-              _Card([
-                _Linha('Nome', v.appName),
-                _Linha('Versão', '${v.version} (build ${v.buildNumber})'),
-                _Linha('Pacote', v.packageName),
-              ]),
-              const SizedBox(height: 12),
-              _Seccao('Contactos'),
-              _Card([
-                _Linha('Nome', Config.nomeContacto),
-                _Linha('Email', Config.emailContacto),
-                _Linha('Telefone', Config.telefoneContacto),
-              ]),
-              const SizedBox(height: 12),
-              _Seccao('Supabase'),
-              _Card([
-                _Linha('Projeto', _prefixoProjeto),
-                _Linha('URL', SupabaseConfig.url, monospace: true),
-              ]),
-              const SizedBox(height: 12),
-              _Seccao('Sessão'),
-              _Card([
-                _Linha('Utilizador', email ?? '—'),
-                _Linha(
-                  'Último ping recebido',
-                  data.ultimoPing == null
-                      ? '—'
-                      : timeago.format(data.ultimoPing!, locale: 'pt'),
-                ),
-              ]),
-              const SizedBox(height: 12),
-              _Seccao('Notificações push'),
-              _Card([
-                _Linha(
-                  'Estado',
-                  FcmService.tokenRegistado != null
-                      ? 'Registado neste dispositivo'
-                      : 'Sem token — abre a app depois de login para registar',
-                ),
-                _Linha(
-                  'Token',
-                  FcmService.tokenRegistado == null
-                      ? '—'
-                      : '${FcmService.tokenRegistado!.substring(0, 12)}…',
-                  monospace: true,
-                ),
-              ]),
-              const SizedBox(height: 24),
+              const _BlocoIdentidade(),
+              const SizedBox(height: AppSpacing.xl),
+
+              _CardSeccao(
+                icone: Icons.info_outline,
+                titulo: 'Aplicação',
+                children: [
+                  WiLinhaKV(
+                      rotulo: 'Versão',
+                      valor: '${v.version} (build ${v.buildNumber})'),
+                  WiLinhaKV(rotulo: 'Pacote', valor: v.packageName, mono: true),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+
+              _CardSeccao(
+                icone: Icons.contact_page_outlined,
+                titulo: 'Contactos',
+                children: [
+                  const WiLinhaKV(rotulo: 'Nome', valor: Config.nomeContacto),
+                  _LinhaLink(
+                    rotulo: 'Email',
+                    valor: Config.emailContacto,
+                    onTap: () => Acoes.enviarEmail(Config.emailContacto),
+                  ),
+                  _LinhaLink(
+                    rotulo: 'Telefone',
+                    valor: Config.telefoneContacto,
+                    onTap: () => Acoes.ligarPara(Config.telefoneContacto),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+
+              _CardSeccao(
+                icone: Icons.storage,
+                titulo: 'Supabase',
+                children: [
+                  WiLinhaKV(rotulo: 'Projeto', valor: _prefixoProjeto, mono: true),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                    child: Row(
+                      children: [
+                        const SizedBox(
+                            width: 100,
+                            child: Text('Estado', style: AppText.label)),
+                        const Icon(Icons.check_circle,
+                            size: 16, color: AppColors.verde700),
+                        const SizedBox(width: 6),
+                        Text('Ligado',
+                            style: AppText.bodyStrong
+                                .copyWith(color: AppColors.verde900)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+
+              _CardSeccao(
+                icone: Icons.person_outline,
+                titulo: 'Sessão',
+                children: [
+                  WiLinhaKV(rotulo: 'Utilizador', valor: email ?? '—'),
+                  WiLinhaKV(
+                    rotulo: 'Último ping',
+                    valor: data.ultimoPing == null
+                        ? '—'
+                        : timeago.format(data.ultimoPing!, locale: 'pt'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+
+              _CardSeccao(
+                icone: Icons.notifications_none,
+                titulo: 'Notificações push',
+                children: [
+                  WiLinhaKV(
+                    rotulo: 'Estado',
+                    valor: FcmService.tokenRegistado != null
+                        ? 'Registado'
+                        : 'Sem token',
+                  ),
+                  WiLinhaKV(
+                    rotulo: 'Token',
+                    valor: FcmService.tokenRegistado == null
+                        ? '—'
+                        : '${FcmService.tokenRegistado!.substring(0, 12)}…',
+                    mono: true,
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xl),
+
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
@@ -147,6 +197,10 @@ class _SobreScreenState extends ConsumerState<SobreScreen> {
                   onPressed: _logout,
                 ),
               ),
+              const SizedBox(height: AppSpacing.lg),
+              Center(
+                child: Text('${Config.marca} · $ano', style: AppText.caption),
+              ),
             ],
           );
         },
@@ -155,72 +209,90 @@ class _SobreScreenState extends ConsumerState<SobreScreen> {
   }
 }
 
-class _Seccao extends StatelessWidget {
-  final String texto;
-  const _Seccao(this.texto);
+class _BlocoIdentidade extends StatelessWidget {
+  const _BlocoIdentidade();
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        texto,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-      ),
-    );
-  }
-}
-
-class _Card extends StatelessWidget {
-  final List<Widget> linhas;
-  const _Card(this.linhas);
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: linhas,
+    return Column(
+      children: [
+        Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: AppColors.azul500,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Icon(Icons.local_laundry_service,
+              color: Colors.white, size: 30),
         ),
-      ),
+        const SizedBox(height: AppSpacing.md),
+        const Text('WashInvoice Control',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 2),
+        Text('GESTOR DE LICENÇAS',
+            style: AppText.caption.copyWith(letterSpacing: 1)),
+      ],
     );
   }
 }
 
-class _Linha extends StatelessWidget {
-  final String rotulo;
-  final String valor;
-  final bool monospace;
-  const _Linha(this.rotulo, this.valor, {this.monospace = false});
+class _CardSeccao extends StatelessWidget {
+  final IconData icone;
+  final String titulo;
+  final List<Widget> children;
+  const _CardSeccao({
+    required this.icone,
+    required this.titulo,
+    required this.children,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
+    return WiCard(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              rotulo,
-              style: const TextStyle(color: AppColors.textSecondary),
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: Row(
+              children: [
+                Icon(icone, size: 18, color: AppColors.textSecondary),
+                const SizedBox(width: AppSpacing.sm),
+                Text(titulo, style: AppText.h2),
+              ],
             ),
           ),
-          Expanded(
-            child: monospace
-                ? SelectableText(
-                    valor,
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 12,
-                    ),
-                  )
-                : Text(valor, style: const TextStyle(fontWeight: FontWeight.w500)),
-          ),
+          ...children,
         ],
+      ),
+    );
+  }
+}
+
+class _LinhaLink extends StatelessWidget {
+  final String rotulo;
+  final String valor;
+  final VoidCallback onTap;
+  const _LinhaLink(
+      {required this.rotulo, required this.valor, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: AppRadius.smAll,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+        child: Row(
+          children: [
+            SizedBox(width: 100, child: Text(rotulo, style: AppText.label)),
+            Expanded(
+              child: Text(valor,
+                  style: AppText.bodyStrong.copyWith(color: AppColors.azul700)),
+            ),
+          ],
+        ),
       ),
     );
   }
