@@ -14,6 +14,7 @@ import '../../core/contexto_instalacoes.dart';
 import '../../core/dates.dart';
 import '../../core/erros.dart';
 import '../../core/exibicao.dart';
+import '../../core/localidades.dart';
 import '../../core/versoes.dart';
 import '../../core/widgets/widgets.dart';
 import '../../models/aceite_termo.dart';
@@ -482,7 +483,11 @@ class _CardUltimoAcesso extends StatelessWidget {
               ],
             ),
           ),
-          WiLinhaKV(rotulo: 'Sinal diz', valor: p.cidade ?? '—'),
+          WiLinhaKV(
+              rotulo: 'Sinal diz',
+              valor: Localidades.traduzir(p.cidade).isEmpty
+                  ? '—'
+                  : Localidades.traduzir(p.cidade)),
           WiLinhaKV(
               rotulo: 'Loja',
               valor: (data.cliente?.localidade != null &&
@@ -542,7 +547,9 @@ class _CardTermos extends StatelessWidget {
               valor: (cliente?.localidade != null &&
                       cliente!.localidade!.trim().isNotEmpty)
                   ? cliente!.localidade!.trim()
-                  : (a.cidade ?? '—'),
+                  : (Localidades.traduzir(a.cidade).isEmpty
+                      ? '—'
+                      : Localidades.traduzir(a.cidade)),
             ),
           ],
         ],
@@ -623,7 +630,9 @@ class _LinhaHistorico extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rotulo = localidade ?? ping.cidade ?? 'Localização desconhecida';
+    final cidade = Localidades.traduzir(ping.cidade);
+    final rotulo =
+        localidade ?? (cidade.isEmpty ? 'Localização desconhecida' : cidade);
     return Padding(
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.lg, vertical: AppSpacing.md),
@@ -684,7 +693,10 @@ class _ModalHistorico extends ConsumerWidget {
                                   : AppColors.textTertiary),
                           const SizedBox(width: AppSpacing.md),
                           Expanded(
-                            child: Text(p.cidade ?? 'Localização desconhecida',
+                            child: Text(
+                                Localidades.traduzir(p.cidade).isEmpty
+                                    ? 'Localização desconhecida'
+                                    : Localidades.traduzir(p.cidade),
                                 style: AppText.body),
                           ),
                           Text(Dates.dataHora(p.criadoEm), style: AppText.caption),

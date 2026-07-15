@@ -16,6 +16,7 @@ import '../../core/config.dart';
 import '../../core/contexto_instalacoes.dart';
 import '../../core/erros.dart';
 import '../../core/estado_ui.dart';
+import '../../core/localidades.dart';
 import '../../core/versoes.dart';
 import '../../core/widgets/widgets.dart';
 import '../../models/cliente.dart';
@@ -489,9 +490,8 @@ class _CardNovaInstalacao extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tempo = timeago.format(ping.criadoEm, locale: 'pt');
-    final localidade = (ping.cidade != null && ping.cidade!.trim().isNotEmpty)
-        ? ping.cidade!.trim()
-        : 'Localização desconhecida';
+    final cidade = Localidades.traduzir(ping.cidade);
+    final localidade = cidade.isEmpty ? 'Localização desconhecida' : cidade;
     return WiCardDestaque(
       cor: AppColors.azul500,
       child: Row(
@@ -737,10 +737,11 @@ class _LinhaActividade extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cliente = ctx.clienteDe(machineId: ping.machineId, nif: ping.nif);
+    final cidade = Localidades.traduzir(ping.cidade);
     final localidade =
         (cliente?.localidade != null && cliente!.localidade!.trim().isNotEmpty)
         ? cliente.localidade!.trim()
-        : (ping.cidade ?? '—');
+        : (cidade.isEmpty ? '—' : cidade);
     return InkWell(
       onTap: onTap,
       child: Padding(

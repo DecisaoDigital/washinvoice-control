@@ -4,6 +4,7 @@ import '../models/cliente.dart';
 import '../models/licenca.dart';
 import '../models/ping.dart';
 import 'app_colors.dart';
+import 'localidades.dart';
 
 /// Regras de exibição partilhadas entre ecrãs (redesign v1.4, Fase 5).
 ///
@@ -36,9 +37,8 @@ class Exibicao {
   /// Linha "Sinal − Localidade": cidade automática do ping (o que o sinal diz)
   /// à esquerda, localidade humana da loja à direita.
   static String sinalLocalidade(Ping? p, Cliente? c) {
-    final sinal = (p?.cidade != null && p!.cidade!.trim().isNotEmpty)
-        ? p.cidade!.trim()
-        : '?';
+    final cidade = Localidades.traduzir(p?.cidade);
+    final sinal = cidade.isEmpty ? '?' : cidade;
     final loja = (c?.localidade != null && c!.localidade!.trim().isNotEmpty)
         ? c.localidade!.trim()
         : '-';

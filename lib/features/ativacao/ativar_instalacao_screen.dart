@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/app_colors.dart';
 import '../../core/dates.dart';
 import '../../core/erros.dart';
+import '../../core/localidades.dart';
 import '../../models/ping.dart';
 import '../../repositories/providers.dart';
 import 'email_acolhimento.dart';
@@ -168,7 +169,11 @@ class _AtivarInstalacaoScreenState
                     const SizedBox(height: 8),
                     _linha('NIF', ping.nif ?? '—'),
                     _linha('Machine ID', ping.machineId),
-                    _linha('Cidade', ping.cidade ?? '—'),
+                    _linha(
+                        'Cidade',
+                        Localidades.traduzir(ping.cidade).isEmpty
+                            ? '—'
+                            : Localidades.traduzir(ping.cidade)),
                     _linha('Versão', 'v${ping.versao ?? '?'}'),
                   ],
                 ),

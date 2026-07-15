@@ -11,6 +11,7 @@ import '../../core/dates.dart';
 import '../../core/erros.dart';
 import '../../core/estado_ui.dart';
 import '../../core/exibicao.dart';
+import '../../core/localidades.dart';
 import '../../core/versoes.dart';
 import '../../core/widgets/widgets.dart';
 import '../../models/licenca.dart';
@@ -124,7 +125,8 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
             labelBase: 'Todas localidades',
             valor: _cidade,
             opcoes: cidades,
-            labelOpcao: (v) => v,
+            // Valor filtra pelo cidade cru da base; a etiqueta mostra-se em PT.
+            labelOpcao: (v) => Localidades.traduzir(v),
             onChanged: (v) => setState(() => _cidade = v),
           ),
           const SizedBox(width: AppSpacing.sm),
