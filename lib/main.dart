@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:timeago/timeago.dart' as timeago;
@@ -33,30 +34,35 @@ final sessaoProvider = StreamProvider<Session?>((ref) async* {
   }
 });
 
+/// Sinal para o Dashboard recarregar quando chega um push relevante (novo
+/// pedido de ajuda, nova instalação). O [_FcmForegroundListener] emite; o
+/// [DashboardScreen] escuta em `initState` e chama `_recarregar()`.
+final _dashboardRefreshCtrl = StreamController<void>.broadcast();
+final dashboardRefreshProvider = Provider<Stream<void>>(
+  (ref) => _dashboardRefreshCtrl.stream,
+);
+
 Future<void> main() async {
   // Toda a app corre dentro de uma zona protegida: qualquer erro assíncrono
   // não capturado é encaminhado para o tratamento central de erros.
-  runZonedGuarded(
-    () async {
-      WidgetsFlutterBinding.ensureInitialized();
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
 
-      instalarHandlersDeErro();
+    instalarHandlersDeErro();
 
-      timeago.setLocaleMessages('pt', timeago.PtBrMessages());
+    timeago.setLocaleMessages('pt', timeago.PtBrMessages());
 
-      await Supabase.initialize(
-        url: SupabaseConfig.url,
-        anonKey: SupabaseConfig.anonKey,
-      );
+    await Supabase.initialize(
+      url: SupabaseConfig.url,
+      anonKey: SupabaseConfig.anonKey,
+    );
 
-      // Firebase + FCM. Não bloqueia — em falha (ex: google-services.json em
-      // falta ou inválido) a app continua a funcionar sem push.
-      await FcmService.inicializar(backgroundHandler: fcmBackgroundHandler);
+    // Firebase + FCM. Não bloqueia — em falha (ex: google-services.json em
+    // falta ou inválido) a app continua a funcionar sem push.
+    await FcmService.inicializar(backgroundHandler: fcmBackgroundHandler);
 
-      runApp(const ProviderScope(child: WashInvoiceControlApp()));
-    },
-    (erro, stack) => mostrarErro(erro, stack: stack),
-  );
+    runApp(const ProviderScope(child: WashInvoiceControlApp()));
+  }, (erro, stack) => mostrarErro(erro, stack: stack));
 }
 
 /// Sincroniza o registo do token FCM com a sessão actual: regista quando entra
@@ -97,8 +103,9 @@ class WashInvoiceControlApp extends ConsumerWidget {
         // Falha a ler o estado de autenticação: cai no Login por segurança.
         error: (_, __) => const LoginScreen(),
         // Sessão presente → HomeShell. Ausente (confirmado) → LoginScreen.
-        data: (session) =>
-            session != null ? const _FcmForegroundListener(child: HomeShell()) : const LoginScreen(),
+        data: (session) => session != null
+            ? const _FcmForegroundListener(child: HomeShell())
+            : const LoginScreen(),
       ),
     );
   }
@@ -123,6 +130,15 @@ class _FcmForegroundListenerState extends State<_FcmForegroundListener> {
     _sub = FirebaseMessaging.onMessage.listen((mensagem) {
       final titulo = mensagem.notification?.title ?? 'Notificação';
       final corpo = mensagem.notification?.body ?? '';
+
+      // O SnackBar em foreground é silencioso (ao contrário da notificação
+      // nativa em background). Vibrar dá o mesmo aviso físico.
+      HapticFeedback.mediumImpact();
+
+      // Recarrega o Dashboard. Single-admin: qualquer push que chega é
+      // relevante (novo terminal / pedido de ajuda), por isso recarrega sempre.
+      _dashboardRefreshCtrl.add(null);
+
       final ctx = messengerKey.currentContext;
       if (ctx == null) return;
       messengerKey.currentState?.showSnackBar(
@@ -152,9 +168,7 @@ class _SplashScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Scaffold(
       backgroundColor: AppColors.azul,
-      body: Center(
-        child: CircularProgressIndicator(color: Colors.white),
-      ),
+      body: Center(child: CircularProgressIndicator(color: Colors.white)),
     );
   }
 }

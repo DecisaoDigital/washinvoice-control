@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
@@ -29,6 +30,7 @@ import '../instalacoes/detalhe_cliente_screen.dart';
 import '../pedidos_ajuda/pedidos_ajuda_screen.dart';
 import '../sobre/sobre_screen.dart';
 import '../sugestoes/sugestoes_screen.dart';
+import '../../main.dart' show dashboardRefreshProvider;
 
 class _DashboardData {
   final List<Licenca> licencas;
@@ -72,11 +74,23 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   late Future<_DashboardData> _future;
+  StreamSubscription<void>? _refreshSub;
 
   @override
   void initState() {
     super.initState();
     _future = _carregar();
+    // Recarrega quando chega um push relevante (o Dashboard fica montado no
+    // IndexedStack mesmo noutra tab, por isso actualiza em segundo plano).
+    _refreshSub = ref.read(dashboardRefreshProvider).listen((_) {
+      if (mounted) _recarregar();
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshSub?.cancel();
+    super.dispose();
   }
 
   Future<_DashboardData> _carregar() async {
