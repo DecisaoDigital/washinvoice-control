@@ -30,7 +30,13 @@ fundos pálidos, bordas, texto sobre cor, e estados pressed/hover.
 | 200 (borda activa) | `#BFDFF4` | `#CEE7C3` | `#CBC9E9` | `#FDD5B9` | `#F4BEBE` |
 | 500 (base) | `#2B95D9` | `#5CB036` | `#534AB7` | `#F97316` | `#DC2626` |
 | 700 (superfície dominante) | `#2277AE` | `#4A8D2B` | `#423B92` | `#C75C12` | `#B01E1E` |
-| 900 (texto sobre 50/100) | `#185277` | `#33611E` | `#2E2965` | `#893F0C` | `#791515` |
+| 900 (texto sobre 50/100 / AppBar) | `#1F5F87` | `#33611E` | `#2E2965` | `#893F0C` | `#791515` |
+
+> **Reconciliação v1.4:** `azul-900` passou de `#185277` (proposto) para **`#1F5F87`**,
+> o tom adoptado como superfície da AppBar em todos os ecrãs do redesign. Texto
+> branco sobre `#1F5F87` dá ~6:1 (passa WCAG AA em qualquer tamanho) e serve
+> também como texto escuro sobre `azul-50/100` (ex.: chip de filtro activo).
+> O código (`AppColors.azul900`) é a implementação desta linha.
 
 ### 1.3 Regra de contraste (verificada, não assumida)
 
