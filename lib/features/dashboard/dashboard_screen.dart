@@ -30,6 +30,7 @@ import '../auth/login_screen.dart';
 import '../instalacoes/detalhe_cliente_screen.dart';
 import '../pedidos_ajuda/detalhe_pedido_ajuda_screen.dart';
 import '../pedidos_ajuda/pedidos_ajuda_screen.dart';
+import '../pesquisa/pesquisa_global_screen.dart';
 import '../sobre/sobre_screen.dart';
 import '../sugestoes/sugestoes_screen.dart';
 import '../../main.dart' show dashboardRefreshProvider;
@@ -213,6 +214,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         titleSpacing: AppSpacing.lg,
         title: const _Wordmark(),
         actions: [
+          IconButton(
+            iconSize: 20,
+            icon: const Icon(Icons.search),
+            tooltip: 'Pesquisa global',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PesquisaGlobalScreen()),
+            ),
+          ),
           IconButton(
             iconSize: 20,
             icon: const Icon(Icons.refresh),
