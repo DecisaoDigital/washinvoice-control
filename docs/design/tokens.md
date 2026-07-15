@@ -220,3 +220,21 @@ O código define o card de nova instalação com `AppColors.azul.withValues(alph
 2. Existe outro `Container`/`Card` a sobrepor-se com cor diferente que não vi no ficheiro.
 
 Os tokens desta secção resolvem o problema de qualquer forma (fundo `azul-50` explícito + borda de acento), por isso não bloqueia — mas fica registada para não assumir que o código actual está a produzir o visual que vês.
+
+---
+
+## 11. Regras de layout (armadilhas) — v1.4.1
+
+Aprendidas com o bug crítico do Dashboard 1.4.0 (KPIs seguidos de ~28 páginas de
+espaço morto em release):
+
+- **Nunca usar `CrossAxisAlignment.stretch` num `Row`/`Column` cujo eixo cruzado
+  é ilimitado.** Dentro de um `ListView`/`Column` scrollável, o filho recebe
+  altura máxima **infinita**. Um `Row` com `stretch` tenta esticar os filhos até
+  essa altura → altura infinita. Em debug dá assertion; em **release** as
+  assertions são removidas e renderiza espaço morto gigante que empurra tudo
+  para fora do ecrã. Se precisas de filhos com igual altura, envolve o `Row` em
+  **`IntrinsicHeight`** (limita o eixo cruzado à altura do filho mais alto).
+- **Um bug só de release exige verificação em release.** `flutter analyze`/`test`
+  em debug apanham a assertion (bom para regressão), mas o sintoma real
+  (espaço morto) só se vê no APK. Confirmar sempre no telemóvel.

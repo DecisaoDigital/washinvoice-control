@@ -1,7 +1,7 @@
 # WashInvoice Control — Estado e Roadmap
 
 > Documento vivo. Actualizar sempre que uma ronda fechar ou uma decisão de arquitectura mudar.
-> Última actualização: 2026-07-15.
+> Última actualização: 2026-07-15 (tarde — trigger DB automático fechado).
 
 ---
 
@@ -77,6 +77,26 @@ Marca comercial: **WashInvoice**. "WashControl" é nome interno para diferenciar
 
 ## 6. O que foi entregue (por ronda)
 
+### Ronda 1.4.1 — fixes pós-instalação (branch `feature/1.4.1-fixes`)
+
+1. **BUG CRÍTICO do Dashboard resolvido.** Raiz: `_KpiRow` usava
+   `Row(crossAxisAlignment: stretch)` dentro do `ListView` (altura máxima
+   infinita) → a Row ficava com altura infinita; em release renderizava os KPIs
+   seguidos de espaço morto enorme (~28 páginas), empurrando todas as secções
+   para fora do ecrã. Fix: envolver a Row em `IntrinsicHeight`. Regra genérica
+   documentada no `tokens.md`.
+2. **Autofill no Login (Task 29)** — `AutofillGroup` + `autofillHints` nos dois
+   campos + `TextInput.finishAutofillContext()` no sucesso (dispara o guardar do
+   Google Password Manager).
+3. **Auto-refresh do Dashboard (Task 30)** — `dashboardRefreshProvider`
+   (StreamController); o listener de foreground emite a cada push e o Dashboard
+   recarrega (fica montado no IndexedStack → actualiza mesmo noutra tab).
+4. **Vibração no aviso em foreground** — `HapticFeedback.mediumImpact()` (o
+   SnackBar é silencioso); permissão `VIBRATE` no manifest.
+5. **Testes**: 47 verdes (+ `dashboard_test` com red-green verificado do bug do
+   scroll infinito, + `login_autofill_test`). Versão **1.4.1+15**.
+6. **Por fechar**: verificação UI real (`docs/verificacao_apk_r1_4_1.md`).
+
 ### Ronda 1.4.0 — redesign visual + Pedidos de Ajuda + Sugestões (branch `feature/redesign-visual`)
 
 1. **Design tokens em código**: paleta completa (escalas 50/100/200/500/700/900),
@@ -108,6 +128,15 @@ Marca comercial: **WashInvoice**. "WashControl" é nome interno para diferenciar
 6. Filtros no ecrã **Instalações** (estado, versão, cidade, "sem ping há N dias") ao lado da pesquisa existente.
 7. Testes: 23/23 verdes (`dates_test.dart`, `models_json_test.dart`, `detalhe_navegacao_test.dart`, + os 10 pré-existentes).
 8. Email de acolhimento reescrito, sem IBAN, valoriza produto, contactos na assinatura. Botão: "Enviar email de acolhimento".
+
+### Ronda `trigger_push_backend` — pipeline FCM auto-servido
+
+1. Secret `edge_invoke_secret` guardado no `supabase_vault` (para o Postgres aceder ao mesmo valor que a Edge Function usa).
+2. Função `notificar_inicio_actividade()` + trigger `trg_notificar_inicio` em `pings` — dispara push só no PRIMEIRO ping de máquina sem licença (deduplicação embutida). Título "Novo terminal a comunicar" + corpo com NIF/machine_id + cidade.
+3. Função `notificar_pedido_ajuda()` + trigger `trg_notificar_pedido_ajuda` em `pedidos_ajuda` — dispara push com nome humano do cliente + localidade + preview das notas.
+4. `pg_net.http_post` com header `apikey` (anon key, público) para passar o gateway Cloudflare, e `Authorization: Bearer <edge_invoke_secret>` para a Edge Function validar.
+5. Falha silenciosa (`exception when others then return new`) — o INSERT nunca é bloqueado por falha no push.
+6. **Testado em produção**: ping novo → HTTP 200, `enviados: 1`, push chegou ao telemóvel do Cesar. Ping repetido → sem invocação (deduplicação OK). Pedido de ajuda → HTTP 200, push com título "Pedido de ajuda" chegou.
 
 ### Ronda `push_00_firebase` + `push_01_supabase` + `push_02_control`
 
@@ -144,10 +173,7 @@ Marca comercial: **WashInvoice**. "WashControl" é nome interno para diferenciar
   no telemóvel (APK release da `feature/redesign-visual`). Sem isto o merge fica suspenso.
 - **Fechar a Fase 4 de verificação UI do R1** — Cesar corre `docs/verificacao_apk_r1.md` no telemóvel. Sem isto o merge de `feature/melhorias-r1-r2` para `master` fica em suspenso.
 - **Merge de `feature/melhorias-r1-r2` para `master`** — depois da Fase 4 fechar.
-- **Trigger DB automático** — hoje o push é disparado por curl manual. Falta:
-  - Guardar `service_role_key` do Supabase no `vault` (`vault.create_secret`).
-  - Trigger em `pings` que chama `enviar-push` quando aparece machine_id novo (sem licença) via `net.http_post`.
-  - Sem isto o pipeline FCM não é auto-servido.
+- ✅ **Trigger DB automático** — entregue e testado em produção (ver ronda `trigger_push_backend` acima).
 - **Refinar tap na notificação** — hoje ao carregar numa notificação abre a app em qualquer ecrã; devia abrir directamente na secção "Início de actividade" do Dashboard. Requer `onMessageOpenedApp` handler no `main.dart`.
 
 ### Médio prazo (depois do curto, antes da AT)
@@ -199,6 +225,14 @@ Registo dos "porquês" que não devem ser esquecidos:
   É destrutivo (DELETE a cada insert); aplicado em produção com autorização.
 - **Features novas como secções do Dashboard, não abas.** Pedidos de Ajuda e
   Sugestões abrem por `MaterialPageRoute`; o bottom nav mantém-se em 3 tabs.
+- **Aviso físico em foreground (v1.4.1).** O SnackBar em foreground é silencioso
+  (só a notificação nativa em background tem som). Optou-se por `HapticFeedback`
+  (vibração) em vez de adicionar `flutter_local_notifications` — mais simples,
+  sem package novo. Se um dia se quiser notificação nativa também em foreground,
+  passa a `flutter_local_notifications` (fica para 1.4.2 se o Cesar pedir).
+- **Auto-refresh por stream, não polling (v1.4.1).** O Dashboard recarrega por um
+  `StreamController` broadcast que o listener de push alimenta. Escolhido em vez
+  de polling periódico (gastava rede/bateria) ou de reconstruir o ecrã inteiro.
 
 ---
 
