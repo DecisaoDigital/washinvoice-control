@@ -26,12 +26,14 @@ import '../auth/login_screen.dart';
 import '../instalacoes/detalhe_cliente_screen.dart';
 import '../pedidos_ajuda/pedidos_ajuda_screen.dart';
 import '../sobre/sobre_screen.dart';
+import '../sugestoes/sugestoes_screen.dart';
 
 class _DashboardData {
   final List<Licenca> licencas;
   final List<Licenca> aExpirar;
   final List<PedidoRenovacao> pedidosPendentes;
   final List<PedidoAjuda> pedidosAjuda;
+  final int sugestoesPorLer;
   final List<Ping> actividade;
   final List<Ping> novasInstalacoes;
   final List<Cliente> clientes;
@@ -43,6 +45,7 @@ class _DashboardData {
     required this.aExpirar,
     required this.pedidosPendentes,
     required this.pedidosAjuda,
+    required this.sugestoesPorLer,
     required this.actividade,
     required this.novasInstalacoes,
     required this.clientes,
@@ -85,12 +88,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final aExpirar = licencasRepo.aExpirar();
     final pendentes = pedidosRepo.pendentes();
     final ajuda = ajudaRepo.listarAbertos();
+    final sugestoes = ref.read(sugestoesRepoProvider).listarPorLer();
     final actividade = pingsRepo.ultimosPorInstalacao();
     final comLicenca = licencasRepo.machineIdsComLicenca();
     final clientes = clientesRepo.listar();
     final info = PackageInfo.fromPlatform();
     await Future.wait([
-      licencas, aExpirar, pendentes, ajuda, actividade, comLicenca, clientes, info,
+      licencas, aExpirar, pendentes, ajuda, sugestoes, actividade, comLicenca,
+      clientes, info,
     ]);
 
     final acts = await actividade;
@@ -103,6 +108,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       aExpirar: await aExpirar,
       pedidosPendentes: await pendentes,
       pedidosAjuda: await ajuda,
+      sugestoesPorLer: (await sugestoes).length,
       actividade: acts,
       novasInstalacoes: novas,
       clientes: await clientes,
@@ -146,6 +152,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   void _abrirPedidosAjuda() {
     Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => const PedidosAjudaScreen()))
+        .then((_) => _recarregar());
+  }
+
+  void _abrirSugestoes() {
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const SugestoesScreen()))
         .then((_) => _recarregar());
   }
 
@@ -240,6 +252,36 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             'Ver todos (${data.pedidosAjuda.length})'),
                       ),
                     ),
+                  const SizedBox(height: AppSpacing.lg),
+                ],
+
+                if (data.sugestoesPorLer > 0) ...[
+                  WiSeccaoTitulo(
+                    titulo: 'Sugestões (${data.sugestoesPorLer})',
+                    icone: Icons.lightbulb_outline,
+                    comChevron: true,
+                    onTap: _abrirSugestoes,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  WiCardDestaque(
+                    cor: AppColors.roxo500,
+                    onTap: _abrirSugestoes,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.lightbulb,
+                            color: AppColors.roxo700, size: 22),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            '${data.sugestoesPorLer} sugestão(ões) por ler',
+                            style: AppText.bodyStrong,
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right,
+                            size: 20, color: AppColors.textTertiary),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: AppSpacing.lg),
                 ],
 
