@@ -68,4 +68,10 @@ insert into aceites_termos (machine_id, nif, versao_termos, data_aceite, cidade,
   ('demo-002', '500000002', '2024-01', now() - interval '90 days',  'Porto',  '188.37.45.200', now() - interval '90 days'),
   ('demo-007', '500000007', '2024-01', now() - interval '30 days',  'Setúbal','94.62.18.30',   now() - interval '30 days');
 
+-- ---------- SUGESTÕES (para testar ecrã de sugestões + backup + pesquisa) ----------
+insert into sugestoes (machine_id, nif, cliente_id, texto, criado_em, lida, marcada, arquivada) values
+  ('demo-001','500000001','11111111-1111-4111-8111-111111111111','Seria útil poder reimprimir o último talão sem ter de repetir a venda.', now() - interval '2 hours', false, false, false),
+  ('demo-003','500000003','33333333-3333-4333-8333-333333333333','Gostava de um relatório mensal automático por email com o total faturado.', now() - interval '1 day', false, true, false),
+  ('demo-006','500000006','66666666-6666-4666-8666-666666666666','No ecrã de pagamento, um botão de "valor exacto" ajudava muito.', now() - interval '6 days', true, false, true);
+
 commit;
