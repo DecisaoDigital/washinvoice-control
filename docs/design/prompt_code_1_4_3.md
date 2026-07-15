@@ -175,3 +175,48 @@ No fim:
 8. `docs: reconciliação + verificacao`
 
 Não faças merge para `master` sem OK do Cesar.
+
+---
+
+## Reconciliação — o que ficou vs planeado (após implementação)
+
+> Auditoria honesta (Fase 5). Branch: `feature/1.4.3-melhorias` (a partir de
+> `feature/1.4.2-conteudo`, já que 1.4.1/1.4.2 não estão merged).
+
+### Contexto de arranque
+- A **1.4.2 não existia no repo** quando este prompt chegou (o Cesar mandou "faz
+  esta [1.4.2] e depois a seguinte [1.4.3]"). A 1.4.2 foi implementada primeiro;
+  por isso `DetalhePedidoAjudaScreen`, `Localidades` e `nomeDe` sem hash já
+  existiam ao arrancar a 1.4.3.
+- Backend confirmado por inventário (MCP): `licencas_audit` (3 linhas de teste),
+  índice `licencas_serie_activa_unique`, RLS ligado nas duas tabelas de assinatura.
+
+### Implementado como descrito → OK
+- 2.1 `DetalheSugestaoScreen` (chips, texto integral, cliente/terminal, marcar/
+  arquivar, ver ficha) + navegação da lista.
+- 2.2 Ordenação nas Instalações + persistência (SharedPreferences).
+- 2.3 Pesquisa global (5 fontes, agrupada, debounce).
+- 2.4 Backup CSV + ZIP.
+- 2.5 Mensagem clara na série duplicada.
+- Fase 3 testes (71 verdes), Fase 4 checklist.
+
+### Adaptações (e porquê)
+- **`WiCardTitulo`** criado (ícone + título h2) para os cabeçalhos de card dos
+  ecrãs de detalhe, em vez de repetir o `_Header` privado. Usado no
+  DetalheSugestao (os outros ficam para unificar quando se tocar neles).
+- **Backup partilha ficheiro temporário** (`getTemporaryDirectory` + `XFile(path)`)
+  em vez de `XFile.fromData` — mais fiável no Android para preservar o nome do
+  ficheiro (mesmo padrão da geração do `licenca.json`).
+- **`Localidades.traduzir` no CSV**: nenhum dos 4 CSV carrega a `pings.cidade`
+  crua (o CSV de clientes usa `clientes.localidade`, que já é PT humano). Por isso
+  a tradução não foi necessária nas exportações; continua aplicada onde a cidade
+  do ping aparece (pesquisa, cards). Sem tradução redundante.
+- **Série duplicada tratada centralmente** em `descreverErro` (case 23505), não
+  num try/catch por ecrã — cobre qualquer caminho de emissão. A mensagem é clara
+  mas **não inclui o valor «X» da série** (extraí-lo do erro Postgres é frágil).
+- **`ordenarInstalacoes`** extraída para função pura (top-level) para ser testável
+  sem widget.
+
+### Não tocado ("NÃO TOCAR EM")
+Backend Supabase, Edge Functions, POS, `licenca_assinatura`, FCM, e o
+`IntrinsicHeight` do `_KpiRow` (fix da 1.4.1) — sem regressões.

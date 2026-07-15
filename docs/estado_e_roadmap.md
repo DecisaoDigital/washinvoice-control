@@ -42,12 +42,13 @@ Marca comercial: **WashInvoice**. "WashControl" é nome interno para diferenciar
 | `aceites_termos` | Aceites RGPD (uma linha por instalação) | INSERT anon aberto |
 | `pedidos_renovacao` | Pedidos de renovação criados pelo POS | INSERT anon aberto |
 | `assinaturas_log` | Log da Edge Function `assinar-documento` | Só SELECT authenticated |
-| `company_signature_settings` | Config QES por empresa | **RLS desligado — exposto a anon** (pendente) |
-| `invoice_signature_logs` | Log de assinaturas QES por factura | **RLS desligado — exposto a anon** (pendente) |
+| `company_signature_settings` | Config QES por empresa | RLS ligado (v1.4.3): SELECT authenticated; escrita só service_role |
+| `invoice_signature_logs` | Log de assinaturas QES por factura | RLS ligado (v1.4.3): SELECT authenticated; escrita só service_role |
 | `admins` | Lista de user_ids com privilégios admin | **Não existe hoje.** Ficará quando aplicarmos RLS Opção A/D pós-AT. |
 | `admin_dispositivos` | Tokens FCM dos dispositivos do admin (Cesar) | `authenticated`, cada user só toca no seu token |
 | `pedidos_ajuda` | Pedidos de ajuda do cliente (POS insere; Control resolve) | INSERT anon aberto; SELECT/UPDATE authenticated (v1.4) |
 | `sugestoes` | Sugestões do cliente (POS insere; Control lê/marca/arquiva) | INSERT anon aberto; SELECT/UPDATE authenticated (v1.4) |
+| `licencas_audit` | Auditoria de `licencas` (INSERT/UPDATE/DELETE com actor, campos alterados, antes/depois JSONB) via trigger `trg_audit_licencas` (v1.4.3) | RLS: SELECT authenticated |
 
 ---
 
@@ -57,6 +58,10 @@ Marca comercial: **WashInvoice**. "WashControl" é nome interno para diferenciar
 |---|---|---|---|
 | `assinar-documento` | Assina texto fiscal (Portaria 363/2010) com RSA. Chave privada em secret. Valida licença por `machine_id` via service_role. | Anon key (JWT auto) do POS | Deployed, verify_jwt=true |
 | `enviar-push` | Recebe `{title, body, data?}`, gera JWT OAuth2 do Google, chama FCM v1, envia para o admin registado | Autenticação custom via `EDGE_INVOKE_SECRET` | Deployed, verify_jwt=false, **testada e funcional** |
+
+> **v1.4.3:** as Edge Functions passam a estar **versionadas no repo** em
+> `supabase/functions/` (`enviar-push/`, `assinar-documento/` com `assinatura.ts`,
+> + `README.md`) — fonte de verdade. Não redeployar via CLI sem necessidade.
 
 ---
 
@@ -77,22 +82,24 @@ Marca comercial: **WashInvoice**. "WashControl" é nome interno para diferenciar
 
 ## 6. O que foi entregue (por ronda)
 
-### Ronda 1.4.3 — backend (aplicado via MCP) + prompt Flutter pendente
+### Ronda 1.4.3 — auditoria/segurança backend + melhorias Flutter (branch `feature/1.4.3-melhorias`)
 
-**Backend (aplicado em produção):**
+**Backend (aplicado em produção via MCP):**
 
 1. **Edge Functions versionadas no repo** — `supabase/functions/enviar-push/`, `supabase/functions/assinar-documento/` (com `assinatura.ts`), + `README.md`. Passa a ser fonte de verdade.
 2. **Índice único parcial `licencas_serie_activa_unique`** — impede duas licenças activas com a mesma série (case/whitespace insensitive).
 3. **Tabela `licencas_audit`** + função + trigger `trg_audit_licencas` — regista INSERT/UPDATE/DELETE com actor, campos alterados, antes/depois em JSONB. RLS: SELECT authenticated. Testado com 3 operações (INSERT+UPDATE+DELETE) — as 3 aparecem em audit.
 4. **RLS ligado em `company_signature_settings` e `invoice_signature_logs`** — antes expostas a anon. Agora SELECT authenticated, sem INSERT/UPDATE/DELETE público (só service_role da futura Edge `assinar-pdf` passa).
 
-**Flutter (por fazer — `docs/design/prompt_code_1_4_3.md`):**
+**Flutter (feito):**
 
-5. `DetalheSugestaoScreen` — par do `DetalhePedidoAjudaScreen`.
-6. Dropdown de ordenação nas Instalações (último acesso, nome, validade, localidade) com persistência em SharedPreferences.
-7. Ecrã de pesquisa global (clientes, licenças, pings, pedidos, sugestões).
-8. Ecrã de exportação CSV (backup) com `share_plus`.
-9. Mensagem clara em vez de excepção crua quando a série activa é duplicada (novo índice único).
+5. `DetalheSugestaoScreen` — par do `DetalhePedidoAjudaScreen`; navegação a partir da lista de sugestões. `WiCardTitulo` reutilizável.
+6. Dropdown de ordenação nas Instalações (último acesso, nome, validade, localidade) com persistência em SharedPreferences (`instalacoes_ordenacao`). Lógica extraída para `ordenarInstalacoes` (pura, testada).
+7. Ecrã de pesquisa global (clientes, licenças, pings, pedidos, sugestões) via ícone de lupa no Dashboard; dados carregados uma vez, filtragem em memória, debounce 250ms.
+8. Ecrã de exportação CSV/ZIP (backup) em Sobre/Sistema → "Exportar dados" (`core/csv.dart` UTF-8+BOM; `archive` para o ZIP; partilha via `share_plus`).
+9. `descreverErro` trata a `unique_violation` (23505) do índice `licencas_serie_activa_unique` com mensagem legível.
+10. Testes: `localidades`/`backup`/`instalacoes_ordenacao`/`detalhe_sugestao`/`pesquisa_global`. **71 verdes**. Versão **1.4.3+17**.
+11. **Por fechar**: verificação UI real (`docs/verificacao_apk_r1_4_3.md`).
 
 ### Ronda POS 1.6.6 — coordenação com Control (repo POS)
 
@@ -235,6 +242,13 @@ Problemas de dados mal tratados (não de render):
   - `company_signature_settings` e `invoice_signature_logs` com RLS desligado — ligar RLS sem policies anon (só service_role via Edge Function pode escrever).
   - Índice único parcial na série activa: `create unique index licencas_serie_activa_unique on licencas (lower(trim(serie))) where activa=true and serie is not null`.
   - Auditoria mínima de `licencas` (tabela `licencas_audit` + trigger).
+
+### Em paralelo à submissão AT (branch dedicada, submissão em adenda)
+
+- **POS 2.0 — Guias de Transporte** (`feature/guias-transporte-*` no repo POS): documentos GT/GR/DT com hash chaining, ATCUD, PDF/A, SAF-T MovementOfGoods, comunicação prévia AT via webservice SOAP. Estimativa 8-11 semanas.
+  - **Fase 0 (Investigação)**: `docs/design/prompt_pos_2_0_guias_fase0.md` pronto para arrancar. Não escreve código; produz `docs/guias_transporte_plano.md` no repo POS com plano de sprints.
+  - Justificação: 50% do mercado alvo (lavandarias/engomadorias) faz entregas ao domicílio; Guias são feature de arranque para esses.
+  - **Não atrasa** submissão AT actual — submeter v1.6.x com Facturação no dia 20; adenda com Guias depois.
 
 ### Depois da aprovação AT do POS
 
