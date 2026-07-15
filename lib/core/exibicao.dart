@@ -54,7 +54,8 @@ class Exibicao {
         return Icons.wifi;
       case 'nenhum':
       default:
-        return Icons.signal_wifi_off;
+        // null (pings antigos sem metodo_geo) trata-se como "nenhum".
+        return Icons.signal_wifi_off_outlined;
     }
   }
 
@@ -83,9 +84,9 @@ class Exibicao {
       case 'ip':
         return 'Fornecedor de internet';
       case 'nenhum':
-        return 'Sem sinal';
       default:
-        return '—';
+        // null trata-se como "nenhum".
+        return 'Sem sinal';
     }
   }
 
