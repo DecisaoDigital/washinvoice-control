@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:washinvoice_control/features/instalacoes/detalhe_cliente_screen.dart';
 import 'package:washinvoice_control/models/aceite_termo.dart';
+import 'package:washinvoice_control/models/cliente.dart';
 import 'package:washinvoice_control/models/licenca.dart';
 import 'package:washinvoice_control/models/pedido_renovacao.dart';
 import 'package:washinvoice_control/models/ping.dart';
 import 'package:washinvoice_control/repositories/aceites_repository.dart';
+import 'package:washinvoice_control/repositories/clientes_repository.dart';
 import 'package:washinvoice_control/repositories/licencas_repository.dart';
 import 'package:washinvoice_control/repositories/pedidos_repository.dart';
 import 'package:washinvoice_control/repositories/pings_repository.dart';
@@ -20,6 +22,14 @@ class _FakeLicencasRepo extends LicencasRepository {
   @override
   Future<Licenca?> porMachineId(String machineId) async =>
       porMaquina[machineId];
+
+  @override
+  Future<List<Licenca>> listar() async => porMaquina.values.toList();
+}
+
+class _FakeClientesRepo extends ClientesRepository {
+  @override
+  Future<List<Cliente>> listar() async => [];
 }
 
 class _FakePingsRepo extends PingsRepository {
@@ -68,6 +78,7 @@ void main() {
           pingsRepoProvider.overrideWithValue(_FakePingsRepo()),
           pedidosRepoProvider.overrideWithValue(_FakePedidosRepo()),
           aceitesRepoProvider.overrideWithValue(_FakeAceitesRepo()),
+          clientesRepoProvider.overrideWithValue(_FakeClientesRepo()),
         ],
         child: const MaterialApp(
           home: DetalheClienteScreen(machineId: 'demo-B'),
