@@ -29,6 +29,14 @@ String descreverErro(Object erro) {
             'de acesso (RLS) no Supabase.';
       case 'PGRST301': // JWT expired
         return 'A sessão expirou. Volta a iniciar sessão.';
+      case '23505': // unique_violation
+        if (erro.message.contains('licencas_serie_activa_unique') ||
+            (erro.details?.toString().toLowerCase().contains('serie') ??
+                false)) {
+          return 'Já existe uma licença activa com essa série. Cada terminal '
+              'activo tem de ter uma série única.';
+        }
+        return 'Já existe um registo com esses dados (valor duplicado).';
     }
     return 'Erro do servidor: ${erro.message}';
   }
