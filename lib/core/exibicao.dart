@@ -24,7 +24,9 @@ class Exibicao {
   }) {
     final base = (l.nome != null && l.nome!.trim().isNotEmpty)
         ? l.nome!.trim()
-        : 'NIF ${l.nif}';
+        : (l.nif.trim().isNotEmpty
+            ? 'NIF ${l.nif.trim()}'
+            : 'Terminal sem identificação');
     if (totalTerminaisCliente == null || totalTerminaisCliente <= 1) {
       return base;
     }

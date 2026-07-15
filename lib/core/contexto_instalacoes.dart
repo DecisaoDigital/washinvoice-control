@@ -89,8 +89,10 @@ class ContextoInstalacoes {
     }
     final c = clienteDe(nif: nif);
     if (c != null) return c.nome;
-    if (nif != null && nif.trim().isNotEmpty) return 'NIF $nif';
-    return machineId.length > 8 ? '${machineId.substring(0, 8)}…' : machineId;
+    if (nif != null && nif.trim().isNotEmpty) return 'NIF ${nif.trim()}';
+    // Nunca mostrar o machine_id (hash) como identificador em listas — vive só
+    // na secção "Máquina" do DetalheCliente (monospace + copiar).
+    return 'Terminal sem identificação';
   }
 
   /// Linha "cidade do ping − localidade da loja" para [machineId].
