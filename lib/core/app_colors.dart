@@ -67,4 +67,35 @@ class AppColors {
   static const textPrimary = Color(0xFF2C2C2A);
   static const textSecondary = Color(0xFF5F5E5A);
   static const textTertiary = Color(0xFF9E9D9B);
+
+  // ── Mapeamento de tons a partir da cor-base (500) ──────────────────────────
+  // Fonte única para "dado um acento, qual o fundo pálido / texto forte".
+  // Evita cada widget re-decidir tons (regra: um só sítio para semântica de cor).
+
+  /// Tom 50 (fundo pálido de cartão) para uma cor-base [b].
+  static Color tom50(Color b) {
+    if (b == verde) return verde50;
+    if (b == roxo) return roxo50;
+    if (b == laranja) return laranja50;
+    if (b == vermelho) return vermelho50;
+    return azul50;
+  }
+
+  /// Tom 100 (fundo de chip/KPI) para uma cor-base [b].
+  static Color tom100(Color b) {
+    if (b == verde) return verde100;
+    if (b == roxo) return roxo100;
+    if (b == laranja) return laranja100;
+    if (b == vermelho) return vermelho100;
+    return azul100;
+  }
+
+  /// Tom 900 (texto forte sobre 50/100) para uma cor-base [b].
+  static Color tom900(Color b) {
+    if (b == verde) return verde900;
+    if (b == roxo) return roxo900;
+    if (b == laranja) return laranja900;
+    if (b == vermelho) return vermelho900;
+    return azul900;
+  }
 }

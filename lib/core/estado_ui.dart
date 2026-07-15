@@ -18,6 +18,34 @@ extension EstadoLicencaUi on EstadoLicenca {
     }
   }
 
+  /// Fundo pálido (tom 100) do estado — para pills e KPI cards.
+  Color get corPastel {
+    switch (this) {
+      case EstadoLicenca.activa:
+        return AppColors.verde100;
+      case EstadoLicenca.aExpirar:
+        return AppColors.laranja100;
+      case EstadoLicenca.expirada:
+        return AppColors.vermelho100;
+      case EstadoLicenca.suspensa:
+        return AppColors.fundo;
+    }
+  }
+
+  /// Texto forte (tom 900) do estado — sobre [corPastel].
+  Color get corForte {
+    switch (this) {
+      case EstadoLicenca.activa:
+        return AppColors.verde900;
+      case EstadoLicenca.aExpirar:
+        return AppColors.laranja900;
+      case EstadoLicenca.expirada:
+        return AppColors.vermelho900;
+      case EstadoLicenca.suspensa:
+        return AppColors.textSecondary;
+    }
+  }
+
   String get rotulo {
     switch (this) {
       case EstadoLicenca.activa:
