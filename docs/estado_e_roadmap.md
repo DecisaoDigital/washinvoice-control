@@ -243,11 +243,37 @@ Problemas de dados mal tratados (não de render):
   - Índice único parcial na série activa: `create unique index licencas_serie_activa_unique on licencas (lower(trim(serie))) where activa=true and serie is not null`.
   - Auditoria mínima de `licencas` (tabela `licencas_audit` + trigger).
 
-### Em paralelo à submissão AT (branch dedicada, submissão em adenda)
+### Pós-v2.0 certificada — refactor "extrair core fiscal reutilizável"
 
-- **POS 2.0 — Guias de Transporte** (`feature/guias-transporte-*` no repo POS): documentos GT/GR/DT com hash chaining, ATCUD, PDF/A, SAF-T MovementOfGoods, comunicação prévia AT via webservice SOAP. Estimativa 8-11 semanas.
-  - **Fase 0 (Investigação)**: `docs/design/prompt_pos_2_0_guias_fase0.md` pronto para arrancar. Não escreve código; produz `docs/guias_transporte_plano.md` no repo POS com plano de sprints.
-  - Justificação: 50% do mercado alvo (lavandarias/engomadorias) faz entregas ao domicílio; Guias são feature de arranque para esses.
+- Extrair `lib/services/fiscal/`, `lib/services/signing/`, `lib/services/licenca/`, motor SAF-T, ATCUD, hash, webservice AT para um **package Dart separado** (`washinvoice_fiscal_core`, git submodule ou pub privado).
+- WashInvoice actual passa a ser o **vertical "Lavandaria"** que depende do core.
+- Novos verticais (Restauração, Retalho, outros nichos) construídos sobre o mesmo core — cada um com **binário próprio e número de certificação AT próprio** (a AT certifica binários, não módulos).
+- Ganho estratégico: novo vertical = 6-8 semanas (só UI + fluxos), não 6 meses.
+- Timing: só depois da v2.0 estar aprovada. Fazer antes é risco desnecessário.
+- Higiene a manter nos sprints da v2.0 para o refactor ser leve:
+  - Camadas claras (nenhuma referência a UI de lavandaria dentro de código fiscal).
+  - Configuração externa via `Config` (nome empresa, séries, contactos, tipos de doc suportados).
+  - Testes unitários no motor fiscal, não em UI.
+
+### 5 dias antes de submeter à AT (POS)
+
+- **POS — Dossier certificação AT + estabilização** (`feature/dossier-certificacao-at`): prompt em `D:\WashFactura\docs\design\prompt_pos_dossier_at.md`.
+  - Auditoria (`analyze`, `test`), amostras PDF/A validadas veraPDF, SAF-T validado XSD, hash chaining com valores reais, ATCUD e QR descodificados, dossier técnico `docs/certificacao_at/*` com 8 secções, estabilização de warnings, sem features novas.
+  - Bump `1.6.6+22` ou `1.6.7+22`. Zip `docs/certificacao_at.zip` pronto para AT.
+
+### Em paralelo à análise AT (branch dedicada, submissão em adenda)
+
+- **POS 2.0 — Guias de Transporte** (`feature/guias-*` no repo POS). Prompts prontos em `D:\WashFactura\docs\guias_transporte\sprints\`:
+  - **PoC SSL** (`PoC_ssl_client_cert.md`) — antes do Sprint 6, prova que HTTPS mútuo funciona.
+  - **S1** — Modelos + DB (`S1_modelos_db.md`).
+  - **S2** — UI emissão GR (`S2_ui_emissao_gr.md`).
+  - **S3** — Assinatura + hash chaining + ATCUD (`S3_assinatura_hash_atcud.md`).
+  - **S4** — PDF/A da guia (`S4_pdf_a_guia.md`).
+  - **S5** — SAF-T MovementOfGoods (`S5_saf_t_movement_of_goods.md`).
+  - **S6** — Webservice AT SOAP + WS-Security (`S6_webservice_at.md`).
+  - **S7** — Anulação + consulta + segunda via + retry (`S7_anulacao_consulta_2via.md`).
+  - **S8** — Dossier adenda AT + release v2.0.0 (`S8_certificacao_v2_release.md`).
+  - Estimativa total 8-11 semanas. Justificação: 50% do mercado alvo (lavandarias/engomadorias) faz entregas ao domicílio.
   - **Não atrasa** submissão AT actual — submeter v1.6.x com Facturação no dia 20; adenda com Guias depois.
 
 ### Depois da aprovação AT do POS
