@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -49,10 +50,13 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailCtrl.text.trim(),
         password: _passwordCtrl.text,
       );
+      // Sinaliza ao SO que o login teve sucesso — dispara o "guardar palavra-passe"
+      // do Google Password Manager.
+      TextInput.finishAutofillContext();
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeShell()),
-      );
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeShell()));
     } catch (e) {
       setState(() => _erro = descreverErro(e));
     } finally {
@@ -104,75 +108,88 @@ class _LoginScreenState extends State<LoginScreen> {
         borderRadius: BorderRadius.circular(16),
       ),
       padding: const EdgeInsets.all(AppSpacing.xxl),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text('Acesso restrito',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-          const SizedBox(height: AppSpacing.lg),
-          const _Rotulo('EMAIL'),
-          TextField(
-            controller: _emailCtrl,
-            keyboardType: TextInputType.emailAddress,
-            decoration: _decoracao(),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          const _Rotulo('PALAVRA-PASSE'),
-          TextField(
-            controller: _passwordCtrl,
-            obscureText: _ocultarPass,
-            decoration: _decoracao().copyWith(
-              suffixIcon: IconButton(
-                icon: Icon(
-                    _ocultarPass ? Icons.visibility : Icons.visibility_off),
-                onPressed: () =>
-                    setState(() => _ocultarPass = !_ocultarPass),
+      child: AutofillGroup(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Acesso restrito',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            const _Rotulo('EMAIL'),
+            TextField(
+              controller: _emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              autofillHints: const [
+                AutofillHints.username,
+                AutofillHints.email,
+              ],
+              decoration: _decoracao(),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            const _Rotulo('PALAVRA-PASSE'),
+            TextField(
+              controller: _passwordCtrl,
+              obscureText: _ocultarPass,
+              autofillHints: const [AutofillHints.password],
+              onSubmitted: (_) => _aEntrar ? null : _login(),
+              decoration: _decoracao().copyWith(
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _ocultarPass ? Icons.visibility : Icons.visibility_off,
+                  ),
+                  onPressed: () => setState(() => _ocultarPass = !_ocultarPass),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          FilledButton(
-            onPressed: _aEntrar ? null : _login,
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.azul700,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: AppRadius.mdAll),
+            const SizedBox(height: AppSpacing.xl),
+            FilledButton(
+              onPressed: _aEntrar ? null : _login,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.azul700,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: AppRadius.mdAll),
+              ),
+              child: _aEntrar
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('Entrar'),
+                        SizedBox(width: AppSpacing.sm),
+                        Icon(Icons.arrow_forward, size: 18),
+                      ],
+                    ),
             ),
-            child: _aEntrar
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2),
-                  )
-                : const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text('Entrar'),
-                      SizedBox(width: AppSpacing.sm),
-                      Icon(Icons.arrow_forward, size: 18),
-                    ],
-                  ),
-          ),
-          if (_erro != null) ...[
-            const SizedBox(height: AppSpacing.md),
-            Text(_erro!,
-                style: const TextStyle(
-                    color: AppColors.vermelho, fontSize: 12)),
+            if (_erro != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                _erro!,
+                style: const TextStyle(color: AppColors.vermelho, fontSize: 12),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
 
   InputDecoration _decoracao() => InputDecoration(
-        isDense: true,
-        border: OutlineInputBorder(borderRadius: AppRadius.mdAll),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: AppRadius.mdAll,
-          borderSide: const BorderSide(color: AppColors.borda),
-        ),
-      );
+    isDense: true,
+    border: OutlineInputBorder(borderRadius: AppRadius.mdAll),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: AppRadius.mdAll,
+      borderSide: const BorderSide(color: AppColors.borda),
+    ),
+  );
 }
 
 class _Identidade extends StatelessWidget {
@@ -189,13 +206,21 @@ class _Identidade extends StatelessWidget {
             color: Colors.white.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(20),
           ),
-          child: const Icon(Icons.local_laundry_service,
-              size: 40, color: Colors.white),
+          child: const Icon(
+            Icons.local_laundry_service,
+            size: 40,
+            color: Colors.white,
+          ),
         ),
         const SizedBox(height: AppSpacing.lg),
-        const Text('WashInvoice',
-            style: TextStyle(
-                fontSize: 26, fontWeight: FontWeight.w500, color: Colors.white)),
+        const Text(
+          'WashInvoice',
+          style: TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.w500,
+            color: Colors.white,
+          ),
+        ),
         Text(
           'CONTROL',
           style: TextStyle(
