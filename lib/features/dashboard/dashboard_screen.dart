@@ -564,14 +564,18 @@ class _CardPedidoAjuda extends StatelessWidget {
                   ctx.nomeDe(machineId: pedido.machineId, nif: pedido.nif),
                   style: AppText.bodyStrong,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  ctx.sinalLocalidadeDe(
-                    machineId: pedido.machineId,
-                    nif: pedido.nif,
+                // Linha 2 = preview das notas (mais útil que Sinal−Localidade,
+                // que caía em "? − " quando o pedido chega sem ping associado).
+                if (pedido.notas != null &&
+                    pedido.notas!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    pedido.notas!.trim(),
+                    style: AppText.caption,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  style: AppText.caption,
-                ),
+                ],
                 Text(
                   'há $tempo${telefone != null ? ' · $telefone' : ''}',
                   style: AppText.caption,
