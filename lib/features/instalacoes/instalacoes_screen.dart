@@ -3,10 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../core/app_colors.dart';
+import '../../core/app_radius.dart';
+import '../../core/app_spacing.dart';
+import '../../core/app_theme.dart';
+import '../../core/contexto_instalacoes.dart';
 import '../../core/dates.dart';
 import '../../core/erros.dart';
 import '../../core/estado_ui.dart';
+import '../../core/exibicao.dart';
 import '../../core/versoes.dart';
+import '../../core/widgets/widgets.dart';
 import '../../models/licenca.dart';
 import '../../models/ping.dart';
 import '../../repositories/providers.dart';
@@ -15,7 +21,8 @@ import 'detalhe_cliente_screen.dart';
 class _InstalacoesData {
   final List<Licenca> licencas;
   final Map<String, Ping> pingPorMachine;
-  _InstalacoesData(this.licencas, this.pingPorMachine);
+  final ContextoInstalacoes ctx;
+  _InstalacoesData(this.licencas, this.pingPorMachine, this.ctx);
 }
 
 class InstalacoesScreen extends ConsumerStatefulWidget {
@@ -28,15 +35,12 @@ class InstalacoesScreen extends ConsumerStatefulWidget {
 class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
   late Future<_InstalacoesData> _future;
 
-  // Pesquisa + filtros são aplicados **client-side** (R1): a lista já é toda
-  // carregada para o dashboard/instalações e o volume actual é pequeno. Se um
-  // dia passar de umas centenas de instalações, migrar a filtragem para uma
-  // RPC/consulta paginada no Supabase.
+  // Filtros aplicados client-side (R1). Por defeito mostra só Activas.
   String _filtro = '';
-  EstadoLicenca? _estado;
+  bool _soActivas = true;
   String? _versao;
   String? _cidade;
-  int? _semPingDias; // 3 / 7 / 14 dias sem ping (null = qualquer)
+  int? _semPingDias;
 
   @override
   void initState() {
@@ -47,14 +51,23 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
   Future<_InstalacoesData> _carregar() async {
     final licencasRepo = ref.read(licencasRepoProvider);
     final pingsRepo = ref.read(pingsRepoProvider);
-    final results = await Future.wait([
-      licencasRepo.listar(),
-      pingsRepo.ultimosPorInstalacao(),
-    ]);
-    final licencas = results[0] as List<Licenca>;
-    final pings = results[1] as List<Ping>;
+    final clientesRepo = ref.read(clientesRepoProvider);
+
+    final licencasF = licencasRepo.listar();
+    final pingsF = pingsRepo.ultimosPorInstalacao();
+    final clientesF = clientesRepo.listar();
+    await Future.wait([licencasF, pingsF, clientesF]);
+
+    final licencas = await licencasF;
+    final pings = await pingsF;
+    final clientes = await clientesF;
     final mapa = {for (final p in pings) p.machineId: p};
-    return _InstalacoesData(licencas, mapa);
+    return _InstalacoesData(
+      licencas,
+      mapa,
+      ContextoInstalacoes.build(
+          clientes: clientes, licencas: licencas, pings: pings),
+    );
   }
 
   Future<void> _recarregar() async {
@@ -66,20 +79,18 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
     final q = _filtro.trim().toLowerCase();
     final agora = DateTime.now();
     return data.licencas.where((l) {
-      // Pesquisa por texto: nome, NIF ou machine_id.
       if (q.isNotEmpty) {
         final bate = (l.nome?.toLowerCase().contains(q) ?? false) ||
             l.nif.toLowerCase().contains(q) ||
             l.machineId.toLowerCase().contains(q);
         if (!bate) return false;
       }
-      if (_estado != null && l.estado != _estado) return false;
+      if (_soActivas && l.estado != EstadoLicenca.activa) return false;
 
       final ping = data.pingPorMachine[l.machineId];
       if (_versao != null && ping?.versao != _versao) return false;
       if (_cidade != null && ping?.cidade != _cidade) return false;
       if (_semPingDias != null) {
-        // "Sem ping há N dias": sem ping algum, ou último ping mais antigo que N.
         final semPing = ping == null ||
             agora.difference(ping.criadoEm).inDays >= _semPingDias!;
         if (!semPing) return false;
@@ -88,115 +99,43 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
     }).toList();
   }
 
-  String _labelEstado(EstadoLicenca e) {
-    switch (e) {
-      case EstadoLicenca.activa:
-        return 'Activa';
-      case EstadoLicenca.aExpirar:
-        return 'A expirar';
-      case EstadoLicenca.expirada:
-        return 'Expirada';
-      case EstadoLicenca.suspensa:
-        return 'Suspensa';
-    }
-  }
-
-  /// Barra horizontal de filtros. As opções de versão/cidade vêm dos dados
-  /// carregados (pings), por isso é construída dentro do FutureBuilder.
   Widget _barraFiltros(List<String> versoes, List<String> cidades) {
-    final temFiltro = _estado != null ||
-        _versao != null ||
-        _cidade != null ||
-        _semPingDias != null;
     return SizedBox(
-      height: 48,
-      child: SingleChildScrollView(
+      height: 44,
+      child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          children: [
-            _filtroDropdown<EstadoLicenca>(
-              rotulo: 'Estado',
-              valor: _estado,
-              opcoes: EstadoLicenca.values,
-              label: _labelEstado,
-              onChanged: (v) => setState(() => _estado = v),
-            ),
-            _filtroDropdown<String>(
-              rotulo: 'Versão',
-              valor: _versao,
-              opcoes: versoes,
-              label: (v) => 'v$v',
-              onChanged: (v) => setState(() => _versao = v),
-            ),
-            _filtroDropdown<String>(
-              rotulo: 'Cidade',
-              valor: _cidade,
-              opcoes: cidades,
-              label: (v) => v,
-              onChanged: (v) => setState(() => _cidade = v),
-            ),
-            _filtroDropdown<int>(
-              rotulo: 'Sem ping',
-              valor: _semPingDias,
-              opcoes: const [3, 7, 14],
-              label: (n) => '$n+ dias',
-              onChanged: (v) => setState(() => _semPingDias = v),
-            ),
-            if (temFiltro)
-              TextButton.icon(
-                onPressed: () => setState(() {
-                  _estado = null;
-                  _versao = null;
-                  _cidade = null;
-                  _semPingDias = null;
-                }),
-                icon: const Icon(Icons.clear, size: 16),
-                label: const Text('Limpar'),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _filtroDropdown<T>({
-    required String rotulo,
-    required T? valor,
-    required List<T> opcoes,
-    required String Function(T) label,
-    required ValueChanged<T?> onChanged,
-  }) {
-    final activo = valor != null;
-    return Container(
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        color: activo ? AppColors.azul.withValues(alpha: 0.08) : null,
-        border: Border.all(
-          color: activo
-              ? AppColors.azul
-              : AppColors.textTertiary.withValues(alpha: 0.4),
-        ),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<T?>(
-          value: valor,
-          isDense: true,
-          borderRadius: BorderRadius.circular(12),
-          style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
-          items: [
-            DropdownMenuItem<T?>(
-              value: null,
-              child: Text('$rotulo: todos'),
-            ),
-            ...opcoes.map(
-              (o) => DropdownMenuItem<T?>(value: o, child: Text(label(o))),
-            ),
-          ],
-          onChanged: onChanged,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        children: [
+          WiChipFiltro(
+            label: 'Activas',
+            activo: _soActivas,
+            onTap: () => setState(() => _soActivas = !_soActivas),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          _ChipMenu<String>(
+            labelBase: 'Todas versões',
+            valor: _versao,
+            opcoes: versoes,
+            labelOpcao: (v) => 'v$v',
+            onChanged: (v) => setState(() => _versao = v),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          _ChipMenu<String>(
+            labelBase: 'Todas localidades',
+            valor: _cidade,
+            opcoes: cidades,
+            labelOpcao: (v) => v,
+            onChanged: (v) => setState(() => _cidade = v),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          _ChipMenu<int>(
+            labelBase: 'Sem ping há…',
+            valor: _semPingDias,
+            opcoes: const [3, 7, 14],
+            labelOpcao: (n) => '$n+ dias',
+            onChanged: (v) => setState(() => _semPingDias = v),
+          ),
+        ],
       ),
     );
   }
@@ -204,14 +143,30 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Instalações')),
+      appBar: AppBar(
+        title: const Text('Instalações'),
+        actions: [
+          IconButton(
+            iconSize: 20,
+            icon: const Icon(Icons.refresh),
+            onPressed: _recarregar,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+        ],
+      ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(AppSpacing.md),
             child: SearchBar(
               hintText: 'Procurar por nome, NIF ou machine ID',
-              leading: const Icon(Icons.search),
+              leading: const Icon(Icons.search, color: AppColors.textTertiary),
+              backgroundColor:
+                  const WidgetStatePropertyAll(AppColors.surface),
+              elevation: const WidgetStatePropertyAll(1),
+              shape: WidgetStatePropertyAll(
+                RoundedRectangleBorder(borderRadius: AppRadius.mdAll),
+              ),
               onChanged: (v) => setState(() => _filtro = v),
             ),
           ),
@@ -223,10 +178,7 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.hasError) {
-                  return ErroView(
-                    erro: snapshot.error!,
-                    onRetry: _recarregar,
-                  );
+                  return ErroView(erro: snapshot.error!, onRetry: _recarregar);
                 }
                 final data = snapshot.data!;
                 final classV = ClassificadorVersoes(
@@ -248,39 +200,38 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
                 return Column(
                   children: [
                     _barraFiltros(versoes, cidades),
+                    const SizedBox(height: AppSpacing.sm),
                     Expanded(
                       child: licencas.isEmpty
-                          ? const Center(
-                              child: Text(
-                                'Nenhuma instalação corresponde aos filtros.',
-                              ),
+                          ? const WiEmptyState(
+                              icone: Icons.search_off,
+                              titulo: 'Sem resultados',
+                              mensagem:
+                                  'Nenhuma instalação corresponde aos filtros.',
                             )
                           : RefreshIndicator(
                               onRefresh: _recarregar,
                               child: ListView.separated(
-                                padding: const EdgeInsets.all(12),
+                                padding: const EdgeInsets.fromLTRB(
+                                    AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
                                 itemCount: licencas.length,
                                 separatorBuilder: (_, __) =>
-                                    const SizedBox(height: 8),
+                                    const SizedBox(height: AppSpacing.sm),
                                 itemBuilder: (context, i) {
                                   final l = licencas[i];
-                                  final ultimoPing =
+                                  final ping =
                                       data.pingPorMachine[l.machineId];
                                   return _CartaoInstalacao(
                                     licenca: l,
-                                    ultimoPing: ultimoPing,
-                                    estadoVersao:
-                                        classV.estadoDe(ultimoPing?.versao),
+                                    ping: ping,
+                                    ctx: data.ctx,
+                                    estadoVersao: classV.estadoDe(ping?.versao),
                                     onTap: () {
                                       Navigator.of(context)
-                                          .push(
-                                            MaterialPageRoute(
-                                              builder: (_) =>
-                                                  DetalheClienteScreen(
-                                                machineId: l.machineId,
-                                              ),
-                                            ),
-                                          )
+                                          .push(MaterialPageRoute(
+                                            builder: (_) => DetalheClienteScreen(
+                                                machineId: l.machineId),
+                                          ))
                                           .then((_) => _recarregar());
                                     },
                                   );
@@ -299,66 +250,127 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
   }
 }
 
+/// Chip de filtro que abre um menu de opções (versão/localidade/sem-ping).
+class _ChipMenu<T> extends StatelessWidget {
+  final String labelBase;
+  final T? valor;
+  final List<T> opcoes;
+  final String Function(T) labelOpcao;
+  final ValueChanged<T?> onChanged;
+
+  const _ChipMenu({
+    required this.labelBase,
+    required this.valor,
+    required this.opcoes,
+    required this.labelOpcao,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<T?>(
+      onSelected: onChanged,
+      itemBuilder: (_) => [
+        PopupMenuItem<T?>(value: null, child: Text(labelBase)),
+        ...opcoes.map((o) =>
+            PopupMenuItem<T?>(value: o, child: Text(labelOpcao(o)))),
+      ],
+      position: PopupMenuPosition.under,
+      child: WiChipFiltro(
+        label: valor == null ? labelBase : labelOpcao(valor as T),
+        activo: valor != null,
+        comSeta: true,
+      ),
+    );
+  }
+}
+
 class _CartaoInstalacao extends StatelessWidget {
   final Licenca licenca;
-  final Ping? ultimoPing;
+  final Ping? ping;
+  final ContextoInstalacoes ctx;
   final EstadoVersao estadoVersao;
   final VoidCallback onTap;
 
   const _CartaoInstalacao({
     required this.licenca,
-    required this.ultimoPing,
+    required this.ping,
+    required this.ctx,
     required this.estadoVersao,
     required this.onTap,
   });
 
+  String _validadeTexto() {
+    final estado = licenca.estado;
+    if (estado == EstadoLicenca.expirada) {
+      return 'expirada ${timeago.format(licenca.validade, locale: 'pt')}';
+    }
+    if (estado == EstadoLicenca.aExpirar) {
+      return 'expira ${timeago.format(licenca.validade, locale: 'pt', allowFromNow: true)}';
+    }
+    return 'expira ${Dates.data(licenca.validade)}';
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              BadgeEstado(licenca.estado),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    final expirada = licenca.estado == EstadoLicenca.expirada;
+    final card = WiCard(
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md, vertical: AppSpacing.md),
+      onTap: onTap,
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 32,
+            decoration: BoxDecoration(
+              color: licenca.estado.cor,
+              borderRadius: AppRadius.smAll,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  ctx.nomeDe(machineId: licenca.machineId, nif: licenca.nif),
+                  style: AppText.bodyStrong,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  '${licenca.planoLabel} · ${_validadeTexto()}',
+                  style: AppText.label.copyWith(color: AppColors.textSecondary),
+                ),
+                Row(
                   children: [
-                    Text(
-                      licenca.nome ?? licenca.nif,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    Text(
-                      '${licenca.plano} · expira ${Dates.data(licenca.validade)}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
+                    Icon(Exibicao.iconeSinal(ping?.metodoGeo),
+                        size: 13, color: Exibicao.corSinal(ping?.metodoGeo)),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        '${ctx.sinalLocalidadeDe(machineId: licenca.machineId, nif: licenca.nif)}'
+                        '${ping != null ? ' · há ${timeago.format(ping!.criadoEm, locale: 'pt')}' : ''}',
+                        style: AppText.caption,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (ultimoPing != null)
-                      Text(
-                        '${ultimoPing!.cidade ?? ''} · último acesso ${timeago.format(ultimoPing!.criadoEm, locale: 'pt')}',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textTertiary,
-                        ),
-                      ),
                   ],
                 ),
-              ),
-              if (ultimoPing != null) ...[
-                VersaoBadge(versao: ultimoPing!.versao, estado: estadoVersao),
-                const SizedBox(width: 4),
               ],
-              const Icon(Icons.chevron_right, color: AppColors.textTertiary),
-            ],
+            ),
           ),
-        ),
+          const SizedBox(width: AppSpacing.sm),
+          if (ping != null) ...[
+            VersaoBadge(versao: ping!.versao, estado: estadoVersao),
+            const SizedBox(width: 4),
+          ],
+          const Icon(Icons.chevron_right, color: AppColors.textTertiary),
+        ],
       ),
     );
+    return expirada ? Opacity(opacity: 0.75, child: card) : card;
   }
 }
