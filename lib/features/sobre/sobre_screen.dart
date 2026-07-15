@@ -9,6 +9,7 @@ import '../../core/config.dart';
 import '../../core/erros.dart';
 import '../../core/supabase_config.dart';
 import '../../repositories/providers.dart';
+import '../../services/fcm_service.dart';
 import '../auth/login_screen.dart';
 
 /// Ecrã Sobre/Sistema: identifica a app, o ambiente Supabase, o utilizador
@@ -114,6 +115,23 @@ class _SobreScreenState extends ConsumerState<SobreScreen> {
                   data.ultimoPing == null
                       ? '—'
                       : timeago.format(data.ultimoPing!, locale: 'pt'),
+                ),
+              ]),
+              const SizedBox(height: 12),
+              _Seccao('Notificações push'),
+              _Card([
+                _Linha(
+                  'Estado',
+                  FcmService.tokenRegistado != null
+                      ? 'Registado neste dispositivo'
+                      : 'Sem token — abre a app depois de login para registar',
+                ),
+                _Linha(
+                  'Token',
+                  FcmService.tokenRegistado == null
+                      ? '—'
+                      : '${FcmService.tokenRegistado!.substring(0, 12)}…',
+                  monospace: true,
                 ),
               ]),
               const SizedBox(height: 24),

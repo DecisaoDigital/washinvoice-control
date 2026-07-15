@@ -1,0 +1,196 @@
+# WashInvoice Control — Estado e Roadmap
+
+> Documento vivo. Actualizar sempre que uma ronda fechar ou uma decisão de arquitectura mudar.
+> Última actualização: 2026-07-15.
+
+---
+
+## 1. O que é isto
+
+**WashInvoice Control** — app Android (Flutter + Riverpod + Supabase) usada só pelo Cesar (admin único) para:
+
+- Emitir e gerir licenças do POS WashInvoice/WashFactura (Windows).
+- Ver terminais a comunicar (pings) em tempo próximo do real.
+- Atender leads de instalações novas (fluxo "Início de actividade").
+- Receber notificações push quando algo relevante acontece.
+
+**Não é o produto vendido** — o produto é o POS WashFactura. O Control é ferramenta interna de operação comercial.
+
+Marca comercial: **WashInvoice**. "WashControl" é nome interno para diferenciar internamente o companion Android do POS Windows.
+
+---
+
+## 2. Stack e projectos
+
+| Componente | Detalhes |
+|---|---|
+| Control (Android) | Flutter 3.8+, Riverpod, Supabase, Firebase Messaging. Repo local: `D:\WashInvoiceControl\washinvoice_control`. Branch de trabalho: `feature/melhorias-r1-r2` (por fazer merge). |
+| POS WashFactura (Windows) | Flutter + Drift/SQLite. Fora do escopo deste repo. Pré-certificação AT. |
+| Supabase | Projecto `oefqbkhioncakojipqyx` (região `eu-central-1`). URL: `https://oefqbkhioncakojipqyx.supabase.co`. |
+| Firebase / GCP | Projecto `washinvoice-control` (plano Spark, grátis). Só usado para FCM push. |
+| Notificações push | FCM v1. Edge Function `enviar-push` no Supabase; token registado em `admin_dispositivos`. |
+
+---
+
+## 3. Tabelas Supabase relevantes
+
+| Tabela | Papel | RLS |
+|---|---|---|
+| `clientes` | Dados de cada lavandaria | Policy actual: `authenticated` acesso total. Ronda RLS Opção D preparada mas não aplicada. |
+| `licencas` | Uma linha por terminal instalado | idem |
+| `pings` | Telemetria de POS (fire-and-forget do POS via anon key) | INSERT anon aberto (para o POS conseguir escrever) |
+| `aceites_termos` | Aceites RGPD (uma linha por instalação) | INSERT anon aberto |
+| `pedidos_renovacao` | Pedidos de renovação criados pelo POS | INSERT anon aberto |
+| `assinaturas_log` | Log da Edge Function `assinar-documento` | Só SELECT authenticated |
+| `company_signature_settings` | Config QES por empresa | **RLS desligado — exposto a anon** (pendente) |
+| `invoice_signature_logs` | Log de assinaturas QES por factura | **RLS desligado — exposto a anon** (pendente) |
+| `admins` | Lista de user_ids com privilégios admin | **Não existe hoje.** Ficará quando aplicarmos RLS Opção A/D pós-AT. |
+| `admin_dispositivos` | Tokens FCM dos dispositivos do admin (Cesar) | `authenticated`, cada user só toca no seu token |
+
+---
+
+## 4. Edge Functions
+
+| Função | Papel | Chave usada | Estado |
+|---|---|---|---|
+| `assinar-documento` | Assina texto fiscal (Portaria 363/2010) com RSA. Chave privada em secret. Valida licença por `machine_id` via service_role. | Anon key (JWT auto) do POS | Deployed, verify_jwt=true |
+| `enviar-push` | Recebe `{title, body, data?}`, gera JWT OAuth2 do Google, chama FCM v1, envia para o admin registado | Autenticação custom via `EDGE_INVOKE_SECRET` | Deployed, verify_jwt=false, **testada e funcional** |
+
+---
+
+## 5. Segredos e ficheiros críticos
+
+**Nunca commitar em git.** Localização e uso:
+
+| Item | Onde vive | Uso |
+|---|---|---|
+| `google-services.json` | `android/app/google-services.json` (dentro do repo, ignorar em git via `.gitignore` já configurado) | Firebase config do app Android |
+| Chave FCM (`washinvoice-control-XXXX.json`) | Disco local do Cesar, fora do repo | Copiada como `FCM_SERVICE_ACCOUNT_JSON` no Supabase secrets. Não voltar a usar directamente. |
+| `FCM_SERVICE_ACCOUNT_JSON` | Supabase Edge Function Secrets | Edge `enviar-push` lê e assina JWT OAuth2 |
+| `EDGE_INVOKE_SECRET` | Supabase Edge Function Secrets. Valor: `186e626e50b31e4806bfac3ff8b5d9b30a3aa91cbbdf2a7efe8e989222df5470` | Autoriza chamadas a `enviar-push` |
+| `RSA_private_key` | Supabase Edge Function Secrets (pré-existente) | Edge `assinar-documento` — POS |
+| `admin_user_id` do Cesar | Hardcoded na Edge Function `enviar-push` como fallback: `9e1bfae1-b932-430d-ad41-055cf894ff7f` | Destino default do push quando não vem `user_id` no payload |
+
+---
+
+## 6. O que foi entregue (por ronda)
+
+### Ronda R1 + R2 — melhorias funcionais no Control (branch `feature/melhorias-r1-r2`)
+
+1. Ecrã **Sobre / Sistema** — versão, ambiente Supabase, sessão, contactos, último ping. Botão terminar sessão.
+2. Constantes de contacto em `lib/core/config.dart` — nome, email, telefone da WashInvoice.
+3. Função `Dates.adicionarMeses` com regra de fim de mês (corrige transbordo 31 Jan → 2 Mar).
+4. `toInsertJson` / `toUpdateJson` separados nos modelos (elimina bug de enviar `id`/`created_at` em UPDATE).
+5. Navegação por `machine_id` em vez de NIF (resolve erro com >1 licença por NIF).
+6. Filtros no ecrã **Instalações** (estado, versão, cidade, "sem ping há N dias") ao lado da pesquisa existente.
+7. Testes: 23/23 verdes (`dates_test.dart`, `models_json_test.dart`, `detalhe_navegacao_test.dart`, + os 10 pré-existentes).
+8. Email de acolhimento reescrito, sem IBAN, valoriza produto, contactos na assinatura. Botão: "Enviar email de acolhimento".
+
+### Ronda `push_00_firebase` + `push_01_supabase` + `push_02_control`
+
+1. Projecto Firebase `washinvoice-control` criado.
+2. App Android registada (`com.washcontrol.washinvoice_control`).
+3. Service account `fcm-sender` com roles: `Firebase Cloud Messaging Admin` + `Firebase Admin` (o segundo necessário para permissão `cloudmessaging.messages.create` da API v1).
+4. Extensão `pg_net` activada no Supabase.
+5. Tabela `admin_dispositivos` com RLS (cada user só toca no seu token).
+6. Edge Function `enviar-push` deployada — gera OAuth2 JWT, chama FCM v1 API, entrega ao dispositivo. Testada com curl, resposta 200 do Google.
+7. Cliente Flutter: `firebase_core` + `firebase_messaging` no pubspec, Gradle configurado (`google-services` plugin), permissão `POST_NOTIFICATIONS` no manifest.
+8. `lib/services/fcm_service.dart` — inicialização, permissão, obter token, upsert em `admin_dispositivos`, refresh de token, desregistar no logout.
+9. `lib/services/fcm_background_handler.dart` — handler top-level para pushes em background.
+10. `main.dart` — inicializa Firebase, provider Riverpod sincroniza sessão ↔ registo de token, wrapper `_FcmForegroundListener` mostra SnackBar em foreground.
+11. Sobre/Sistema — nova secção "Notificações push" mostra estado do token.
+12. **End-to-end validado**: curl → Supabase → FCM → telemóvel do Cesar (SnackBar em foreground, notificação Android em background).
+
+### Documentação criada
+
+- `README.md` (raiz do repo Control) — actualizado no fim do R1.
+- `docs/verificacao_apk_r1.md` — checklist da Fase 4 de verificação UI (por completar pelo Cesar).
+- `supabase/rls_policies.sql` — SQL Opção D preparado (por aplicar; ver secção RLS).
+- `supabase/rls_verificacao.md` — plano de verificação de RLS.
+- `supabase/contrato_apps.md` — contrato inter-apps (POS ↔ Control) e discrepância Opção A vs D.
+- `../ROADMAP.md` (raiz do repo pai) — aviso bloqueante: sem RLS aplicado, base está aberta.
+- Este documento.
+
+---
+
+## 7. Roadmap — o que falta
+
+### Curto prazo (esta semana ou próxima)
+
+- **Fechar a Fase 4 de verificação UI do R1** — Cesar corre `docs/verificacao_apk_r1.md` no telemóvel. Sem isto o merge de `feature/melhorias-r1-r2` para `master` fica em suspenso.
+- **Merge de `feature/melhorias-r1-r2` para `master`** — depois da Fase 4 fechar.
+- **Trigger DB automático** — hoje o push é disparado por curl manual. Falta:
+  - Guardar `service_role_key` do Supabase no `vault` (`vault.create_secret`).
+  - Trigger em `pings` que chama `enviar-push` quando aparece machine_id novo (sem licença) via `net.http_post`.
+  - Sem isto o pipeline FCM não é auto-servido.
+- **Refinar tap na notificação** — hoje ao carregar numa notificação abre a app em qualquer ecrã; devia abrir directamente na secção "Início de actividade" do Dashboard. Requer `onMessageOpenedApp` handler no `main.dart`.
+
+### Médio prazo (depois do curto, antes da AT)
+
+- **Redesign visual do Dashboard** (branch `feature/redesign-visual` ainda por abrir). Prompt de contexto já preparado. Problemas conhecidos:
+  1. `machine_id` de 64 chars rouba a atenção nos cards "Início de actividade" e "Actividade recente".
+  2. Card "Início de actividade" cinzento inerte (deveria destacar-se).
+  3. KPIs desalinhados por "A expirar (≤15d)" em duas linhas.
+  4. AppBar Material default sem identidade WashInvoice.
+  5. Badge "NEW" redundante.
+  6. Metade inferior do ecrã vazia.
+- **Design tokens** — paleta com azul-marca ancorado, escala tipográfica, espaçamentos, raios, sombras. Ficheiro em `docs/design/tokens.md` (pasta já existe).
+- **Redesign dos outros ecrãs** — Instalações, DetalheCliente, Mapa, Sobre/Sistema, Login. Depende dos tokens.
+- **Buracos de segurança pendentes**:
+  - `company_signature_settings` e `invoice_signature_logs` com RLS desligado — ligar RLS sem policies anon (só service_role via Edge Function pode escrever).
+  - Índice único parcial na série activa: `create unique index licencas_serie_activa_unique on licencas (lower(trim(serie))) where activa=true and serie is not null`.
+  - Auditoria mínima de `licencas` (tabela `licencas_audit` + trigger).
+
+### Depois da aprovação AT do POS
+
+- **RLS Opção A ou D final** — reconciliar o `rls_policies.sql` preparado com o desenho actual, aplicar. Ver `supabase/contrato_apps.md`.
+- **HMAC → Ed25519 na assinatura de licenças** — Edge Function `emitir_licenca` no Supabase com chave privada Ed25519 como secret. POS valida com chave pública embutida no binário. Elimina a maior brecha ("qualquer um que extrai o binário emite licenças").
+- **POS a autenticar-se no Supabase** — cada terminal com credenciais próprias, RLS por `auth.uid()` real. Fim do teatro anon-key.
+- **Alertas e lembretes internos** — licenças a expirar em N dias, sem contacto recente, licença expirada mas máquina ainda faz ping. Push automático via trigger.
+- **Exportação CSV/XLSX** — clientes, licenças, expirações próximas.
+- **Sentry ou tabela `app_errors`** — captura persistente de erros em produção.
+- **Multi-ambiente** (`--dart-define=SUPABASE_URL=...`) — só quando fizer sentido separar dev/staging/prod. Overkill hoje.
+
+---
+
+## 8. Decisões arquitecturais tomadas
+
+Registo dos "porquês" que não devem ser esquecidos:
+
+- **Não tocar no POS até depois da AT.** Qualquer alteração ao WashFactura abre risco fiscal. Excepções permitidas: mudanças de texto puro no ecrã "Comprar licença" (contactos, sem tocar em lógica fiscal).
+- **RLS por `auth.uid()` no POS (Opção D) fica para depois da AT.** Hoje o POS não autentica — usa só anon key. Migrar é mexer no POS → adiado.
+- **Chave HMAC no POS é a maior brecha.** Reconhecida. Fica para pós-AT, junto com migração para Ed25519 numa Edge Function.
+- **Um único admin (Cesar) por agora.** Push notifications, RLS admin — tudo desenhado para 1 utilizador. Multi-admin fica para quando fizer sentido comercial.
+- **Cliente contacta o Cesar por canais fora da app.** IBAN não vai em email da app. Email de acolhimento é sinal de "há venda iminente", sem preço nem instruções de pagamento. IBAN sai do próprio Cesar (WhatsApp/telefone/email pessoal) quando o cliente responder.
+- **`Config.urlPagamento` fica vazio.** Landing page de pagamento não existe. Se um dia existir, entra numa linha condicional do email de acolhimento (já preparada, não activa).
+- **Edge Function `enviar-push` com `verify_jwt: false` + secret partilhado.** Custom auth via header. `service_role_key` não é distribuído.
+- **Google Analytics do Firebase desactivado.** É um utilizador (Cesar), zero valor, tira um wizard step.
+- **Plano Firebase Spark (grátis).** FCM é grátis. Não fazer upgrade sem razão explícita.
+
+---
+
+## 9. O que não entra no repo (mas convém saber)
+
+- Chave `washinvoice-control-XXXX.json` — no disco local do Cesar, fora do repo. Se se perder, gerar nova em GCP IAM → adicionar ao Supabase secret. A antiga fica revogada.
+- Password do login Supabase — no gestor de passwords do Cesar.
+- Firebase / GCP credentials — na conta Google `cesarmendes78@gmail.com` do Cesar.
+
+---
+
+## 10. Como reproduzir do zero (recuperação de desastre)
+
+Se um dia for preciso recriar tudo:
+
+1. `git clone` do repo.
+2. `flutter pub get`.
+3. Criar novo projecto Firebase (ou reutilizar `washinvoice-control`).
+4. Descarregar novo `google-services.json` → `android/app/`.
+5. Criar service account nova em GCP IAM com roles "Firebase Cloud Messaging Admin" + "Firebase Admin".
+6. Descarregar chave JSON → guardar fora do repo.
+7. Meter conteúdo no secret `FCM_SERVICE_ACCOUNT_JSON` do Supabase.
+8. Gerar novo `EDGE_INVOKE_SECRET` (`openssl rand -hex 32`) → secret no Supabase.
+9. Re-deployar Edge Function `enviar-push` (código em `supabase/functions/enviar-push/index.ts` — **por versionar no repo**, hoje só existe no Supabase). TODO.
+10. Aplicar migrations Supabase (`supabase/*.sql` — parcialmente versionados, ver secção RLS).
+11. `flutter build apk --release` → instalar → testar push com curl.
+
+**TODO:** versionar Edge Functions no repo (`supabase/functions/enviar-push/index.ts`). Hoje o código só existe no Supabase — se apagar por engano, perde-se.

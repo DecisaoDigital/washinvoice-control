@@ -46,3 +46,6 @@ app.*.map.json
 
 # Local/exported artefacts
 *.zip
+
+# Firebase config (secret — fora do repo, ver docs/estado_e_roadmap.md §5)
+android/app/google-services.json

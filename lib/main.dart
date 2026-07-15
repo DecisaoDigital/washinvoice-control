@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -11,6 +12,8 @@ import 'core/erros.dart';
 import 'core/supabase_config.dart';
 import 'features/auth/login_screen.dart';
 import 'features/nav/home_shell.dart';
+import 'services/fcm_background_handler.dart';
+import 'services/fcm_service.dart';
 
 /// Estado de autenticação reactivo.
 ///
@@ -46,17 +49,41 @@ Future<void> main() async {
         anonKey: SupabaseConfig.anonKey,
       );
 
+      // Firebase + FCM. Não bloqueia — em falha (ex: google-services.json em
+      // falta ou inválido) a app continua a funcionar sem push.
+      await FcmService.inicializar(backgroundHandler: fcmBackgroundHandler);
+
       runApp(const ProviderScope(child: WashInvoiceControlApp()));
     },
     (erro, stack) => mostrarErro(erro, stack: stack),
   );
 }
 
+/// Sincroniza o registo do token FCM com a sessão actual: regista quando entra
+/// sessão nova, remove quando termina. É um provider "side-effect only" — não
+/// expõe estado, só observa `sessaoProvider` e chama o [FcmService].
+final _fcmSincSessaoProvider = Provider<void>((ref) {
+  String? ultimoUserId;
+  ref.listen<AsyncValue<Session?>>(sessaoProvider, (anterior, actual) {
+    final novo = actual.value?.user.id;
+    if (novo == ultimoUserId) return;
+    if (novo != null) {
+      unawaited(FcmService.registarParaSessao(novo));
+    } else {
+      unawaited(FcmService.desregistarSessaoAtual());
+    }
+    ultimoUserId = novo;
+  }, fireImmediately: true);
+});
+
 class WashInvoiceControlApp extends ConsumerWidget {
   const WashInvoiceControlApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Observa sessão ↔ token FCM (efeitos colaterais, sem valor devolvido).
+    ref.watch(_fcmSincSessaoProvider);
+
     final sessao = ref.watch(sessaoProvider);
     return MaterialApp(
       title: 'WashInvoice Control',
@@ -71,10 +98,50 @@ class WashInvoiceControlApp extends ConsumerWidget {
         error: (_, __) => const LoginScreen(),
         // Sessão presente → HomeShell. Ausente (confirmado) → LoginScreen.
         data: (session) =>
-            session != null ? const HomeShell() : const LoginScreen(),
+            session != null ? const _FcmForegroundListener(child: HomeShell()) : const LoginScreen(),
       ),
     );
   }
+}
+
+/// Wrapper que escuta pushes recebidos com a app em foreground e mostra
+/// SnackBar. Só é montado quando há sessão activa (dentro do HomeShell).
+class _FcmForegroundListener extends StatefulWidget {
+  final Widget child;
+  const _FcmForegroundListener({required this.child});
+
+  @override
+  State<_FcmForegroundListener> createState() => _FcmForegroundListenerState();
+}
+
+class _FcmForegroundListenerState extends State<_FcmForegroundListener> {
+  StreamSubscription<RemoteMessage>? _sub;
+
+  @override
+  void initState() {
+    super.initState();
+    _sub = FirebaseMessaging.onMessage.listen((mensagem) {
+      final titulo = mensagem.notification?.title ?? 'Notificação';
+      final corpo = mensagem.notification?.body ?? '';
+      final ctx = messengerKey.currentContext;
+      if (ctx == null) return;
+      messengerKey.currentState?.showSnackBar(
+        SnackBar(
+          content: Text(corpo.isEmpty ? titulo : '$titulo — $corpo'),
+          duration: const Duration(seconds: 6),
+        ),
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// Ecrã neutro mostrado enquanto o estado de autenticação inicial não chega.

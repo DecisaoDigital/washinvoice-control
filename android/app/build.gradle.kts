@@ -1,6 +1,8 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
+    // Firebase — tem de vir antes do Flutter plugin.
+    id("com.google.gms.google-services")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -8,7 +10,8 @@ plugins {
 android {
     namespace = "com.washcontrol.washinvoice_control"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "26.3.11579264"
+    // Versão exigida pelos plugins (firebase_*, google_maps_flutter_android, package_info_plus, …).
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

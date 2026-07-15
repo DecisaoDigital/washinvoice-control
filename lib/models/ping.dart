@@ -5,8 +5,19 @@ class Ping {
   final String? versao;
   final double? lat;
   final double? lon;
+  /// Cidade inferida por geolocalização (automática).
   final String? cidade;
   final String? metodoGeo;
+
+  /// Nome comercial da empresa, tal como o cliente o escreveu no POS. Só é
+  /// preenchido depois do Track B (POS a enviá-lo no ping) — até lá, `null`,
+  /// e as colunas nem existem no Supabase.
+  final String? nome;
+
+  /// Localidade escrita pelo cliente no POS — pode divergir de [cidade], que é
+  /// automática. `null` pelo mesmo motivo que [nome].
+  final String? localidadeCliente;
+
   final DateTime criadoEm;
 
   const Ping({
@@ -18,6 +29,8 @@ class Ping {
     this.lon,
     this.cidade,
     this.metodoGeo,
+    this.nome,
+    this.localidadeCliente,
     required this.criadoEm,
   });
 
@@ -30,6 +43,8 @@ class Ping {
         lon: (json['lon'] as num?)?.toDouble(),
         cidade: json['cidade'] as String?,
         metodoGeo: json['metodo_geo'] as String?,
+        nome: json['nome'] as String?,
+        localidadeCliente: json['localidade_cliente'] as String?,
         criadoEm: DateTime.parse(json['created_at'] as String),
       );
 
@@ -42,6 +57,8 @@ class Ping {
         'lon': lon,
         'cidade': cidade,
         'metodo_geo': metodoGeo,
+        'nome': nome,
+        'localidade_cliente': localidadeCliente,
         'created_at': criadoEm.toIso8601String(),
       };
 }
