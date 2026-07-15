@@ -59,7 +59,7 @@
 
 ## 8. Mapa
 - [ ] Abre sem crash.
-- [ ] Markers coloridos por estado (hues nativos — assets PNG ainda TODO).
+- [ ] Markers PNG coloridos por estado (pin verde/laranja/vermelho/cinza).
 - [ ] InfoWindow mostra nome (+T<n>) e "Sinal − Localidade · vX".
 
 ---

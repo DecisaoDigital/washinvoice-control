@@ -435,6 +435,12 @@ Reporta SHA de cada commit no fim. Não faças merge até validação UI real do
   `oefqbkhioncakojipqyx`) via MCP, com autorização explícita — incluindo o
   trigger destrutivo de retenção de pings.
 
+### Markers do Mapa (Fase 6.6) — feitos
+Os 4 PNG 96×96 (`assets/markers/{activa,a_expirar,expirada,suspensa}.png`, pin
+teardrop com borda branca, cores da paleta) foram gerados via script Node (zlib,
+AA por supersampling) e registados no `pubspec.yaml`. O `mapa_screen.dart` carrega-os
+como `BitmapDescriptor.asset` — deixou de usar o fallback por hue.
+
 ### Implementado como descrito → OK
 - Fase 2 tokens (paleta 50/100/200/500/700/900, tipografia, `AppSpacing`,
   `AppRadius`, tema).
@@ -465,9 +471,6 @@ Reporta SHA de cada commit no fim. Não faças merge até validação UI real do
   alterando o comportamento anterior ("mostrar todas").
 
 ### Adiado / TODO
-- **Fase 6.6 markers custom:** os 4 PNG 96×96 em `assets/markers/` **não** foram
-  criados (sem ferramenta de geração de imagem no fluxo). Fica **TODO explícito**
-  no `mapa_screen.dart`; usa-se `defaultMarkerWithHue` com os hues por estado.
 - **Fase 10 verificação UI real:** o APK release / instalação no telemóvel é do
   Cesar — `docs/verificacao_apk_r1_4.md` está pronto, por correr.
 - **Chevron "Actividade recente":** decorativo (o prompt não deu destino).

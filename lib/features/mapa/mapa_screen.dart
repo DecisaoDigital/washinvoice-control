@@ -8,16 +8,16 @@ import '../../models/licenca.dart';
 import '../../models/ping.dart';
 import '../../repositories/providers.dart';
 
-// TODO(v1.4+): markers custom com 4 assets PNG 96×96 em assets/markers/
-// (activa.png, a_expirar.png, expirada.png, suspensa.png), com as cores da
-// paleta. Enquanto não existirem, usa-se BitmapDescriptor.defaultMarkerWithHue
-// com os hues nativos (fallback explícito, ver Fase 6.6 do prompt v1.4).
+// Markers custom: 4 assets PNG 96×96 em assets/markers/ (activa, a_expirar,
+// expirada, suspensa), com as cores da paleta (ver tokens.md §1.5). Carregados
+// uma vez como BitmapDescriptor e reutilizados por marker.
 
 class _MapaData {
   final List<Ping> pings;
   final Map<String, Licenca> licencaPorMachine;
   final ContextoInstalacoes ctx;
-  _MapaData(this.pings, this.licencaPorMachine, this.ctx);
+  final Map<EstadoLicenca, BitmapDescriptor> icones;
+  _MapaData(this.pings, this.licencaPorMachine, this.ctx, this.icones);
 }
 
 class MapaScreen extends ConsumerStatefulWidget {
@@ -49,7 +49,8 @@ class _MapaScreenState extends ConsumerState<MapaScreen> {
     final pingsF = pingsRepo.comLocalizacao();
     final licencasF = licencasRepo.listar();
     final clientesF = clientesRepo.listar();
-    await Future.wait([pingsF, licencasF, clientesF]);
+    final iconesF = _carregarIcones();
+    await Future.wait([pingsF, licencasF, clientesF, iconesF]);
 
     final pings = await pingsF;
     final licencas = await licencasF;
@@ -60,30 +61,34 @@ class _MapaScreenState extends ConsumerState<MapaScreen> {
       mapa,
       ContextoInstalacoes.build(
           clientes: clientes, licencas: licencas, pings: pings),
+      await iconesF,
     );
   }
 
-  double _hue(EstadoLicenca? estado) {
-    switch (estado) {
-      case EstadoLicenca.activa:
-        return BitmapDescriptor.hueGreen;
-      case EstadoLicenca.aExpirar:
-        return BitmapDescriptor.hueOrange;
-      case EstadoLicenca.expirada:
-        return BitmapDescriptor.hueRed;
-      case EstadoLicenca.suspensa:
-      case null:
-        return BitmapDescriptor.hueAzure;
-    }
+  Future<Map<EstadoLicenca, BitmapDescriptor>> _carregarIcones() async {
+    Future<BitmapDescriptor> load(String nome) => BitmapDescriptor.asset(
+          const ImageConfiguration(size: Size(40, 40)),
+          'assets/markers/$nome',
+          width: 40,
+          height: 40,
+        );
+    return {
+      EstadoLicenca.activa: await load('activa.png'),
+      EstadoLicenca.aExpirar: await load('a_expirar.png'),
+      EstadoLicenca.expirada: await load('expirada.png'),
+      EstadoLicenca.suspensa: await load('suspensa.png'),
+    };
   }
 
   Set<Marker> _markers(_MapaData data) {
     return data.pings.where((p) => p.lat != null && p.lon != null).map((p) {
       final licenca = data.licencaPorMachine[p.machineId];
+      final icone =
+          data.icones[licenca?.estado ?? EstadoLicenca.suspensa]!;
       return Marker(
         markerId: MarkerId(p.machineId),
         position: LatLng(p.lat!, p.lon!),
-        icon: BitmapDescriptor.defaultMarkerWithHue(_hue(licenca?.estado)),
+        icon: icone,
         infoWindow: InfoWindow(
           title: data.ctx.nomeDe(machineId: p.machineId, nif: p.nif),
           snippet:

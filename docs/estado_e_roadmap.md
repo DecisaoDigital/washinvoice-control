@@ -142,8 +142,6 @@ Marca comercial: **WashInvoice**. "WashControl" é nome interno para diferenciar
 
 - **Verificação UI real da ronda 1.4.0** — Cesar corre `docs/verificacao_apk_r1_4.md`
   no telemóvel (APK release da `feature/redesign-visual`). Sem isto o merge fica suspenso.
-- **Markers PNG custom do Mapa (1.4.0)** — criar os 4 assets 96×96 em
-  `assets/markers/` e registá-los no `pubspec.yaml`; hoje há fallback por hue nativo.
 - **Fechar a Fase 4 de verificação UI do R1** — Cesar corre `docs/verificacao_apk_r1.md` no telemóvel. Sem isto o merge de `feature/melhorias-r1-r2` para `master` fica em suspenso.
 - **Merge de `feature/melhorias-r1-r2` para `master`** — depois da Fase 4 fechar.
 - **Trigger DB automático** — hoje o push é disparado por curl manual. Falta:
@@ -157,8 +155,8 @@ Marca comercial: **WashInvoice**. "WashControl" é nome interno para diferenciar
 - ✅ **Redesign visual completo** (Dashboard, Instalações, DetalheCliente, Mapa,
   Sobre, Login) — **entregue na ronda 1.4.0** (branch `feature/redesign-visual`).
   Os 6 problemas conhecidos (machine_id, card inerte, KPIs, AppBar, badge NEW,
-  ecrã vazio) foram resolvidos. Falta só: **verificação UI real no telemóvel** e
-  **markers PNG custom do Mapa** (TODO — ver Curto prazo).
+  ecrã vazio) foram resolvidos. Markers PNG custom do Mapa **feitos**
+  (`assets/markers/`). Falta só: **verificação UI real no telemóvel**.
 - ✅ **Design tokens** — entregue (`app_colors`/`app_theme`/`app_spacing`/`app_radius`).
 - **Buracos de segurança pendentes**:
   - `company_signature_settings` e `invoice_signature_logs` com RLS desligado — ligar RLS sem policies anon (só service_role via Edge Function pode escrever).
