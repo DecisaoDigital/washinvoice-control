@@ -500,7 +500,12 @@ class _CardNovaInstalacao extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('NIF ${ping.nif ?? '—'}', style: AppText.bodyStrong),
+                Text(
+                  (ping.nif != null && ping.nif!.trim().isNotEmpty)
+                      ? 'NIF ${ping.nif!.trim()}'
+                      : 'Sem NIF ainda',
+                  style: AppText.bodyStrong,
+                ),
                 const SizedBox(height: 2),
                 Text(
                   '$localidade · v${ping.versao ?? '?'} · há $tempo',
