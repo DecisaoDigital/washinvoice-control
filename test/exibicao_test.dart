@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:washinvoice_control/core/contexto_instalacoes.dart';
 import 'package:washinvoice_control/core/exibicao.dart';
 import 'package:washinvoice_control/models/cliente.dart';
 import 'package:washinvoice_control/models/licenca.dart';
@@ -114,6 +115,39 @@ void main() {
       expect(ordem['a'], (1, 2)); // criada primeiro
       expect(ordem['b'], (2, 2));
       expect(ordem['z'], (1, 1)); // sem cliente → terminal único
+    });
+  });
+
+  group('ContextoInstalacoes.nomeDe (fallbacks, sem hash)', () {
+    test('cliente conhecido → nome do cliente', () {
+      final cliente = Cliente(
+          id: 'cli', nif: '500000009', nome: 'Lavandaria X',
+          criadoEm: DateTime(2026));
+      final lic = Licenca(
+          id: 'l', clienteId: 'cli', machineId: 'maq-1', nif: '500000009',
+          plano: 'anual', validade: DateTime(2030), activa: true,
+          criadoEm: DateTime(2026));
+      final ctx = ContextoInstalacoes.build(
+          clientes: [cliente], licencas: [lic], pings: []);
+      expect(ctx.nomeDe(machineId: 'maq-1', nif: '500000009'), 'Lavandaria X');
+    });
+
+    test('sem cliente mas com NIF → "NIF <x>"', () {
+      final ctx = ContextoInstalacoes.build(
+          clientes: [], licencas: [], pings: []);
+      expect(ctx.nomeDe(machineId: 'maq-desconhecida', nif: '512345678'),
+          'NIF 512345678');
+    });
+
+    test('sem cliente e sem NIF → "Terminal sem identificação" (nunca o hash)',
+        () {
+      const hash =
+          '8a0f8c93e2e71c852df08c1daca0d0481c76e0859854c9c51983edbb160e5fde';
+      final ctx = ContextoInstalacoes.build(
+          clientes: [], licencas: [], pings: []);
+      final nome = ctx.nomeDe(machineId: hash, nif: null);
+      expect(nome, 'Terminal sem identificação');
+      expect(nome.contains('8a0f8c93'), isFalse);
     });
   });
 }

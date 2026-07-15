@@ -127,6 +127,24 @@ void main() {
     expect(find.text('Actividade recente'), findsOneWidget);
   });
 
+  testWidgets('Início de actividade sem NIF mostra "Sem NIF ainda" (não "NIF —")',
+      (tester) async {
+    final ping = Ping(
+      id: 'p2',
+      machineId: 'maq-sem-nif',
+      versao: '1.4.2',
+      cidade: 'Lisbon',
+      criadoEm: DateTime.now().subtract(const Duration(minutes: 2)),
+    );
+    await tester.pumpWidget(_app(pings: [ping]));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sem NIF ainda'), findsOneWidget);
+    expect(find.textContaining('NIF —'), findsNothing);
+    // Cidade traduzida no card (Lisbon → Lisboa).
+    expect(find.textContaining('Lisboa'), findsWidgets);
+  });
+
   testWidgets('Dashboard com pedido de ajuda: secção "Pedidos de ajuda (1)"',
       (tester) async {
     final pedido = PedidoAjuda(

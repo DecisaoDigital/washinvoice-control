@@ -76,23 +76,35 @@ class ContextoInstalacoes {
   }
 
   /// Nome a mostrar para uma instalação identificada por [machineId] (e [nif]
-  /// como recurso). Usa a licença + ordem de terminal quando existe.
+  /// como recurso).
+  ///
+  /// Cascata (1.4.2): cliente conhecido → `cliente.nome` (+ `· T<n>` se ≥2
+  /// terminais); senão o nome da própria licença; senão `NIF <x>`; senão
+  /// `Terminal sem identificação`. **Nunca** o machine_id (hash) — esse vive só
+  /// na secção "Máquina" do DetalheCliente.
   String nomeDe({required String machineId, String? nif}) {
     final lic = _licencaPorMachine[machineId];
-    if (lic != null) {
-      final o = _ordem[lic.id];
-      return Exibicao.nomeExibicao(
-        lic,
-        ordemTerminal: o?.$1,
-        totalTerminaisCliente: o?.$2,
-      );
+    final cliente = clienteDe(machineId: machineId, nif: nif);
+
+    String? base;
+    if (cliente != null) {
+      base = cliente.nome.trim();
+    } else if (lic?.nome != null && lic!.nome!.trim().isNotEmpty) {
+      base = lic.nome!.trim();
     }
-    final c = clienteDe(nif: nif);
-    if (c != null) return c.nome;
-    if (nif != null && nif.trim().isNotEmpty) return 'NIF ${nif.trim()}';
-    // Nunca mostrar o machine_id (hash) como identificador em listas — vive só
-    // na secção "Máquina" do DetalheCliente (monospace + copiar).
-    return 'Terminal sem identificação';
+
+    if (base == null || base.isEmpty) {
+      final nifEfectivo = (nif != null && nif.trim().isNotEmpty)
+          ? nif.trim()
+          : (lic != null && lic.nif.trim().isNotEmpty ? lic.nif.trim() : null);
+      return nifEfectivo != null
+          ? 'NIF $nifEfectivo'
+          : 'Terminal sem identificação';
+    }
+
+    final o = lic == null ? null : _ordem[lic.id];
+    if (o != null && o.$2 >= 2) return '$base · T${o.$1}';
+    return base;
   }
 
   /// Linha "cidade do ping − localidade da loja" para [machineId].
