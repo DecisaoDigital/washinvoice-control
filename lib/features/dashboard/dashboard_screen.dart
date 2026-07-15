@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -102,6 +104,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final comLic = await comLicenca;
     final novas = acts.where((p) => !comLic.contains(p.machineId)).toList();
     final pkg = await info;
+
+    developer.log(
+      'licencas=${(await licencas).length}, novas=${novas.length}, '
+      'pedidosAjuda=${(await ajuda).length}, pendentes=${(await pendentes).length}, '
+      'actividade=${acts.length}, sugestoes=${(await sugestoes).length}',
+      name: 'dashboard',
+    );
 
     return _DashboardData(
       licencas: await licencas,
