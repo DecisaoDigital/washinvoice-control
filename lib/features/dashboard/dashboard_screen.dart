@@ -384,7 +384,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 const SizedBox(height: AppSpacing.xl),
                 Center(
                   child: Text(
-                    '${Config.marca} Control · v${data.versaoApp} · ${Config.emailContacto}',
+                    '${Config.marca} Control · v${data.versaoApp}',
                     style: AppText.caption,
                   ),
                 ),
