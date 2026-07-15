@@ -2,15 +2,24 @@
 
 Aplicação Flutter de administração do WashInvoice. Serve para acompanhar instalações, licenças, pedidos de renovação, últimos acessos, versões instaladas, localização das máquinas e emissão manual do `licenca.json`.
 
+## Estado
+
+**v1.4.0** — redesign visual completo (design tokens, componentes `Wi*`,
+identidade de marca em todos os ecrãs) + duas features novas: **Pedidos de
+Ajuda** e **Sugestões** (o POS insere; o Control atende). Branch de trabalho:
+`feature/redesign-visual` (validação UI real por fechar antes do merge).
+
 ## Funcionalidades principais
 
 - Login com Supabase Auth.
-- Dashboard com licenças ativas, a expirar, expiradas e pedidos pendentes.
+- Dashboard com licenças ativas, a expirar, expiradas, pedidos pendentes, pedidos de ajuda e sugestões.
 - Deteção de novas instalações através de pings sem licença associada.
 - Ativação de instalações e criação de clientes/licenças.
 - Renovação, suspensão e reativação de licenças.
 - Geração manual do `licenca.json` assinado, com verificação de colisão de série por terminal.
-- Histórico de acessos, versão instalada e estado dos Termos & Condições.
+- Histórico de acessos (até 120 pings/máquina), versão instalada e estado dos Termos & Condições.
+- **Pedidos de Ajuda**: lista de pedidos abertos/histórico, ligar ao cliente, marcar resolvido.
+- **Sugestões**: por ler/arquivo, marcar como importante, arquivar.
 
 ## Estrutura
 
@@ -52,6 +61,10 @@ test/            Testes de compatibilidade da emissão de licenças
    ```text
    supabase/adicionar_serie_licencas.sql
    supabase/adicionar_oferta_licencas.sql
+   supabase/adicionar_localidade_clientes.sql   # v1.4
+   supabase/tabela_pedidos_ajuda.sql            # v1.4
+   supabase/tabela_sugestoes.sql                # v1.4
+   supabase/trigger_retencao_pings.sql          # v1.4 (120 pings/máquina)
    supabase/rls_policies.sql            # RLS — ver "Segurança da base de dados"
    ```
 

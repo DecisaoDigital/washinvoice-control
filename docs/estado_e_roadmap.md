@@ -36,7 +36,7 @@ Marca comercial: **WashInvoice**. "WashControl" é nome interno para diferenciar
 
 | Tabela | Papel | RLS |
 |---|---|---|
-| `clientes` | Dados de cada lavandaria | Policy actual: `authenticated` acesso total. Ronda RLS Opção D preparada mas não aplicada. |
+| `clientes` | Dados de cada lavandaria (+ `localidade` humana desde v1.4) | Policy actual: `authenticated` acesso total. Ronda RLS Opção D preparada mas não aplicada. |
 | `licencas` | Uma linha por terminal instalado | idem |
 | `pings` | Telemetria de POS (fire-and-forget do POS via anon key) | INSERT anon aberto (para o POS conseguir escrever) |
 | `aceites_termos` | Aceites RGPD (uma linha por instalação) | INSERT anon aberto |
@@ -46,6 +46,8 @@ Marca comercial: **WashInvoice**. "WashControl" é nome interno para diferenciar
 | `invoice_signature_logs` | Log de assinaturas QES por factura | **RLS desligado — exposto a anon** (pendente) |
 | `admins` | Lista de user_ids com privilégios admin | **Não existe hoje.** Ficará quando aplicarmos RLS Opção A/D pós-AT. |
 | `admin_dispositivos` | Tokens FCM dos dispositivos do admin (Cesar) | `authenticated`, cada user só toca no seu token |
+| `pedidos_ajuda` | Pedidos de ajuda do cliente (POS insere; Control resolve) | INSERT anon aberto; SELECT/UPDATE authenticated (v1.4) |
+| `sugestoes` | Sugestões do cliente (POS insere; Control lê/marca/arquiva) | INSERT anon aberto; SELECT/UPDATE authenticated (v1.4) |
 
 ---
 
@@ -74,6 +76,27 @@ Marca comercial: **WashInvoice**. "WashControl" é nome interno para diferenciar
 ---
 
 ## 6. O que foi entregue (por ronda)
+
+### Ronda 1.4.0 — redesign visual + Pedidos de Ajuda + Sugestões (branch `feature/redesign-visual`)
+
+1. **Design tokens em código**: paleta completa (escalas 50/100/200/500/700/900),
+   tipografia (`AppText`), `AppSpacing`, `AppRadius`, tema com AppBar `azul900`
+   (#1F5F87, reconciliado no `tokens.md`).
+2. **8 componentes reutilizáveis** `Wi*` em `lib/core/widgets/` (WiCard,
+   WiCardDestaque, WiKpiCard, WiSeccaoTitulo, WiLinhaKV, WiBadgeEstado,
+   WiChipFiltro, WiEmptyState) + barrel.
+3. **Helpers de exibição** (`exibicao.dart`) e **`ContextoInstalacoes`** — índice
+   partilhado licença/cliente/ping por `machine_id`, reutilizado por 4 ecrãs.
+4. **Supabase (aplicado em produção)**: coluna `clientes.localidade`, tabelas
+   `pedidos_ajuda` e `sugestoes` (com policies anon-insert/admin-rw), trigger
+   `limitar_pings_por_maquina` (retém 120 pings/máquina).
+5. **Refactor visual** de Dashboard, Instalações, DetalheCliente, Sobre, Login, Mapa.
+6. **Ecrãs novos**: Pedidos de Ajuda (Abertos/Histórico) e Sugestões (Por ler/Arquivo).
+7. **Versão 1.4.0+14**; Sobre/Dashboard/Login lêem a versão via `PackageInfo`.
+8. **Testes**: 43 verdes (exibicao, pedidos_ajuda, sugestoes + os anteriores);
+   `flutter analyze` sem avisos novos (só o `anonKey` deprecated pré-existente).
+9. **Por fechar**: verificação UI real no telemóvel (`docs/verificacao_apk_r1_4.md`)
+   e markers PNG custom do Mapa (TODO — fallback por hue nativo).
 
 ### Ronda R1 + R2 — melhorias funcionais no Control (branch `feature/melhorias-r1-r2`)
 
@@ -117,6 +140,10 @@ Marca comercial: **WashInvoice**. "WashControl" é nome interno para diferenciar
 
 ### Curto prazo (esta semana ou próxima)
 
+- **Verificação UI real da ronda 1.4.0** — Cesar corre `docs/verificacao_apk_r1_4.md`
+  no telemóvel (APK release da `feature/redesign-visual`). Sem isto o merge fica suspenso.
+- **Markers PNG custom do Mapa (1.4.0)** — criar os 4 assets 96×96 em
+  `assets/markers/` e registá-los no `pubspec.yaml`; hoje há fallback por hue nativo.
 - **Fechar a Fase 4 de verificação UI do R1** — Cesar corre `docs/verificacao_apk_r1.md` no telemóvel. Sem isto o merge de `feature/melhorias-r1-r2` para `master` fica em suspenso.
 - **Merge de `feature/melhorias-r1-r2` para `master`** — depois da Fase 4 fechar.
 - **Trigger DB automático** — hoje o push é disparado por curl manual. Falta:
@@ -127,15 +154,12 @@ Marca comercial: **WashInvoice**. "WashControl" é nome interno para diferenciar
 
 ### Médio prazo (depois do curto, antes da AT)
 
-- **Redesign visual do Dashboard** (branch `feature/redesign-visual` ainda por abrir). Prompt de contexto já preparado. Problemas conhecidos:
-  1. `machine_id` de 64 chars rouba a atenção nos cards "Início de actividade" e "Actividade recente".
-  2. Card "Início de actividade" cinzento inerte (deveria destacar-se).
-  3. KPIs desalinhados por "A expirar (≤15d)" em duas linhas.
-  4. AppBar Material default sem identidade WashInvoice.
-  5. Badge "NEW" redundante.
-  6. Metade inferior do ecrã vazia.
-- **Design tokens** — paleta com azul-marca ancorado, escala tipográfica, espaçamentos, raios, sombras. Ficheiro em `docs/design/tokens.md` (pasta já existe).
-- **Redesign dos outros ecrãs** — Instalações, DetalheCliente, Mapa, Sobre/Sistema, Login. Depende dos tokens.
+- ✅ **Redesign visual completo** (Dashboard, Instalações, DetalheCliente, Mapa,
+  Sobre, Login) — **entregue na ronda 1.4.0** (branch `feature/redesign-visual`).
+  Os 6 problemas conhecidos (machine_id, card inerte, KPIs, AppBar, badge NEW,
+  ecrã vazio) foram resolvidos. Falta só: **verificação UI real no telemóvel** e
+  **markers PNG custom do Mapa** (TODO — ver Curto prazo).
+- ✅ **Design tokens** — entregue (`app_colors`/`app_theme`/`app_spacing`/`app_radius`).
 - **Buracos de segurança pendentes**:
   - `company_signature_settings` e `invoice_signature_logs` com RLS desligado — ligar RLS sem policies anon (só service_role via Edge Function pode escrever).
   - Índice único parcial na série activa: `create unique index licencas_serie_activa_unique on licencas (lower(trim(serie))) where activa=true and serie is not null`.
@@ -166,6 +190,17 @@ Registo dos "porquês" que não devem ser esquecidos:
 - **Edge Function `enviar-push` com `verify_jwt: false` + secret partilhado.** Custom auth via header. `service_role_key` não é distribuído.
 - **Google Analytics do Firebase desactivado.** É um utilizador (Cesar), zero valor, tira um wizard step.
 - **Plano Firebase Spark (grátis).** FCM é grátis. Não fazer upgrade sem razão explícita.
+- **`azul900` = `#1F5F87` (v1.4).** O redesign introduziu este tom como superfície
+  da AppBar (texto branco ~6:1, passa WCAG AA). O `tokens.md` foi corrigido para
+  não mentir. `azul700` deixa de ser a AppBar; fica para botões primários sobre branco.
+- **`ContextoInstalacoes` como fonte única de lookups (v1.4).** Em vez de cada ecrã
+  reconstruir mapas machine→licença/cliente/ping e re-decidir nome/sinal/localidade,
+  há um índice partilhado. Reduz divergência entre ecrãs (regra "um só sítio").
+- **Retenção de pings no servidor (v1.4).** Trigger `limitar_pings_por_maquina`
+  (120/máquina) em vez de limpeza no cliente — mais barato e sempre consistente.
+  É destrutivo (DELETE a cada insert); aplicado em produção com autorização.
+- **Features novas como secções do Dashboard, não abas.** Pedidos de Ajuda e
+  Sugestões abrem por `MaterialPageRoute`; o bottom nav mantém-se em 3 tabs.
 
 ---
 

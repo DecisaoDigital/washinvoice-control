@@ -415,3 +415,65 @@ No fim da implementação, antes de reportares "está feito", faz **auditoria ho
 16. `docs: verificacao_apk_r1_4.md em branco`
 
 Reporta SHA de cada commit no fim. Não faças merge até validação UI real do Cesar.
+
+---
+
+## Reconciliação — o que ficou vs planeado (após implementação)
+
+> Auditoria honesta pós-implementação (Fase 11). O texto acima é a **intenção**;
+> isto é a **realidade**. Onde divergem, isto manda.
+
+### Decisões tomadas com o Cesar antes de começar (Fase 1)
+- **Branch:** a árvore estava suja (FCM + tokens parciais por commitar) na
+  `feature/melhorias-r1-r2`. Fez-se um commit de arrumação e criou-se
+  `feature/redesign-visual` a partir daí. `google-services.json` passou a
+  ignorado (era um segredo por versionar).
+- **`azul900`:** o prompt pedia `#1F5F87`; o `tokens.md` tinha `#185277`.
+  Escolhido **`#1F5F87`** e `tokens.md` §1.2/§1.3 reconciliado (a fonte de
+  verdade não pode mentir).
+- **Migrações Supabase:** aplicadas **em produção** (projeto
+  `oefqbkhioncakojipqyx`) via MCP, com autorização explícita — incluindo o
+  trigger destrutivo de retenção de pings.
+
+### Implementado como descrito → OK
+- Fase 2 tokens (paleta 50/100/200/500/700/900, tipografia, `AppSpacing`,
+  `AppRadius`, tema).
+- Fase 3 os 8 componentes `Wi*`.
+- Fase 4 as 4 migrações + `Cliente.localidade` + models/repos/providers.
+- Fase 5 helpers de exibição (nomeExibicao, sinalLocalidade, iconeSinal, ordem).
+- Fase 6.1–6.5 e 7.1/7.2 ecrãs, Fase 8 bump, Fase 9 testes (43 verdes),
+  Fase 10 checklist criada.
+
+### Implementado com adaptação (e porquê)
+- **`WiCardDestaque`:** o prompt dizia "fundo azul50 fixo, só a borda varia".
+  Fez-se o fundo **derivar do acento** (`tom50`), senão laranja/roxo com fundo
+  azul ficava incoerente. Continua azul por defeito.
+- **`corSinal(gps)`:** prompt pedia `verde600`; o `tokens.md` não tem 600 →
+  usou-se `verde700` (token mais próximo, sem valor mágico).
+- **`AppSpacing`:** escala nomeada (`xs..xxxl`) em vez de só `md=12` — cobre a
+  escala 4px inteira do `tokens.md` §3.
+- **Dashboard:** mantidas as secções **"A expirar"** e **"Pedidos de renovação"**
+  (existiam, não estavam descritas → regra "manter com tokens novos"),
+  restilizadas. Adicionada secção **"Sugestões"** resumida para o ecrã de
+  sugestões ser alcançável (6.1 não a detalhava; tokens.md §9 e 7.3 pedem-na).
+- **DetalheCliente:** mantido o botão **"Confirmar pagamento e gerar licença"**
+  (lógica de negócio essencial, não descrita no prompt) — posto a **azul** para
+  não colidir com o verde "Renovar". "Renovar antecipadamente" é a variante
+  discreta quando a licença não está a expirar.
+- **Sobre:** removida a linha "URL" (o 6.4 só pede Projeto + Estado "Ligado").
+- **Instalações:** filtro por defeito passou a **"Activas"** (pedido explícito),
+  alterando o comportamento anterior ("mostrar todas").
+
+### Adiado / TODO
+- **Fase 6.6 markers custom:** os 4 PNG 96×96 em `assets/markers/` **não** foram
+  criados (sem ferramenta de geração de imagem no fluxo). Fica **TODO explícito**
+  no `mapa_screen.dart`; usa-se `defaultMarkerWithHue` com os hues por estado.
+- **Fase 10 verificação UI real:** o APK release / instalação no telemóvel é do
+  Cesar — `docs/verificacao_apk_r1_4.md` está pronto, por correr.
+- **Chevron "Actividade recente":** decorativo (o prompt não deu destino).
+
+### Não tocado (conforme "NÃO TOCAR EM")
+POS, edge functions, `fcm_service`/`fcm_background_handler`,
+`licenca_assinatura`, `rls_policies.sql`, `config.dart`, navegação principal
+(`home_shell` — bottom nav mantém 3 tabs). Novos ecrãs abrem por
+`MaterialPageRoute`, sem mexer no router.
