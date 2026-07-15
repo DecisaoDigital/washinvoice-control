@@ -11,6 +11,7 @@ import '../../core/erros.dart';
 import '../../core/widgets/widgets.dart';
 import '../../models/sugestao.dart';
 import '../../repositories/providers.dart';
+import 'detalhe_sugestao_screen.dart';
 
 class _SugestoesData {
   final List<Sugestao> porLer;
@@ -81,6 +82,14 @@ class _SugestoesScreenState extends ConsumerState<SugestoesScreen> {
     await _recarregar();
   }
 
+  void _abrirDetalhe(Sugestao s) {
+    Navigator.of(context)
+        .push(MaterialPageRoute(
+          builder: (_) => DetalheSugestaoScreen(sugestao: s),
+        ))
+        .then((_) => _recarregar());
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -132,11 +141,12 @@ class _SugestoesScreenState extends ConsumerState<SugestoesScreen> {
                 child: RefreshIndicator(
                   onRefresh: _recarregar,
                   child: _mostrarArquivo
-                      ? _ListaArquivo(data)
+                      ? _ListaArquivo(data, onAbrir: _abrirDetalhe)
                       : _ListaPorLer(
                           data,
                           onMarcar: _toggleMarcar,
                           onArquivar: _arquivar,
+                          onAbrir: _abrirDetalhe,
                         ),
                 ),
               ),
@@ -209,8 +219,11 @@ class _ListaPorLer extends StatelessWidget {
   final _SugestoesData data;
   final Future<void> Function(Sugestao) onMarcar;
   final Future<void> Function(Sugestao) onArquivar;
+  final void Function(Sugestao) onAbrir;
   const _ListaPorLer(this.data,
-      {required this.onMarcar, required this.onArquivar});
+      {required this.onMarcar,
+      required this.onArquivar,
+      required this.onAbrir});
 
   @override
   Widget build(BuildContext context) {
@@ -238,6 +251,7 @@ class _ListaPorLer extends StatelessWidget {
           nome: data.ctx.nomeDe(machineId: s.machineId ?? '', nif: s.nif),
           onMarcar: () => onMarcar(s),
           onArquivar: () => onArquivar(s),
+          onAbrir: () => onAbrir(s),
         );
       },
     );
@@ -249,12 +263,14 @@ class _CardPorLer extends StatelessWidget {
   final String nome;
   final VoidCallback onMarcar;
   final VoidCallback onArquivar;
+  final VoidCallback onAbrir;
 
   const _CardPorLer({
     required this.sugestao,
     required this.nome,
     required this.onMarcar,
     required this.onArquivar,
+    required this.onAbrir,
   });
 
   @override
@@ -262,6 +278,7 @@ class _CardPorLer extends StatelessWidget {
     final tempo = timeago.format(sugestao.criadoEm, locale: 'pt');
     return WiCardDestaque(
       cor: AppColors.roxo500,
+      onTap: onAbrir,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -317,7 +334,8 @@ class _CardPorLer extends StatelessWidget {
 
 class _ListaArquivo extends StatelessWidget {
   final _SugestoesData data;
-  const _ListaArquivo(this.data);
+  final void Function(Sugestao) onAbrir;
+  const _ListaArquivo(this.data, {required this.onAbrir});
 
   @override
   Widget build(BuildContext context) {
@@ -343,6 +361,7 @@ class _ListaArquivo extends StatelessWidget {
         return _CardArquivo(
           sugestao: s,
           nome: data.ctx.nomeDe(machineId: s.machineId ?? '', nif: s.nif),
+          onAbrir: () => onAbrir(s),
         );
       },
     );
@@ -352,14 +371,16 @@ class _ListaArquivo extends StatelessWidget {
 class _CardArquivo extends StatelessWidget {
   final Sugestao sugestao;
   final String nome;
-  const _CardArquivo({required this.sugestao, required this.nome});
+  final VoidCallback onAbrir;
+  const _CardArquivo(
+      {required this.sugestao, required this.nome, required this.onAbrir});
 
   @override
   Widget build(BuildContext context) {
     return WiCard(
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md, vertical: AppSpacing.md),
-      onTap: () => _abrir(context),
+      onTap: onAbrir,
       child: Row(
         children: [
           Icon(
@@ -386,34 +407,6 @@ class _CardArquivo extends StatelessWidget {
           const Icon(Icons.chevron_right,
               size: 20, color: AppColors.textTertiary),
         ],
-      ),
-    );
-  }
-
-  void _abrir(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(child: Text(nome, style: AppText.h2)),
-                Text(timeago.format(sugestao.criadoEm, locale: 'pt'),
-                    style: AppText.caption),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(sugestao.texto,
-                style: AppText.body.copyWith(height: 1.5)),
-            const SizedBox(height: AppSpacing.lg),
-          ],
-        ),
       ),
     );
   }
