@@ -46,6 +46,48 @@ extension OrdenacaoLabel on OrdenacaoInstalacoes {
 
 const _kPrefOrdenacao = 'instalacoes_ordenacao';
 
+/// Ordena as licenças por [ordenacao] (função pura, testável). Usa o [ctx] para
+/// nome/localidade e [pingPorMachine] para o último acesso.
+List<Licenca> ordenarInstalacoes(
+  List<Licenca> lista,
+  OrdenacaoInstalacoes ordenacao, {
+  required ContextoInstalacoes ctx,
+  required Map<String, Ping> pingPorMachine,
+}) {
+  final l = [...lista];
+  switch (ordenacao) {
+    case OrdenacaoInstalacoes.ultimoAcesso:
+      l.sort((a, b) {
+        final pa = pingPorMachine[a.machineId]?.criadoEm;
+        final pb = pingPorMachine[b.machineId]?.criadoEm;
+        if (pa == null && pb == null) return 0;
+        if (pa == null) return 1; // sem ping vai para o fim
+        if (pb == null) return -1;
+        return pb.compareTo(pa); // mais recente primeiro
+      });
+    case OrdenacaoInstalacoes.nome:
+      l.sort((a, b) => ctx
+          .nomeDe(machineId: a.machineId, nif: a.nif)
+          .toLowerCase()
+          .compareTo(
+              ctx.nomeDe(machineId: b.machineId, nif: b.nif).toLowerCase()));
+    case OrdenacaoInstalacoes.validade:
+      l.sort((a, b) => a.validade.compareTo(b.validade)); // fim mais próximo
+    case OrdenacaoInstalacoes.localidade:
+      String loc(Licenca x) {
+        final c = ctx.clienteDe(machineId: x.machineId, nif: x.nif);
+        if (c?.localidade != null && c!.localidade!.trim().isNotEmpty) {
+          return c.localidade!.trim().toLowerCase();
+        }
+        return Localidades.traduzir(pingPorMachine[x.machineId]?.cidade)
+            .toLowerCase();
+      }
+
+      l.sort((a, b) => loc(a).compareTo(loc(b)));
+  }
+  return l;
+}
+
 class InstalacoesScreen extends ConsumerStatefulWidget {
   const InstalacoesScreen({super.key});
 
@@ -83,41 +125,9 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
         .then((prefs) => prefs.setString(_kPrefOrdenacao, o.name));
   }
 
-  List<Licenca> _ordenar(List<Licenca> lista, _InstalacoesData data) {
-    final l = [...lista];
-    switch (_ordenacao) {
-      case OrdenacaoInstalacoes.ultimoAcesso:
-        l.sort((a, b) {
-          final pa = data.pingPorMachine[a.machineId]?.criadoEm;
-          final pb = data.pingPorMachine[b.machineId]?.criadoEm;
-          if (pa == null && pb == null) return 0;
-          if (pa == null) return 1; // sem ping vai para o fim
-          if (pb == null) return -1;
-          return pb.compareTo(pa); // mais recente primeiro
-        });
-      case OrdenacaoInstalacoes.nome:
-        l.sort((a, b) => data.ctx
-            .nomeDe(machineId: a.machineId, nif: a.nif)
-            .toLowerCase()
-            .compareTo(data.ctx
-                .nomeDe(machineId: b.machineId, nif: b.nif)
-                .toLowerCase()));
-      case OrdenacaoInstalacoes.validade:
-        l.sort((a, b) => a.validade.compareTo(b.validade)); // fim mais próximo
-      case OrdenacaoInstalacoes.localidade:
-        String loc(Licenca x) {
-          final c = data.ctx.clienteDe(machineId: x.machineId, nif: x.nif);
-          if (c?.localidade != null && c!.localidade!.trim().isNotEmpty) {
-            return c.localidade!.trim().toLowerCase();
-          }
-          return Localidades.traduzir(data.pingPorMachine[x.machineId]?.cidade)
-              .toLowerCase();
-        }
-
-        l.sort((a, b) => loc(a).compareTo(loc(b)));
-    }
-    return l;
-  }
+  List<Licenca> _ordenar(List<Licenca> lista, _InstalacoesData data) =>
+      ordenarInstalacoes(lista, _ordenacao,
+          ctx: data.ctx, pingPorMachine: data.pingPorMachine);
 
   Future<_InstalacoesData> _carregar() async {
     final licencasRepo = ref.read(licencasRepoProvider);
