@@ -238,3 +238,12 @@ espaço morto em release):
 - **Um bug só de release exige verificação em release.** `flutter analyze`/`test`
   em debug apanham a assertion (bom para regressão), mas o sintoma real
   (espaço morto) só se vê no APK. Confirmar sempre no telemóvel.
+
+## 12. Conteúdo (v1.4.2)
+
+- **Cidade sempre por `Localidades.traduzir`.** Qualquer `pings.cidade` que
+  apareça na UI passa primeiro por `Localidades.traduzir(cidade)` — a `ip-api.com`
+  do POS devolve nomes em inglês (Lisbon, Oporto). Nunca mostrar `ping.cidade` cru.
+- **Nunca o machine_id (hash) como nome em listas.** Identificador de fallback é
+  `NIF <x>` ou `Terminal sem identificação` (ver `ContextoInstalacoes.nomeDe`). O
+  hash vive só na secção "Máquina" do DetalheCliente (monospace + copiar).

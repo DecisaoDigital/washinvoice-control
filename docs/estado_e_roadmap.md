@@ -25,7 +25,7 @@ Marca comercial: **WashInvoice**. "WashControl" é nome interno para diferenciar
 | Componente | Detalhes |
 |---|---|
 | Control (Android) | Flutter 3.8+, Riverpod, Supabase, Firebase Messaging. Repo local: `D:\WashInvoiceControl\washinvoice_control`. Branch de trabalho: `feature/melhorias-r1-r2` (por fazer merge). |
-| POS WashFactura (Windows) | Flutter + Drift/SQLite. Fora do escopo deste repo. Pré-certificação AT. |
+| POS WashFactura (Windows) | Flutter + Drift/SQLite. Fora do escopo deste repo. Versão em desenvolvimento: **1.6.6**. Pré-certificação AT. |
 | Supabase | Projecto `oefqbkhioncakojipqyx` (região `eu-central-1`). URL: `https://oefqbkhioncakojipqyx.supabase.co`. |
 | Firebase / GCP | Projecto `washinvoice-control` (plano Spark, grátis). Só usado para FCM push. |
 | Notificações push | FCM v1. Edge Function `enviar-push` no Supabase; token registado em `admin_dispositivos`. |
@@ -76,6 +76,53 @@ Marca comercial: **WashInvoice**. "WashControl" é nome interno para diferenciar
 ---
 
 ## 6. O que foi entregue (por ronda)
+
+### Ronda 1.4.3 — backend (aplicado via MCP) + prompt Flutter pendente
+
+**Backend (aplicado em produção):**
+
+1. **Edge Functions versionadas no repo** — `supabase/functions/enviar-push/`, `supabase/functions/assinar-documento/` (com `assinatura.ts`), + `README.md`. Passa a ser fonte de verdade.
+2. **Índice único parcial `licencas_serie_activa_unique`** — impede duas licenças activas com a mesma série (case/whitespace insensitive).
+3. **Tabela `licencas_audit`** + função + trigger `trg_audit_licencas` — regista INSERT/UPDATE/DELETE com actor, campos alterados, antes/depois em JSONB. RLS: SELECT authenticated. Testado com 3 operações (INSERT+UPDATE+DELETE) — as 3 aparecem em audit.
+4. **RLS ligado em `company_signature_settings` e `invoice_signature_logs`** — antes expostas a anon. Agora SELECT authenticated, sem INSERT/UPDATE/DELETE público (só service_role da futura Edge `assinar-pdf` passa).
+
+**Flutter (por fazer — `docs/design/prompt_code_1_4_3.md`):**
+
+5. `DetalheSugestaoScreen` — par do `DetalhePedidoAjudaScreen`.
+6. Dropdown de ordenação nas Instalações (último acesso, nome, validade, localidade) com persistência em SharedPreferences.
+7. Ecrã de pesquisa global (clientes, licenças, pings, pedidos, sugestões).
+8. Ecrã de exportação CSV (backup) com `share_plus`.
+9. Mensagem clara em vez de excepção crua quando a série activa é duplicada (novo índice único).
+
+### Ronda POS 1.6.6 — coordenação com Control (repo POS)
+
+1. **Diálogo Ajuda** — substitui SnackBar em `compra_licenca.dart`. AlertDialog com telefone, email, botão "Enviar email" que gera `mailto:`. Usa constantes `kContacto*`.
+2. **Ecrã Pedir Ajuda** — botão que faz INSERT em `pedidos_ajuda` (anon key, fire-and-forget); trigger DB dispara push para o Cesar.
+3. **Ecrã Enviar Sugestão** — texto motivador + formulário; ao gravar faz INSERT em `sugestoes` E abre `mailto:` em paralelo.
+4. **Campo Localidade** em Dados da Empresa; sync fire-and-forget para `clientes.localidade` no Supabase.
+5. Menus de acesso: Pedir Ajuda e Enviar Sugestão acessíveis do menu do POS.
+6. **Sem regressões fiscais** — SAF-T, séries, ATCUD, hash chaining intactos.
+7. **Por confirmar**: se `ip-api.com` já é chamada com `&lang=pt` (afecta como "Lisboa" chega ao Supabase; se não, fica para 1.6.7).
+
+### Ronda 1.4.2 — conteúdo/apresentação (branch `feature/1.4.2-conteudo`)
+
+Problemas de dados mal tratados (não de render):
+
+1. **`Localidades.traduzir`** (`lib/core/localidades.dart`) — mapa EN→PT para as
+   cidades da `ip-api.com` (Lisbon→Lisboa, …). Aplicado em todos os sítios com
+   `pings.cidade` (Dashboard, Instalações, DetalheCliente, Mapa, Ativação).
+2. **`nomeDe` sem hash** — cascata cliente.nome → nome da licença → `NIF <x>` →
+   `Terminal sem identificação`. Nunca o machine_id em listas.
+3. **"Sem NIF ainda"** no card de Início de actividade (era "NIF —").
+4. **`metodo_geo` null** tratado como `nenhum` (ícone barrado cinza).
+5. **Rodapé** do Dashboard sem email (fica no Sobre/Sistema).
+6. **`_CardPedidoAjuda`** mostra preview das notas em vez de `Sinal−Localidade`
+   (evita "? −" quando o pedido chega sem ping).
+7. **`DetalhePedidoAjudaScreen`** — ecrã dedicado (Pedido, Cliente/Terminal,
+   Último ping; botões Ligar/Email/Resolver). Dashboard e lista abrem-no.
+8. Testes: `localidades_test`, `exibicao_test` (nomeDe sem hash), `dashboard_test`
+   ("Sem NIF ainda"). 55 verdes. Versão **1.4.2+16**.
+9. **Por fechar**: verificação UI real (`docs/verificacao_apk_r1_4_2.md`).
 
 ### Ronda 1.4.1 — fixes pós-instalação (branch `feature/1.4.1-fixes`)
 

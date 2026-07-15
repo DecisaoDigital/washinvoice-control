@@ -313,3 +313,24 @@ Se um teste fiscal quebrar depois de uma alteração desta ronda, **é bug** —
 11. `docs: verificacao_pos_1_6.md`
 
 Reporta SHA de cada. Não faças merge para `master` até validação real e OK do Cesar.
+
+---
+
+## TODO (do Control 1.4.2) — cidade em português na origem
+
+No POS, `licenca_service.dart` (ou onde é feita a geolocalização por IP), mudar a
+chamada de:
+
+```
+http://ip-api.com/json?fields=lat,lon,city
+```
+
+para:
+
+```
+http://ip-api.com/json?fields=lat,lon,city&lang=pt
+```
+
+Assim os pings novos passam a chegar já em português ("Lisboa", "Porto") ao
+Supabase. Enquanto isto não for feito, o Control traduz no cliente via
+`Localidades.traduzir()` (cobre os pings antigos que já estão em inglês na base).
