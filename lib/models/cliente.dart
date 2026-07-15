@@ -5,6 +5,11 @@ class Cliente {
   final String? email;
   final String? telemovel;
   final String? notas;
+
+  /// Localidade humana da loja, preenchida pelo admin (ex.: "Pinhal Novo").
+  /// Distinta da `cidade` automática do ping. Coluna `clientes.localidade`.
+  final String? localidade;
+
   final DateTime criadoEm;
 
   const Cliente({
@@ -14,6 +19,7 @@ class Cliente {
     this.email,
     this.telemovel,
     this.notas,
+    this.localidade,
     required this.criadoEm,
   });
 
@@ -24,6 +30,7 @@ class Cliente {
         email: json['email'] as String?,
         telemovel: json['telemovel'] as String?,
         notas: json['notas'] as String?,
+        localidade: json['localidade'] as String?,
         criadoEm: DateTime.parse(json['created_at'] as String),
       );
 
@@ -36,6 +43,7 @@ class Cliente {
         'email': email,
         'telemovel': telemovel,
         'notas': notas,
+        'localidade': localidade,
         'created_at': criadoEm.toIso8601String(),
       };
 
@@ -46,6 +54,7 @@ class Cliente {
         'email': email,
         'telemovel': telemovel,
         'notas': notas,
+        'localidade': localidade,
       };
 
   /// Campos para **UPDATE**. Exclui `id` e `created_at` (geridos pela BD) —
@@ -56,6 +65,7 @@ class Cliente {
         'email': email,
         'telemovel': telemovel,
         'notas': notas,
+        'localidade': localidade,
       };
 
   Cliente copyWith({
@@ -65,6 +75,7 @@ class Cliente {
     String? email,
     String? telemovel,
     String? notas,
+    String? localidade,
     DateTime? criadoEm,
   }) =>
       Cliente(
@@ -74,6 +85,7 @@ class Cliente {
         email: email ?? this.email,
         telemovel: telemovel ?? this.telemovel,
         notas: notas ?? this.notas,
+        localidade: localidade ?? this.localidade,
         criadoEm: criadoEm ?? this.criadoEm,
       );
 }
