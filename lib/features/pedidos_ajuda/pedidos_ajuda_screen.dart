@@ -1,0 +1,435 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:timeago/timeago.dart' as timeago;
+
+import '../../core/acoes.dart';
+import '../../core/app_colors.dart';
+import '../../core/app_radius.dart';
+import '../../core/app_spacing.dart';
+import '../../core/app_theme.dart';
+import '../../core/contexto_instalacoes.dart';
+import '../../core/erros.dart';
+import '../../core/widgets/widgets.dart';
+import '../../models/pedido_ajuda.dart';
+import '../../repositories/providers.dart';
+
+/// Formata uma duração de forma curta em PT (ex.: "2 h", "3 d", "45 min").
+String formatarDuracao(Duration? d) {
+  if (d == null) return '—';
+  if (d.inDays >= 1) return '${d.inDays} d';
+  if (d.inHours >= 1) return '${d.inHours} h';
+  if (d.inMinutes >= 1) return '${d.inMinutes} min';
+  return '${d.inSeconds} s';
+}
+
+class _PedidosData {
+  final List<PedidoAjuda> abertos;
+  final List<PedidoAjuda> historico;
+  final ContextoInstalacoes ctx;
+
+  _PedidosData({
+    required this.abertos,
+    required this.historico,
+    required this.ctx,
+  });
+}
+
+class PedidosAjudaScreen extends ConsumerStatefulWidget {
+  const PedidosAjudaScreen({super.key});
+
+  @override
+  ConsumerState<PedidosAjudaScreen> createState() => _PedidosAjudaScreenState();
+}
+
+class _PedidosAjudaScreenState extends ConsumerState<PedidosAjudaScreen> {
+  late Future<_PedidosData> _future;
+  bool _mostrarHistorico = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _carregar();
+  }
+
+  Future<_PedidosData> _carregar() async {
+    final ajudaRepo = ref.read(pedidosAjudaRepoProvider);
+    final clientesRepo = ref.read(clientesRepoProvider);
+    final licencasRepo = ref.read(licencasRepoProvider);
+    final pingsRepo = ref.read(pingsRepoProvider);
+
+    final abertos = ajudaRepo.listarAbertos();
+    final historico = ajudaRepo.listarHistorico();
+    final clientes = clientesRepo.listar();
+    final licencas = licencasRepo.listar();
+    final pings = pingsRepo.ultimosPorInstalacao();
+    await Future.wait([abertos, historico, clientes, licencas, pings]);
+
+    return _PedidosData(
+      abertos: await abertos,
+      historico: await historico,
+      ctx: ContextoInstalacoes.build(
+        clientes: await clientes,
+        licencas: await licencas,
+        pings: await pings,
+      ),
+    );
+  }
+
+  Future<void> _recarregar() async {
+    setState(() => _future = _carregar());
+    await _future;
+  }
+
+  Future<void> _resolver(PedidoAjuda p) async {
+    await ref.read(pedidosAjudaRepoProvider).marcarResolvido(p.id);
+    await _recarregar();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const _TituloAppBar(),
+      ),
+      body: FutureBuilder<_PedidosData>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return ErroView(erro: snapshot.error!, onRetry: _recarregar);
+          }
+          final data = snapshot.data!;
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: _Toggle(
+                  abertos: data.abertos.length,
+                  historico: data.historico.length,
+                  mostrarHistorico: _mostrarHistorico,
+                  onChanged: (v) => setState(() => _mostrarHistorico = v),
+                ),
+              ),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _recarregar,
+                  child: _mostrarHistorico
+                      ? _ListaHistorico(data)
+                      : _ListaAbertos(data, onResolver: _resolver),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _TituloAppBar extends StatelessWidget {
+  const _TituloAppBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('Pedidos de ajuda', style: TextStyle(fontSize: 18)),
+      ],
+    );
+  }
+}
+
+class _Toggle extends StatelessWidget {
+  final int abertos;
+  final int historico;
+  final bool mostrarHistorico;
+  final ValueChanged<bool> onChanged;
+
+  const _Toggle({
+    required this.abertos,
+    required this.historico,
+    required this.mostrarHistorico,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: AppColors.fundo,
+        borderRadius: AppRadius.pillAll,
+        border: Border.all(color: AppColors.borda),
+      ),
+      child: Row(
+        children: [
+          _seg('Abertos ($abertos)', !mostrarHistorico, () => onChanged(false)),
+          _seg('Histórico ($historico)', mostrarHistorico, () => onChanged(true)),
+        ],
+      ),
+    );
+  }
+
+  Widget _seg(String label, bool activo, VoidCallback onTap) {
+    return Expanded(
+      child: Material(
+        color: activo ? AppColors.azul900 : Colors.transparent,
+        borderRadius: AppRadius.pillAll,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: AppRadius.pillAll,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: activo ? Colors.white : AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ListaAbertos extends StatelessWidget {
+  final _PedidosData data;
+  final Future<void> Function(PedidoAjuda) onResolver;
+  const _ListaAbertos(this.data, {required this.onResolver});
+
+  @override
+  Widget build(BuildContext context) {
+    if (data.abertos.isEmpty) {
+      return ListView(
+        children: const [
+          SizedBox(height: 80),
+          WiEmptyState(
+            icone: Icons.check_circle_outline,
+            titulo: 'Sem pedidos abertos',
+            mensagem: 'Nenhum cliente está à espera de ajuda neste momento.',
+          ),
+        ],
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
+      itemCount: data.abertos.length,
+      separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+      itemBuilder: (_, i) {
+        final p = data.abertos[i];
+        final cliente =
+            data.ctx.clienteDe(clienteId: p.clienteId, machineId: p.machineId, nif: p.nif);
+        return _CardAberto(
+          pedido: p,
+          nome: data.ctx.nomeDe(machineId: p.machineId, nif: p.nif),
+          sinalLocalidade:
+              data.ctx.sinalLocalidadeDe(machineId: p.machineId, nif: p.nif),
+          telefone: cliente?.telemovel,
+          onResolver: () => onResolver(p),
+        );
+      },
+    );
+  }
+}
+
+class _CardAberto extends StatelessWidget {
+  final PedidoAjuda pedido;
+  final String nome;
+  final String sinalLocalidade;
+  final String? telefone;
+  final VoidCallback onResolver;
+
+  const _CardAberto({
+    required this.pedido,
+    required this.nome,
+    required this.sinalLocalidade,
+    required this.telefone,
+    required this.onResolver,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tempo = timeago.format(pedido.criadoEm, locale: 'pt');
+    return WiCardDestaque(
+      cor: AppColors.laranja500,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.help, color: AppColors.laranja700, size: 22),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(nome, style: AppText.bodyStrong),
+                    const SizedBox(height: 2),
+                    Text(sinalLocalidade, style: AppText.caption),
+                    Text(
+                      'há $tempo${telefone != null ? ' · $telefone' : ''}',
+                      style: AppText.caption,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: telefone == null
+                      ? null
+                      : () => Acoes.ligarPara(telefone),
+                  icon: const Icon(Icons.phone, size: 18),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.azul700,
+                  ),
+                  label: const Text('Ligar'),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: onResolver,
+                  icon: const Icon(Icons.check, size: 18),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.verde700,
+                  ),
+                  label: const Text('Resolvido'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ListaHistorico extends StatelessWidget {
+  final _PedidosData data;
+  const _ListaHistorico(this.data);
+
+  @override
+  Widget build(BuildContext context) {
+    if (data.historico.isEmpty) {
+      return ListView(
+        children: const [
+          SizedBox(height: 80),
+          WiEmptyState(
+            icone: Icons.history,
+            titulo: 'Histórico vazio',
+            mensagem: 'Ainda não há pedidos resolvidos.',
+          ),
+        ],
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+          child: Text(
+            'Histórico · ${data.historico.length} resolvidos',
+            style: AppText.label,
+          ),
+        ),
+        ...data.historico.map((p) => Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: _CardHistorico(
+                pedido: p,
+                nome: data.ctx.nomeDe(machineId: p.machineId, nif: p.nif),
+              ),
+            )),
+      ],
+    );
+  }
+}
+
+class _CardHistorico extends StatelessWidget {
+  final PedidoAjuda pedido;
+  final String nome;
+  const _CardHistorico({required this.pedido, required this.nome});
+
+  @override
+  Widget build(BuildContext context) {
+    final resolvido = pedido.resolvidoEm == null
+        ? '—'
+        : timeago.format(pedido.resolvidoEm!, locale: 'pt');
+    return WiCard(
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md, vertical: AppSpacing.md),
+      onTap: () => _abrirDetalhe(context),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle, color: AppColors.verde700, size: 20),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(nome, style: AppText.bodyStrong, maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+                Text(
+                  'Resolvido $resolvido · duração ${formatarDuracao(pedido.duracao)}',
+                  style: AppText.caption,
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right,
+              size: 20, color: AppColors.textTertiary),
+        ],
+      ),
+    );
+  }
+
+  void _abrirDetalhe(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(nome, style: AppText.h2),
+            const SizedBox(height: AppSpacing.md),
+            WiLinhaKV(
+              rotulo: 'Aberto',
+              valor: timeago.format(pedido.criadoEm, locale: 'pt'),
+            ),
+            WiLinhaKV(
+              rotulo: 'Resolvido',
+              valor: pedido.resolvidoEm == null
+                  ? '—'
+                  : timeago.format(pedido.resolvidoEm!, locale: 'pt'),
+            ),
+            WiLinhaKV(
+              rotulo: 'Duração',
+              valor: formatarDuracao(pedido.duracao),
+            ),
+            if (pedido.notas != null && pedido.notas!.trim().isNotEmpty)
+              WiLinhaKV(rotulo: 'Notas', valor: pedido.notas!),
+            const SizedBox(height: AppSpacing.lg),
+          ],
+        ),
+      ),
+    );
+  }
+}
