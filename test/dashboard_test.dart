@@ -139,8 +139,11 @@ void main() {
     await tester.pumpWidget(_app(pings: [ping]));
     await tester.pumpAndSettle();
 
-    expect(find.text('Sem NIF ainda'), findsOneWidget);
+    // O mesmo terminal aparece em "Início de actividade" e "Actividade recente",
+    // com a MESMA etiqueta (via ctx.nomeDe) — não "NIF —" nem dois nomes diferentes.
+    expect(find.text('Sem NIF ainda'), findsNWidgets(2));
     expect(find.textContaining('NIF —'), findsNothing);
+    expect(find.text('Terminal sem identificação'), findsNothing);
     // Cidade traduzida no card (Lisbon → Lisboa).
     expect(find.textContaining('Lisboa'), findsWidgets);
   });

@@ -245,5 +245,7 @@ espaço morto em release):
   apareça na UI passa primeiro por `Localidades.traduzir(cidade)` — a `ip-api.com`
   do POS devolve nomes em inglês (Lisbon, Oporto). Nunca mostrar `ping.cidade` cru.
 - **Nunca o machine_id (hash) como nome em listas.** Identificador de fallback é
-  `NIF <x>` ou `Terminal sem identificação` (ver `ContextoInstalacoes.nomeDe`). O
-  hash vive só na secção "Máquina" do DetalheCliente (monospace + copiar).
+  `NIF <x>` ou `Sem NIF ainda` (ver `ContextoInstalacoes.nomeDe`). O mesmo
+  terminal mostra sempre a mesma etiqueta em todos os ecrãs (Início de
+  actividade, Actividade recente, Pesquisa, Mapa). O hash vive só na secção
+  "Máquina" do DetalheCliente (monospace + copiar).

@@ -78,10 +78,11 @@ class ContextoInstalacoes {
   /// Nome a mostrar para uma instalação identificada por [machineId] (e [nif]
   /// como recurso).
   ///
-  /// Cascata (1.4.2): cliente conhecido → `cliente.nome` (+ `· T<n>` se ≥2
-  /// terminais); senão o nome da própria licença; senão `NIF <x>`; senão
-  /// `Terminal sem identificação`. **Nunca** o machine_id (hash) — esse vive só
-  /// na secção "Máquina" do DetalheCliente.
+  /// Cascata: cliente conhecido → `cliente.nome` (+ `· T<n>` se ≥2 terminais);
+  /// senão o nome da própria licença; senão `NIF <x>`; senão `Sem NIF ainda`
+  /// (mesma etiqueta que o card de Início de actividade, para o mesmo terminal
+  /// aparecer igual em todo o lado). **Nunca** o machine_id (hash) — esse vive
+  /// só na secção "Máquina" do DetalheCliente.
   String nomeDe({required String machineId, String? nif}) {
     final lic = _licencaPorMachine[machineId];
     final cliente = clienteDe(machineId: machineId, nif: nif);
@@ -97,9 +98,7 @@ class ContextoInstalacoes {
       final nifEfectivo = (nif != null && nif.trim().isNotEmpty)
           ? nif.trim()
           : (lic != null && lic.nif.trim().isNotEmpty ? lic.nif.trim() : null);
-      return nifEfectivo != null
-          ? 'NIF $nifEfectivo'
-          : 'Terminal sem identificação';
+      return nifEfectivo != null ? 'NIF $nifEfectivo' : 'Sem NIF ainda';
     }
 
     final o = lic == null ? null : _ordem[lic.id];

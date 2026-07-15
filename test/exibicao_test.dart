@@ -139,14 +139,13 @@ void main() {
           'NIF 512345678');
     });
 
-    test('sem cliente e sem NIF → "Terminal sem identificação" (nunca o hash)',
-        () {
+    test('sem cliente e sem NIF → "Sem NIF ainda" (nunca o hash)', () {
       const hash =
           '8a0f8c93e2e71c852df08c1daca0d0481c76e0859854c9c51983edbb160e5fde';
       final ctx = ContextoInstalacoes.build(
           clientes: [], licencas: [], pings: []);
       final nome = ctx.nomeDe(machineId: hash, nif: null);
-      expect(nome, 'Terminal sem identificação');
+      expect(nome, 'Sem NIF ainda');
       expect(nome.contains('8a0f8c93'), isFalse);
     });
   });

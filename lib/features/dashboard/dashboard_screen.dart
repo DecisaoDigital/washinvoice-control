@@ -276,6 +276,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                       child: _CardNovaInstalacao(
                         ping: p,
+                        ctx: data.ctx,
                         onAtivar: () => _abrirAtivacao(p),
                       ),
                     ),
@@ -470,6 +471,15 @@ class _KpiRow extends StatelessWidget {
           const SizedBox(width: 6),
           Expanded(
             child: WiKpiCard(
+              icone: Icons.pending_actions,
+              valor: data.pedidosPendentes.length,
+              label: 'Pendentes',
+              cor: AppColors.roxo,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: WiKpiCard(
               icone: Icons.warning_amber_rounded,
               valor: data.totalAExpirar,
               label: 'A expirar',
@@ -485,15 +495,6 @@ class _KpiRow extends StatelessWidget {
               cor: AppColors.vermelho,
             ),
           ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: WiKpiCard(
-              icone: Icons.pending_actions,
-              valor: data.pedidosPendentes.length,
-              label: 'Pendentes',
-              cor: AppColors.roxo,
-            ),
-          ),
         ],
       ),
     );
@@ -502,8 +503,10 @@ class _KpiRow extends StatelessWidget {
 
 class _CardNovaInstalacao extends StatelessWidget {
   final Ping ping;
+  final ContextoInstalacoes ctx;
   final VoidCallback onAtivar;
-  const _CardNovaInstalacao({required this.ping, required this.onAtivar});
+  const _CardNovaInstalacao(
+      {required this.ping, required this.ctx, required this.onAtivar});
 
   @override
   Widget build(BuildContext context) {
@@ -519,9 +522,9 @@ class _CardNovaInstalacao extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  (ping.nif != null && ping.nif!.trim().isNotEmpty)
-                      ? 'NIF ${ping.nif!.trim()}'
-                      : 'Sem NIF ainda',
+                  // Mesmo identificador que a "Actividade recente" (ctx.nomeDe),
+                  // para o mesmo terminal aparecer igual nos dois sítios.
+                  ctx.nomeDe(machineId: ping.machineId, nif: ping.nif),
                   style: AppText.bodyStrong,
                 ),
                 const SizedBox(height: 2),
