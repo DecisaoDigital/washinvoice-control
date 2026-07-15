@@ -28,6 +28,7 @@ import '../../repositories/providers.dart';
 import '../ativacao/ativar_instalacao_screen.dart';
 import '../auth/login_screen.dart';
 import '../instalacoes/detalhe_cliente_screen.dart';
+import '../pedidos_ajuda/detalhe_pedido_ajuda_screen.dart';
 import '../pedidos_ajuda/pedidos_ajuda_screen.dart';
 import '../sobre/sobre_screen.dart';
 import '../sugestoes/sugestoes_screen.dart';
@@ -196,6 +197,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         .then((_) => _recarregar());
   }
 
+  void _abrirDetalhePedido(PedidoAjuda p) {
+    Navigator.of(context)
+        .push(MaterialPageRoute(
+          builder: (_) => DetalhePedidoAjudaScreen(pedido: p),
+        ))
+        .then((_) => _recarregar());
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -281,7 +290,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           child: _CardPedidoAjuda(
                             pedido: p,
                             ctx: data.ctx,
-                            onAbrir: _abrirPedidosAjuda,
+                            onAbrir: () => _abrirDetalhePedido(p),
                           ),
                         ),
                       ),

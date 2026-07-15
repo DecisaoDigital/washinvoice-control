@@ -12,6 +12,7 @@ import '../../core/erros.dart';
 import '../../core/widgets/widgets.dart';
 import '../../models/pedido_ajuda.dart';
 import '../../repositories/providers.dart';
+import 'detalhe_pedido_ajuda_screen.dart';
 
 /// Formata uma duração de forma curta em PT (ex.: "2 h", "3 d", "45 min").
 String formatarDuracao(Duration? d) {
@@ -85,6 +86,14 @@ class _PedidosAjudaScreenState extends ConsumerState<PedidosAjudaScreen> {
     await _recarregar();
   }
 
+  void _abrirDetalhe(PedidoAjuda p) {
+    Navigator.of(context)
+        .push(MaterialPageRoute(
+          builder: (_) => DetalhePedidoAjudaScreen(pedido: p),
+        ))
+        .then((_) => _recarregar());
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -116,8 +125,12 @@ class _PedidosAjudaScreenState extends ConsumerState<PedidosAjudaScreen> {
                 child: RefreshIndicator(
                   onRefresh: _recarregar,
                   child: _mostrarHistorico
-                      ? _ListaHistorico(data)
-                      : _ListaAbertos(data, onResolver: _resolver),
+                      ? _ListaHistorico(data, onAbrir: _abrirDetalhe)
+                      : _ListaAbertos(
+                          data,
+                          onResolver: _resolver,
+                          onAbrir: _abrirDetalhe,
+                        ),
                 ),
               ),
             ],
@@ -203,7 +216,9 @@ class _Toggle extends StatelessWidget {
 class _ListaAbertos extends StatelessWidget {
   final _PedidosData data;
   final Future<void> Function(PedidoAjuda) onResolver;
-  const _ListaAbertos(this.data, {required this.onResolver});
+  final void Function(PedidoAjuda) onAbrir;
+  const _ListaAbertos(this.data,
+      {required this.onResolver, required this.onAbrir});
 
   @override
   Widget build(BuildContext context) {
@@ -235,6 +250,7 @@ class _ListaAbertos extends StatelessWidget {
               data.ctx.sinalLocalidadeDe(machineId: p.machineId, nif: p.nif),
           telefone: cliente?.telemovel,
           onResolver: () => onResolver(p),
+          onAbrir: () => onAbrir(p),
         );
       },
     );
@@ -247,6 +263,7 @@ class _CardAberto extends StatelessWidget {
   final String sinalLocalidade;
   final String? telefone;
   final VoidCallback onResolver;
+  final VoidCallback onAbrir;
 
   const _CardAberto({
     required this.pedido,
@@ -254,6 +271,7 @@ class _CardAberto extends StatelessWidget {
     required this.sinalLocalidade,
     required this.telefone,
     required this.onResolver,
+    required this.onAbrir,
   });
 
   @override
@@ -261,6 +279,7 @@ class _CardAberto extends StatelessWidget {
     final tempo = timeago.format(pedido.criadoEm, locale: 'pt');
     return WiCardDestaque(
       cor: AppColors.laranja500,
+      onTap: onAbrir,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -321,7 +340,8 @@ class _CardAberto extends StatelessWidget {
 
 class _ListaHistorico extends StatelessWidget {
   final _PedidosData data;
-  const _ListaHistorico(this.data);
+  final void Function(PedidoAjuda) onAbrir;
+  const _ListaHistorico(this.data, {required this.onAbrir});
 
   @override
   Widget build(BuildContext context) {
@@ -353,6 +373,7 @@ class _ListaHistorico extends StatelessWidget {
               child: _CardHistorico(
                 pedido: p,
                 nome: data.ctx.nomeDe(machineId: p.machineId, nif: p.nif),
+                onAbrir: () => onAbrir(p),
               ),
             )),
       ],
@@ -363,7 +384,9 @@ class _ListaHistorico extends StatelessWidget {
 class _CardHistorico extends StatelessWidget {
   final PedidoAjuda pedido;
   final String nome;
-  const _CardHistorico({required this.pedido, required this.nome});
+  final VoidCallback onAbrir;
+  const _CardHistorico(
+      {required this.pedido, required this.nome, required this.onAbrir});
 
   @override
   Widget build(BuildContext context) {
@@ -373,7 +396,7 @@ class _CardHistorico extends StatelessWidget {
     return WiCard(
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md, vertical: AppSpacing.md),
-      onTap: () => _abrirDetalhe(context),
+      onTap: onAbrir,
       child: Row(
         children: [
           const Icon(Icons.check_circle, color: AppColors.verde700, size: 20),
@@ -394,41 +417,6 @@ class _CardHistorico extends StatelessWidget {
           const Icon(Icons.chevron_right,
               size: 20, color: AppColors.textTertiary),
         ],
-      ),
-    );
-  }
-
-  void _abrirDetalhe(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(nome, style: AppText.h2),
-            const SizedBox(height: AppSpacing.md),
-            WiLinhaKV(
-              rotulo: 'Aberto',
-              valor: timeago.format(pedido.criadoEm, locale: 'pt'),
-            ),
-            WiLinhaKV(
-              rotulo: 'Resolvido',
-              valor: pedido.resolvidoEm == null
-                  ? '—'
-                  : timeago.format(pedido.resolvidoEm!, locale: 'pt'),
-            ),
-            WiLinhaKV(
-              rotulo: 'Duração',
-              valor: formatarDuracao(pedido.duracao),
-            ),
-            if (pedido.notas != null && pedido.notas!.trim().isNotEmpty)
-              WiLinhaKV(rotulo: 'Notas', valor: pedido.notas!),
-            const SizedBox(height: AppSpacing.lg),
-          ],
-        ),
       ),
     );
   }
