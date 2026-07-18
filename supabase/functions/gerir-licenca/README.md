@@ -39,13 +39,18 @@ Respostas: `401` sem JWT ou JWT inválido; `403` autenticado mas fora de
 
 ## Acções
 
-| Acção        | Parâmetros            | Efeito                                              |
-| ------------ | --------------------- | --------------------------------------------------- |
-| `prolongar`  | `{ "dias": 5\|15\|30 }` | `validade = max(validade, hoje) + dias`             |
-| `suspender`  | —                     | `activa = false`                                     |
-| `reactivar`  | —                     | `activa = true`                                      |
-| `cancelar`   | —                     | `activa = false`, `validade = hoje` (não apaga linha) |
-| `mudar_tier` | `{ "tier": "base"\|"pro" }` | `tier = <valor>`                              |
+| Acção              | Parâmetros                  | Efeito                                                |
+| ------------------ | --------------------------- | ----------------------------------------------------- |
+| `prolongar`        | `{ "dias": 5\|15\|30 }`     | `validade = max(validade, hoje) + dias`               |
+| `definir_validade` | `{ "validade": "AAAA-MM-DD" }` | `validade = <data>` **e** `activa = true`          |
+| `suspender`        | —                           | `activa = false`                                       |
+| `reactivar`        | —                           | `activa = true`                                        |
+| `cancelar`         | —                           | `activa = false`, `validade = hoje` (não apaga linha)  |
+| `mudar_tier`       | `{ "tier": "base"\|"pro" }` | `tier = <valor>`                                       |
+
+`definir_validade` é a renovação com data escolhida à mão (o `prolongar` só
+cobre 5/15/30). Reactiva também: renovar uma licença suspensa sem a reactivar
+deixaria o terminal bloqueado apesar de pago.
 
 `prolongar` parte de **hoje** quando a licença já expirou — senão prolongar uma
 licença caducada há um mês daria uma validade ainda no passado.

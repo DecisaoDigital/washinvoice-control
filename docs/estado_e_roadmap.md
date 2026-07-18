@@ -58,6 +58,10 @@ Marca comercial: **WashInvoice**. "WashControl" é nome interno para diferenciar
 |---|---|---|---|
 | `assinar-documento` | Assina texto fiscal (Portaria 363/2010) com RSA. Chave privada em secret. Valida licença por `machine_id` via service_role. | Anon key (JWT auto) do POS | Deployed, verify_jwt=true |
 | `enviar-push` | Recebe `{title, body, data?}`, gera JWT OAuth2 do Google, chama FCM v1, envia para o admin registado | Autenticação custom via `EDGE_INVOKE_SECRET` | Deployed, verify_jwt=false, **testada e funcional** |
+| `validar-licenca` | POS valida a sua licença ao arranque. Devolve estado + `tier` + `preferencias_features` | Anon/publishable key do POS | Deployed (v2), verify_jwt=true |
+| `registar-terminal` | Auto-onboarding: cria linha de trial 5 dias, `tier='base'` | Anon/publishable key do POS | Deployed (v2), verify_jwt=true |
+| `sincronizar-empresa` | POS envia ficha da empresa + preferências de features | Anon/publishable key do POS | Deployed, verify_jwt=true |
+| `gerir-licenca` | **Control** muda licenças: prolongar, definir validade, suspender, reactivar, cancelar, mudar tier. Auditado em `licencas_audit` | JWT do admin (anon key sozinha → 401) | Deployed (v2), verify_jwt=true + `is_admin()` |
 
 > **v1.4.3:** as Edge Functions passam a estar **versionadas no repo** em
 > `supabase/functions/` (`enviar-push/`, `assinar-documento/` com `assinatura.ts`,
@@ -228,6 +232,39 @@ Problemas de dados mal tratados (não de render):
 - `supabase/contrato_apps.md` — contrato inter-apps (POS ↔ Control) e discrepância Opção A vs D.
 - `../ROADMAP.md` (raiz do repo pai) — aviso bloqueante: sem RLS aplicado, base está aberta.
 - Este documento.
+
+### Ronda: painel de controlo remoto (18/07/2026)
+
+Branch `feature/painel-controlo-remoto` (a partir de `master`).
+
+Antes desta ronda, para dar 5 dias a um cliente que ligava, era preciso ir ao
+SQL do Supabase. Agora resolve-se em dois cliques no `DetalheClienteScreen` ou
+directamente na lista.
+
+- **Edge Function `gerir-licenca`**, com autorização em duas camadas: cliente
+  anon + header do caller para `getUser()` e `is_admin()`, e só depois
+  service_role para a mutação. `verify_jwt: true` sozinho **não** chegava — a
+  anon key também produz JWTs válidos. Verificado: chamada com anon key → 401.
+- **Migration aditiva `admins` + `is_admin()`.** Estavam definidas em
+  `supabase/rls_policies.sql` mas o ficheiro **nunca tinha sido aplicado** — a
+  função não existia na base. Não fecha RLS; isso continua no gate do Cesar.
+- **Toda a mutação de licença passa pela function.** `activar()` e
+  `actualizar()` do repositório ficaram `@Deprecated` e sem chamadores. Foi
+  preciso acrescentar a acção `definir_validade` porque a renovação usa uma
+  data escolhida à mão, que `prolongar` (5/15/30) não exprime.
+- **Auditoria em `licencas_audit`** — não se criou `audit_licencas`. Cada acção
+  produz duas linhas: a do trigger (`acao` nula, `actor_uid` nulo porque
+  service_role não tem `auth.uid()`) e a explícita da function, com o autor
+  verificado. O modal filtra por `acao is not null`.
+- **`tier` vs `plano`:** o chip de plano na UI lê `licencas.tier`.
+  `licencas.plano` não se toca — é a duração e entra na assinatura HMAC do
+  `licenca.json` do POS.
+- **Card de preferências read-only** com a mesma regra do `featureVisivel` do
+  POS: num terminal Base tudo aparece desligado, mesmo com o JSONB a `true`.
+- **28 testes novos**; suite **101 verde**, analyze limpo.
+
+⚠️ `licencas.tier` tem `default 'base'`, portanto as licenças existentes ficaram
+todas Base. Promover o terminal de teste a Pro antes de o exercitar.
 
 ---
 
