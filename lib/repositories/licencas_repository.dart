@@ -116,14 +116,30 @@ class LicencasRepository {
   }
 
   /// Regista a série do terminal na licença (ao gerar o licenca.json).
+  ///
+  /// TODO: idealmente também passa a função dedicada, como as mutações de
+  /// estado. Fica por migrar porque a série é um fluxo à parte (emissão do
+  /// `licenca.json`), com as suas próprias regras de colisão.
   Future<void> definirSerie(String id, String serie) async {
     await _client.from('licencas').update({'serie': serie}).eq('id', id);
   }
 
+  /// **Obsoleto** — usar `GerirLicencaService.suspender()` / `reactivar()`.
+  ///
+  /// Escrever aqui com a anon key deixa de funcionar quando a RLS de `licencas`
+  /// fechar, e não regista **quem** fez a acção. Sem chamadores desde a ronda
+  /// do painel de controlo remoto; mantido só para não partir código externo.
+  @Deprecated('Usar GerirLicencaService.suspender()/reactivar()')
   Future<void> activar(String id, {required bool activa}) async {
     await _client.from('licencas').update({'activa': activa}).eq('id', id);
   }
 
+  /// **Obsoleto** — usar as acções granulares de `GerirLicencaService`
+  /// (`definirValidade`, `prolongar`, `mudarTier`, …).
+  ///
+  /// Mesmas razões de [activar]. Nota adicional: `toUpdateJson` não inclui
+  /// `tier` nem `preferencias_features`, portanto esta via nunca os alterou.
+  @Deprecated('Usar as acções de GerirLicencaService')
   Future<void> actualizar(Licenca l) async {
     // toUpdateJson exclui id/created_at/machine_id/user_id — só envia campos
     // mutáveis, evitando erros/drift ao actualizar (ex.: renovação).

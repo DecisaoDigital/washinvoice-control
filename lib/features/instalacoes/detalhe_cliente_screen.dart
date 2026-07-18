@@ -23,7 +23,9 @@ import '../../models/licenca.dart';
 import '../../models/pedido_renovacao.dart';
 import '../../models/ping.dart';
 import '../../repositories/providers.dart';
+import '../../services/licenca/gerir_licenca_service.dart';
 import '../../services/licenca_emissao.dart';
+import 'controlo_remoto_widgets.dart';
 
 class _DetalheData {
   final Licenca licenca;
@@ -136,11 +138,10 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
     if (novaData == null) return;
 
     try {
-      final licencasRepo = ref.read(licencasRepoProvider);
       final pedidosRepo = ref.read(pedidosRepoProvider);
-      await licencasRepo.actualizar(
-        l.copyWith(validade: novaData, activa: true),
-      );
+      // Via Edge Function, como todas as mutações de licença: fica auditado
+      // quem renovou e continua a funcionar quando a RLS fechar.
+      await ref.read(gerirLicencaProvider).definirValidade(l.machineId, novaData);
       if (pedido != null) {
         await pedidosRepo.confirmar(pedido.id);
       }
@@ -154,20 +155,131 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
     }
   }
 
-  Future<void> _toggleActiva(Licenca l) async {
+  // ── Controlo remoto ────────────────────────────────────────────────────────
+  // Todas as acções passam pela Edge Function `gerir-licenca`: é ela que corre
+  // com service_role (para o dia em que a RLS fechar) e que regista em
+  // `licencas_audit` QUEM fez a acção — o trigger sozinho não consegue, porque
+  // escritas com service_role não têm `auth.uid()`.
+
+  /// `true` enquanto uma acção remota está a decorrer (trava os botões todos,
+  /// para não se carregar em "+5 dias" três vezes seguidas).
+  bool _aExecutar = false;
+
+  /// Executa [accao] com confirmação, indicador de progresso e refresh.
+  ///
+  /// [confirmacao] a `null` salta o diálogo (usado para as acções aditivas
+  /// como prolongar, que não têm consequência destrutiva).
+  Future<void> _accaoRemota({
+    required String machineId,
+    required Future<LicencaAtualizada> Function(GerirLicencaService s) accao,
+    required String Function(LicencaAtualizada r) sucesso,
+    ({String titulo, String corpo, String confirmar, bool destrutiva})?
+        confirmacao,
+  }) async {
+    if (_aExecutar) return;
+
+    if (confirmacao != null) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(confirmacao.titulo),
+          content: Text(confirmacao.corpo),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: confirmacao.destrutiva
+                  ? FilledButton.styleFrom(backgroundColor: Colors.red.shade700)
+                  : null,
+              child: Text(confirmacao.confirmar),
+            ),
+          ],
+        ),
+      );
+      if (ok != true) return;
+    }
+
+    setState(() => _aExecutar = true);
     try {
-      final licencasRepo = ref.read(licencasRepoProvider);
-      await licencasRepo.activar(l.id, activa: !l.activa);
+      final resultado = await accao(ref.read(gerirLicencaProvider));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l.activa ? 'Licença suspensa.' : 'Licença activada.'),
-        ),
+        SnackBar(content: Text(sucesso(resultado))),
       );
       _recarregar();
     } catch (e, st) {
       mostrarErro(e, stack: st);
+    } finally {
+      if (mounted) setState(() => _aExecutar = false);
     }
+  }
+
+  Future<void> _prolongar(Licenca l, int dias) => _accaoRemota(
+        machineId: l.machineId,
+        accao: (s) => s.prolongar(l.machineId, dias),
+        sucesso: (r) =>
+            'Prolongada $dias dias — validade ${Dates.data(r.validade)}. '
+            'O POS actualiza em ≤5 min.',
+      );
+
+  Future<void> _suspender(Licenca l) => _accaoRemota(
+        machineId: l.machineId,
+        accao: (s) => s.suspender(l.machineId),
+        sucesso: (_) => 'Licença suspensa. O POS tranca em ≤5 min.',
+        confirmacao: (
+          titulo: 'Suspender licença?',
+          corpo: 'O terminal fica bloqueado dentro de 5 minutos. '
+              'Podes reactivar a qualquer momento.',
+          confirmar: 'Suspender',
+          destrutiva: true,
+        ),
+      );
+
+  Future<void> _reactivar(Licenca l) => _accaoRemota(
+        machineId: l.machineId,
+        accao: (s) => s.reactivar(l.machineId),
+        sucesso: (_) => 'Licença reactivada. O POS destranca em ≤5 min.',
+      );
+
+  Future<void> _cancelar(Licenca l) => _accaoRemota(
+        machineId: l.machineId,
+        accao: (s) => s.cancelar(l.machineId),
+        sucesso: (_) => 'Licença cancelada.',
+        confirmacao: (
+          titulo: 'Tem a certeza?',
+          corpo: 'Isto termina a licença imediatamente: fica inactiva e com '
+              'validade de hoje. A linha não é apagada (fica o histórico), '
+              'mas o terminal deixa de trabalhar.',
+          confirmar: 'Cancelar licença',
+          destrutiva: true,
+        ),
+      );
+
+  Future<void> _mudarTier(Licenca l, Tier novo) => _accaoRemota(
+        machineId: l.machineId,
+        accao: (s) => s.mudarTier(l.machineId, novo),
+        sucesso: (r) => 'Plano alterado para ${r.tier.rotulo}. '
+            'O POS actualiza em ≤5 min.',
+        confirmacao: novo == Tier.base
+            ? (
+                titulo: 'Descer para Base?',
+                corpo: 'O cliente perde Guias, Gestão e Gráficos. '
+                    'As preferências ficam guardadas para retomar se voltar a Pro.',
+                confirmar: 'Descer para Base',
+                destrutiva: true,
+              )
+            : null,
+      );
+
+  Future<void> _verHistorial(Licenca l) async {
+    final repo = ref.read(auditLicencasRepoProvider);
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => ModalHistorial(licencaId: l.id, repo: repo),
+    );
   }
 
   /// **Acção manual e separada** (só o Cesar, após confirmar o pagamento): gera
@@ -222,7 +334,12 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
             licencasRepo.licencaActivaComSerie(s, excetoMachineId: exceto),
       );
       await licencasRepo.definirSerie(l.id, serie.trim());
-      if (!l.activa) await licencasRepo.activar(l.id, activa: true);
+      // A activação passa pela Edge Function como qualquer outra mutação de
+      // estado — assim fica auditada com o autor, e continua a funcionar no dia
+      // em que a RLS de `licencas` fechar.
+      if (!l.activa) {
+        await ref.read(gerirLicencaProvider).reactivar(l.machineId);
+      }
 
       final dir = await getTemporaryDirectory();
       final ficheiro = File('${dir.path}/licenca.json');
@@ -336,21 +453,21 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
                   onPressed: () => _gerarLicenca(l),
                 ),
               ),
+              const SizedBox(height: AppSpacing.xl),
+              const WiSeccaoTitulo(titulo: 'Controlo remoto'),
               const SizedBox(height: AppSpacing.sm),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  icon: Icon(l.activa ? Icons.block : Icons.check_circle),
-                  label: Text(
-                      l.activa ? 'Suspender licença' : 'Reactivar licença'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor:
-                        l.activa ? AppColors.vermelho : AppColors.verde,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  onPressed: () => _toggleActiva(l),
-                ),
+              CardControloRemoto(
+                licenca: l,
+                ocupado: _aExecutar,
+                onProlongar: (dias) => _prolongar(l, dias),
+                onSuspender: () => _suspender(l),
+                onReactivar: () => _reactivar(l),
+                onCancelar: () => _cancelar(l),
+                onMudarTier: (t) => _mudarTier(l, t),
+                onVerHistorial: () => _verHistorial(l),
               ),
+              const SizedBox(height: AppSpacing.lg),
+              CardPreferencias(licenca: l),
               const SizedBox(height: AppSpacing.xl),
               const WiSeccaoTitulo(titulo: 'Histórico de acessos'),
               const SizedBox(height: AppSpacing.sm),
