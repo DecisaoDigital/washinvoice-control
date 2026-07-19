@@ -266,6 +266,32 @@ directamente na lista.
 ⚠️ `licencas.tier` tem `default 'base'`, portanto as licenças existentes ficaram
 todas Base. Promover o terminal de teste a Pro antes de o exercitar.
 
+### Ronda: correcções da sessão de teste — v1.6.0 (19/07/2026)
+
+Mesmo branch `feature/painel-controlo-remoto`.
+
+- **401 na `gerir-licenca`.** O `supabase_flutter` auto-injecta a anon key no
+  `Authorization` do `functions.invoke`: o `verify_jwt: true` passava, mas o
+  `getUser()` dentro da função não encontrava utilizador e devolvia 401. O
+  cliente passa agora o `accessToken` da sessão explicitamente, e dá erro claro
+  ("inicia sessão de novo") quando não há sessão. Auditoria feita: o
+  `GerirLicencaService` é o **único** caller de Edge Functions no Control, não
+  havia mais nada para corrigir.
+- **Nome comercial.** `Licenca` e `Cliente` ganham `nomeComercial`. O destaque
+  na UI passa a ser o nome comercial — é por ele que se reconhece a loja — com
+  a designação social na linha pequena. Feito no `ContextoInstalacoes.nomeDe`,
+  que já alimentava lista, pesquisa e KPIs: uma alteração, todos os ecrãs.
+  Cascata: comercial (cliente → licença) → designação (idem) → NIF.
+- **Card "Último acesso".** "Sinal" e "Sinal diz" eram duas linhas e pareciam
+  dois sinais quando é um só. Fundidas numa: o método passa a ser a etiqueta
+  (`GPS: Lisboa`), com o ícone colorido à esquerda. Sem sinal mostra `—` em vez
+  de uma cidade órfã. "Quando" passa a dar data absoluta e relativa — "há 2
+  dias" sozinho não distingue um fim-de-semana de uma avaria. Mesmo tratamento
+  no detalhe de pedido de ajuda.
+- **19 testes novos**; suite **120 verde**, analyze limpo.
+
+Nota: a linha "Loja" que o prompt pedia já existia no card.
+
 ---
 
 ## 7. Roadmap — o que falta

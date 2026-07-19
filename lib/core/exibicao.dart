@@ -74,7 +74,25 @@ class Exibicao {
     }
   }
 
-  /// Descrição humana do método de geolocalização (para o card de detalhe).
+  /// Rótulo curto do método de geolocalização, para servir de **etiqueta** da
+  /// linha que mostra a cidade.
+  ///
+  /// Antes havia duas linhas — "Sinal" (o método) e "Sinal diz" (a cidade) —
+  /// que pareciam dois sinais diferentes quando é um só. Passa a ser uma
+  /// linha, com o método como etiqueta: `GPS: Lisboa`.
+  static String rotuloSinal(String? metodoGeo) {
+    switch (metodoGeo) {
+      case 'gps':
+        return 'GPS';
+      case 'ip':
+        return 'IP';
+      case 'nenhum':
+      default:
+        return 'Sem sinal';
+    }
+  }
+
+  /// Descrição humana do método de geolocalização (frase longa).
   static String descricaoSinal(String? metodoGeo) {
     switch (metodoGeo) {
       case 'gps':

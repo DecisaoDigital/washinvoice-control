@@ -64,8 +64,24 @@ class GerirLicencaService {
 
   GerirLicencaService(SupabaseClient supabase)
       : _invocar = ((body) async {
+          // O supabase_flutter auto-injecta a ANON key no `Authorization` do
+          // `functions.invoke`. Isso faz `verify_jwt: true` passar mas `getUser()`
+          // dentro da function não sabe QUEM está a chamar — o auth do
+          // utilizador tem de ser passado explicitamente aqui.
+          final sessao = supabase.auth.currentSession;
+          if (sessao == null) {
+            throw const GerirLicencaException(
+              'sem sessão activa — inicia sessão de novo',
+            );
+          }
           final r = await supabase.functions
-              .invoke('gerir-licenca', body: body)
+              .invoke(
+                'gerir-licenca',
+                body: body,
+                headers: {
+                  'Authorization': 'Bearer ${sessao.accessToken}',
+                },
+              )
               .timeout(const Duration(seconds: 15));
           final data = r.data;
           if (data is! Map<String, dynamic>) {

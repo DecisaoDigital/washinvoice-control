@@ -33,7 +33,14 @@ class Licenca {
   final String? clienteId;
   final String machineId;
   final String nif;
+  /// Designação social (nome legal). Vem do POS via `sincronizar-empresa`.
   final String? nome;
+
+  /// Nome comercial — como a loja é conhecida. `null` enquanto o POS não
+  /// sincronizar. É este que se mostra em destaque: é por ele que o Cesar
+  /// reconhece o cliente, não pela denominação legal.
+  final String? nomeComercial;
+
   final String plano; // trimestral | semestral | anual | personalizado
   final DateTime validade;
   final bool activa;
@@ -62,6 +69,7 @@ class Licenca {
     required this.machineId,
     required this.nif,
     this.nome,
+    this.nomeComercial,
     required this.plano,
     required this.validade,
     required this.activa,
@@ -117,6 +125,7 @@ class Licenca {
         machineId: json['machine_id'] as String,
         nif: json['nif'] as String,
         nome: json['nome'] as String?,
+        nomeComercial: json['nome_comercial'] as String?,
         plano: json['plano'] as String,
         validade: DateTime.parse(json['validade'] as String),
         activa: json['activa'] as bool? ?? true,
@@ -145,6 +154,7 @@ class Licenca {
         'machine_id': machineId,
         'nif': nif,
         'nome': nome,
+        'nome_comercial': nomeComercial,
         'plano': plano,
         'validade': validade.toIso8601String(),
         'activa': activa,
@@ -164,6 +174,7 @@ class Licenca {
         'machine_id': machineId,
         'nif': nif,
         'nome': nome,
+        'nome_comercial': nomeComercial,
         'plano': plano,
         'validade': validade.toIso8601String(),
         'activa': activa,
@@ -184,6 +195,7 @@ class Licenca {
         'cliente_id': clienteId,
         'nif': nif,
         'nome': nome,
+        'nome_comercial': nomeComercial,
         'plano': plano,
         'validade': validade.toIso8601String(),
         'activa': activa,
@@ -197,6 +209,7 @@ class Licenca {
     String? machineId,
     String? nif,
     String? nome,
+    String? nomeComercial,
     String? plano,
     DateTime? validade,
     bool? activa,
@@ -212,6 +225,7 @@ class Licenca {
         machineId: machineId ?? this.machineId,
         nif: nif ?? this.nif,
         nome: nome ?? this.nome,
+        nomeComercial: nomeComercial ?? this.nomeComercial,
         plano: plano ?? this.plano,
         validade: validade ?? this.validade,
         activa: activa ?? this.activa,

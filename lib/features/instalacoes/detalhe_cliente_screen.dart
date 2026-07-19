@@ -49,16 +49,38 @@ class _DetalheData {
     this.total,
   );
 
-  String get nomeCliente {
-    if (cliente != null) return cliente!.nome;
-    if (licenca.nome != null && licenca.nome!.trim().isNotEmpty) {
-      return licenca.nome!.trim();
-    }
-    return 'NIF ${licenca.nif}';
+  /// Designação social (nome legal). O cliente sincronizado manda; a licença é
+  /// o recurso quando ainda não há linha em `clientes`.
+  String get designacaoSocial {
+    final doCliente = cliente?.nome.trim() ?? '';
+    if (doCliente.isNotEmpty) return doCliente;
+    return licenca.nome?.trim() ?? '';
   }
 
-  String get subtituloTerminal =>
-      total > 1 ? 'Terminal $ordem de $total' : 'Terminal único';
+  /// Nome comercial — como a loja é conhecida.
+  String get nomeComercial {
+    final doCliente = cliente?.nomeComercial?.trim() ?? '';
+    if (doCliente.isNotEmpty) return doCliente;
+    return licenca.nomeComercial?.trim() ?? '';
+  }
+
+  /// O que vai em destaque no cabeçalho: o nome comercial, porque é por ele
+  /// que se reconhece a loja. Sem ele, a designação social. Sem nenhum (POS
+  /// ainda não sincronizou), o NIF, que pelo menos identifica.
+  String get nomeCliente {
+    if (nomeComercial.isNotEmpty) return nomeComercial;
+    if (designacaoSocial.isNotEmpty) return designacaoSocial;
+    return licenca.nif.trim().isEmpty ? 'Sem nome' : 'NIF ${licenca.nif}';
+  }
+
+  /// Linha pequena do cabeçalho: designação social (só quando o destaque é o
+  /// nome comercial — senão repetia-se) e a posição do terminal.
+  String get subtituloTerminal {
+    final terminal = total > 1 ? 'Terminal $ordem de $total' : 'Terminal único';
+    final mostrarDesignacao =
+        nomeComercial.isNotEmpty && designacaoSocial.isNotEmpty;
+    return mostrarDesignacao ? '$designacaoSocial · $terminal' : terminal;
+  }
 }
 
 class DetalheClienteScreen extends ConsumerStatefulWidget {
@@ -573,6 +595,15 @@ class _CardUltimoAcesso extends StatelessWidget {
   final _DetalheData data;
   const _CardUltimoAcesso({required this.data});
 
+  /// Cidade que o sinal reporta. Sem método de geolocalização não há cidade
+  /// para mostrar — devolve travessão em vez de uma cidade órfã que pareceria
+  /// vinda de lado nenhum.
+  static String _cidadeDoPing(Ping p) {
+    if (p.metodoGeo == null || p.metodoGeo == 'nenhum') return '—';
+    final cidade = Localidades.traduzir(p.cidade);
+    return cidade.isEmpty ? '—' : cidade;
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = data.ultimoPing!;
@@ -581,30 +612,42 @@ class _CardUltimoAcesso extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const _CardHeader(icone: Icons.podcasts, titulo: 'Último acesso'),
+          // Data absoluta primeiro e o relativo entre parênteses: "há 2 dias"
+          // sozinho não chega para se perceber se o terminal esteve parado no
+          // fim-de-semana ou se falhou mesmo.
           WiLinhaKV(
-              rotulo: 'Quando',
-              valor: timeago.format(p.criadoEm, locale: 'pt')),
+            rotulo: 'Quando',
+            valor: '${Dates.dataHora(p.criadoEm)} '
+                '(${timeago.format(p.criadoEm, locale: 'pt')})',
+          ),
+          // Uma só linha para o sinal. Antes eram duas — "Sinal" (o método) e
+          // "Sinal diz" (a cidade) — e pareciam dois sinais diferentes quando
+          // é um só. Agora o método é a etiqueta: `GPS: Lisboa`.
           Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(width: 100, child: Text('Sinal', style: AppText.label)),
-                Icon(Exibicao.iconeSinal(p.metodoGeo),
-                    size: 16, color: Exibicao.corSinal(p.metodoGeo)),
-                const SizedBox(width: 6),
+                SizedBox(
+                  width: 100,
+                  child: Row(
+                    children: [
+                      Icon(Exibicao.iconeSinal(p.metodoGeo),
+                          size: 16, color: Exibicao.corSinal(p.metodoGeo)),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(Exibicao.rotuloSinal(p.metodoGeo),
+                            style: AppText.label),
+                      ),
+                    ],
+                  ),
+                ),
                 Expanded(
-                  child: Text(Exibicao.descricaoSinal(p.metodoGeo),
-                      style: AppText.bodyStrong),
+                  child: Text(_cidadeDoPing(p), style: AppText.bodyStrong),
                 ),
               ],
             ),
           ),
-          WiLinhaKV(
-              rotulo: 'Sinal diz',
-              valor: Localidades.traduzir(p.cidade).isEmpty
-                  ? '—'
-                  : Localidades.traduzir(p.cidade)),
           WiLinhaKV(
               rotulo: 'Loja',
               valor: (data.cliente?.localidade != null &&
