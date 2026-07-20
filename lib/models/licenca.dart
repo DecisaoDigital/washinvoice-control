@@ -63,6 +63,20 @@ class Licenca {
   /// ligada por omissão.
   final Map<String, bool> preferenciasFeatures;
 
+  /// Diagnóstico do terminal enviado no registo (`licencas.info_host`):
+  /// `{hostname, so, versao_pos}`. Escrito pelo `registar-terminal`.
+  final Map<String, dynamic> infoHost;
+
+  /// Nome da máquina (ex.: `PC-LOJA`), do `info_host`. Serve de identificação
+  /// temporária enquanto o POS não sincroniza os dados da empresa — é legível,
+  /// ao contrário do `machineId`, que é um hash.
+  String? get hostname {
+    final h = infoHost['hostname'];
+    if (h is! String) return null;
+    final t = h.trim();
+    return t.isEmpty ? null : t;
+  }
+
   const Licenca({
     required this.id,
     this.clienteId,
@@ -78,6 +92,7 @@ class Licenca {
     required this.criadoEm,
     this.tier = Tier.legado,
     this.preferenciasFeatures = const {},
+    this.infoHost = const {},
   });
 
   /// A feature está visível neste terminal? Mesma regra do `featureVisivel` do
@@ -134,6 +149,7 @@ class Licenca {
         criadoEm: DateTime.parse(json['created_at'] as String),
         tier: TierInfo.parse(json['tier'] as String?),
         preferenciasFeatures: _prefsFromJson(json['preferencias_features']),
+        infoHost: (json['info_host'] as Map?)?.cast<String, dynamic>() ?? const {},
       );
 
   /// JSONB → mapa de bools, ignorando chaves com tipos inesperados.
@@ -218,6 +234,7 @@ class Licenca {
     DateTime? criadoEm,
     Tier? tier,
     Map<String, bool>? preferenciasFeatures,
+    Map<String, dynamic>? infoHost,
   }) =>
       Licenca(
         id: id ?? this.id,
@@ -235,5 +252,6 @@ class Licenca {
         tier: tier ?? this.tier,
         preferenciasFeatures:
             preferenciasFeatures ?? this.preferenciasFeatures,
+        infoHost: infoHost ?? this.infoHost,
       );
 }

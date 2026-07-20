@@ -67,16 +67,46 @@ class _DetalheData {
   /// O que vai em destaque no cabeçalho: o nome comercial, porque é por ele
   /// que se reconhece a loja. Sem ele, a designação social. Sem nenhum (POS
   /// ainda não sincronizou), o NIF, que pelo menos identifica.
+  /// `true` quando o POS ainda não sincronizou a ficha da empresa — instalação
+  /// nova, sem nome nem NIF real.
+  bool get porConfigurar =>
+      nomeComercial.isEmpty && designacaoSocial.isEmpty;
+
   String get nomeCliente {
     if (nomeComercial.isNotEmpty) return nomeComercial;
     if (designacaoSocial.isNotEmpty) return designacaoSocial;
-    return licenca.nif.trim().isEmpty ? 'Sem nome' : 'NIF ${licenca.nif}';
+    // Instalação nova: o nome da máquina é o que identifica o terminal. Um NIF
+    // placeholder não identifica ninguém, e o `machineId` é um hash ilegível.
+    final host = licenca.hostname;
+    if (host != null) return host;
+    final nif = licenca.nif.trim();
+    if (nif.isNotEmpty && nif != '000000000') return 'NIF $nif';
+    return 'Sem NIF ainda';
+  }
+
+  /// Região que o ping reporta (cidade do GPS ou do fornecedor de internet).
+  /// Vazio quando não há sinal utilizável.
+  String get regiaoDoPing {
+    final p = ultimoPing;
+    if (p == null || p.metodoGeo == null || p.metodoGeo == 'nenhum') return '';
+    return Localidades.traduzir(p.cidade);
   }
 
   /// Linha pequena do cabeçalho: designação social (só quando o destaque é o
   /// nome comercial — senão repetia-se) e a posição do terminal.
   String get subtituloTerminal {
     final terminal = total > 1 ? 'Terminal $ordem de $total' : 'Terminal único';
+
+    // Instalação nova: o título é o nome da máquina, por isso o que falta saber
+    // é *onde* ela está. A região do ping é a única pista disponível antes de o
+    // cliente configurar a ficha.
+    if (porConfigurar) {
+      final regiao = regiaoDoPing;
+      return regiao.isEmpty
+          ? 'Instalação nova · $terminal'
+          : 'Instalação nova · $regiao';
+    }
+
     final mostrarDesignacao =
         nomeComercial.isNotEmpty && designacaoSocial.isNotEmpty;
     return mostrarDesignacao ? '$designacaoSocial · $terminal' : terminal;

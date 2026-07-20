@@ -24,6 +24,23 @@ Licenca _lic({
       criadoEm: DateTime(2026, 1, 1),
     );
 
+Licenca _licComHost({
+  required String hostname,
+  String nif = '500000001',
+  String? nome,
+}) =>
+    Licenca(
+      id: 'lic-m1',
+      machineId: 'm1',
+      nif: nif,
+      nome: nome,
+      plano: 'anual',
+      validade: DateTime(2026, 12, 31),
+      activa: true,
+      criadoEm: DateTime(2026, 1, 1),
+      infoHost: {'hostname': hostname, 'so': 'Windows 11'},
+    );
+
 Cliente _cli({
   String nif = '500000001',
   String nome = '',
@@ -109,8 +126,35 @@ void main() {
           'Telma Sofia Unipessoal Lda');
     });
 
-    test('nenhum → cai no NIF', () {
+    test('sem nomes mas com hostname → mostra a máquina', () {
+      // Enquanto o POS não sincroniza, `PC-LOJA` identifica melhor do que um
+      // NIF placeholder — e melhor ainda do que o machine_id, que é um hash.
+      expect(
+        nomeCom(lic: _licComHost(hostname: 'PC-LOJA', nif: '000000000')),
+        'PC-LOJA',
+      );
+    });
+
+    test('sem nomes nem hostname → cai no NIF real', () {
       expect(nomeCom(lic: _lic()), 'NIF 500000001');
+    });
+
+    test('NIF placeholder do auto-onboarding não conta como identificação', () {
+      // '000000000' é o placeholder que o `registar-terminal` escreve. Mostrar
+      // "NIF 000000000" seria pior do que admitir que ainda não se sabe.
+      expect(nomeCom(lic: _lic(nif: '000000000')), 'Sem NIF ainda');
+    });
+
+    test('hostname nunca ganha a um nome real', () {
+      expect(
+        nomeCom(lic: _licComHost(hostname: 'PC-LOJA', nome: 'Legal Lda')),
+        'Legal Lda',
+      );
+    });
+
+    test('machine_id (hash) nunca aparece', () {
+      final nome = nomeCom(lic: _lic(machineId: 'a1b2c3d4e5f6', nif: '000000000'));
+      expect(nome.contains('a1b2c3'), isFalse);
     });
 
     test('comercial do cliente ganha ao da licença', () {
