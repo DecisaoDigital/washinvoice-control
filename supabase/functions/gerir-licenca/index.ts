@@ -107,8 +107,18 @@ Deno.serve(async (req) => {
     global: { headers: { Authorization: authHeader } },
   });
 
+  // O token TEM de ir como argumento. `getUser()` sem argumentos lê a sessão
+  // guardada no próprio cliente — e este cliente nunca fez login
+  // (`persistSession: false`), portanto devolveria sempre null e o pedido
+  // seria rejeitado mesmo vindo de um admin. O header em `global.headers`
+  // serve o PostgREST (o `rpc` abaixo), não o módulo de auth.
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+  if (token.length === 0) {
+    return json(401, { ok: false, erro: 'não autenticado' });
+  }
+
   const { data: dadosUtilizador, error: erroUtilizador } =
-    await clienteUtilizador.auth.getUser();
+    await clienteUtilizador.auth.getUser(token);
   const utilizador = dadosUtilizador?.user;
   if (erroUtilizador || !utilizador) {
     return json(401, { ok: false, erro: 'não autenticado' });
