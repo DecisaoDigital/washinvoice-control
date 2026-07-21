@@ -10,6 +10,7 @@ import 'package:timeago/timeago.dart' as timeago;
 import '../../core/app_colors.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_theme.dart';
+import '../../core/acoes.dart';
 import '../../core/contexto_instalacoes.dart';
 import '../../core/dates.dart';
 import '../../core/erros.dart';
@@ -602,6 +603,19 @@ class _CardLicenca extends StatelessWidget {
           const _CardHeader(
               icone: Icons.workspace_premium, titulo: 'Licença'),
           WiLinhaKV(rotulo: 'NIF', valor: l.nif),
+          // Telefone do cliente — só quando preenchido no POS. Toque no ícone
+          // abre o marcador do sistema.
+          if (data.cliente?.telemovel != null &&
+              data.cliente!.telemovel!.trim().isNotEmpty)
+            WiLinhaKV(
+              rotulo: 'Telefone',
+              valor: data.cliente!.telemovel!.trim(),
+              trailing: InkWell(
+                onTap: () => Acoes.ligarPara(data.cliente!.telemovel),
+                child: const Icon(Icons.phone,
+                    size: 18, color: AppColors.verde),
+              ),
+            ),
           WiLinhaKV(rotulo: 'Plano', valor: l.planoLabel),
           WiLinhaKV(rotulo: 'Validade', valor: _validadeTexto(l)),
           if (l.serie != null) WiLinhaKV(rotulo: 'Série', valor: l.serie!),
@@ -684,6 +698,30 @@ class _CardUltimoAcesso extends StatelessWidget {
                       data.cliente!.localidade!.trim().isNotEmpty)
                   ? data.cliente!.localidade!.trim()
                   : '—'),
+          // IP público — só quando o ping o traz (pings antigos não têm).
+          if (p.ipPublico != null && p.ipPublico!.trim().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+              child: Row(
+                children: [
+                  const SizedBox(
+                    width: 100,
+                    child: Row(
+                      children: [
+                        Icon(Icons.wifi,
+                            size: 16, color: AppColors.textTertiary),
+                        SizedBox(width: 6),
+                        Text('IP', style: AppText.label),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child:
+                        Text(p.ipPublico!.trim(), style: AppText.bodyStrong),
+                  ),
+                ],
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
             child: Row(
