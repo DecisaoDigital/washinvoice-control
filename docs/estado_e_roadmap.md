@@ -294,6 +294,20 @@ Nota: a linha "Loja" que o prompt pedia já existia no card.
 
 ---
 
+### Ronda: mostrar IP e telefone — v1.6.2 (21/07/2026)
+
+Branch `feature/mostrar-ip-telefone`. Sprint pequeno, par do POS 2.0.6.
+
+- **#95**: o modelo `Ping` passa a ler `ip_publico`, `estado_licenca`,
+  `termos_aceites` e `origem` — o POS já os enviava desde a ronda de
+  observabilidade, faltava o Control lê-los. No `DetalheClienteScreen`, o card
+  "Último acesso" mostra `IP: <endereço>` quando o ping o traz. Os `select()`
+  dos pings já eram `*`, portanto não houve alteração de repositório.
+- **#96**: os dados do cliente ganham a linha "Telefone", com ícone que abre o
+  marcador do sistema (`Acoes.ligarPara`, o helper `tel:` já existente). Só
+  aparece quando o cliente tem telemóvel preenchido.
+- **6 testes novos**; suite **132 verde**, analyze limpo.
+
 ## 7. Roadmap — o que falta
 
 ### Curto prazo (esta semana ou próxima)
