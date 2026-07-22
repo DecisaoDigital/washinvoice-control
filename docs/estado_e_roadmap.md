@@ -1,7 +1,7 @@
 # WashInvoice Control — Estado e Roadmap
 
 > Documento vivo. Actualizar sempre que uma ronda fechar ou uma decisão de arquitectura mudar.
-> Última actualização: 2026-07-22 (hora local nos timestamps — v1.6.3, #101).
+> Última actualização: 2026-07-22 (auto-update do Control — v1.7.0, #100).
 
 ---
 
@@ -49,6 +49,7 @@ Marca comercial: **WashInvoice**. "WashControl" é nome interno para diferenciar
 | `pedidos_ajuda` | Pedidos de ajuda do cliente (POS insere; Control resolve) | INSERT anon aberto; SELECT/UPDATE authenticated (v1.4) |
 | `sugestoes` | Sugestões do cliente (POS insere; Control lê/marca/arquiva) | INSERT anon aberto; SELECT/UPDATE authenticated (v1.4) |
 | `licencas_audit` | Auditoria de `licencas` (INSERT/UPDATE/DELETE com actor, campos alterados, antes/depois JSONB) via trigger `trg_audit_licencas` (v1.4.3) | RLS: SELECT authenticated |
+| `versoes_apps` | Catálogo de versões por app (`pos`/`control`) para auto-update: build_number, url_download, obrigatoria (v1.7.0, #100). Preparada também para o POS | RLS ligado: `service_role` tudo; `authenticated` SELECT das activas |
 
 ---
 
@@ -62,6 +63,7 @@ Marca comercial: **WashInvoice**. "WashControl" é nome interno para diferenciar
 | `registar-terminal` | Auto-onboarding: cria linha de trial 5 dias, `tier='base'` | Anon/publishable key do POS | Deployed (v2), verify_jwt=true |
 | `sincronizar-empresa` | POS envia ficha da empresa + preferências de features | Anon/publishable key do POS | Deployed, verify_jwt=true |
 | `gerir-licenca` | **Control** muda licenças: prolongar, definir validade, suspender, reactivar, cancelar, mudar tier. Auditado em `licencas_audit` | JWT do admin (anon key sozinha → 401) | Deployed (v2), verify_jwt=true + `is_admin()` |
+| `versao-mais-recente` | Auto-update: dado `{app, build_number_local}` devolve a versão activa mais alta de `versoes_apps` e se há actualização. Sem gate de admin; lê com service_role. Reutilizável pelo POS (v1.7.0, #100) | JWT de qualquer sessão | Deployed, verify_jwt=true |
 
 > **v1.4.3:** as Edge Functions passam a estar **versionadas no repo** em
 > `supabase/functions/` (`enviar-push/`, `assinar-documento/` com `assinatura.ts`,
