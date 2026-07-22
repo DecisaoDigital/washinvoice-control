@@ -58,6 +58,11 @@ class Licenca {
   /// escreve — por isso está fora de [toUpdateJson].
   final Tier tier;
 
+  /// Sub-utilizador AT do cliente (formato `NIF/N`), para comunicar séries por
+  /// webservice. Só a Edge Function `comunicar-serie` o escreve (a password
+  /// fica cifrada e nunca chega ao Control). `null` = acesso AT por configurar.
+  final String? atUsername;
+
   /// Preferências de features do admin do POS (`licencas.preferencias_features`).
   /// **Read-only no Control**: quem as altera é o admin no POS. Chave ausente =
   /// ligada por omissão.
@@ -91,9 +96,14 @@ class Licenca {
     this.serie,
     required this.criadoEm,
     this.tier = Tier.legado,
+    this.atUsername,
     this.preferenciasFeatures = const {},
     this.infoHost = const {},
   });
+
+  /// O cliente já tem o acesso automático à AT configurado?
+  bool get acessoAtConfigurado =>
+      atUsername != null && atUsername!.trim().isNotEmpty;
 
   /// A feature está visível neste terminal? Mesma regra do `featureVisivel` do
   /// POS: o tier dá o direito, a preferência só desliga. Um terminal Base com
@@ -148,6 +158,7 @@ class Licenca {
         serie: json['serie'] as String?,
         criadoEm: DateTime.parse(json['created_at'] as String),
         tier: TierInfo.parse(json['tier'] as String?),
+        atUsername: json['at_username'] as String?,
         preferenciasFeatures: _prefsFromJson(json['preferencias_features']),
         infoHost: (json['info_host'] as Map?)?.cast<String, dynamic>() ?? const {},
       );
@@ -233,6 +244,7 @@ class Licenca {
     String? serie,
     DateTime? criadoEm,
     Tier? tier,
+    String? atUsername,
     Map<String, bool>? preferenciasFeatures,
     Map<String, dynamic>? infoHost,
   }) =>
@@ -250,6 +262,7 @@ class Licenca {
         serie: serie ?? this.serie,
         criadoEm: criadoEm ?? this.criadoEm,
         tier: tier ?? this.tier,
+        atUsername: atUsername ?? this.atUsername,
         preferenciasFeatures:
             preferenciasFeatures ?? this.preferenciasFeatures,
         infoHost: infoHost ?? this.infoHost,

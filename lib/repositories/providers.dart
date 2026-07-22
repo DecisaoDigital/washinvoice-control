@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../services/licenca/comunicar_serie_service.dart';
 import '../services/licenca/gerir_licenca_service.dart';
 import 'aceites_repository.dart';
 import 'audit_licencas_repository.dart';
@@ -9,6 +10,7 @@ import 'licencas_repository.dart';
 import 'pedidos_ajuda_repository.dart';
 import 'pedidos_repository.dart';
 import 'pings_repository.dart';
+import 'series_repository.dart';
 import 'sugestoes_repository.dart';
 
 final clientesRepoProvider = Provider((_) => ClientesRepository());
@@ -19,7 +21,12 @@ final aceitesRepoProvider = Provider((_) => AceitesRepository());
 final pedidosAjudaRepoProvider = Provider((_) => PedidosAjudaRepository());
 final sugestoesRepoProvider = Provider((_) => SugestoesRepository());
 final auditLicencasRepoProvider = Provider((_) => AuditLicencasRepository());
+final seriesRepoProvider = Provider((_) => SeriesRepository());
 
 /// Acções remotas sobre licenças (via Edge Function `gerir-licenca`).
 final gerirLicencaProvider =
     Provider((_) => GerirLicencaService(Supabase.instance.client));
+
+/// Comunicação de séries à AT (via Edge Function `comunicar-serie`).
+final comunicarSerieProvider =
+    Provider((_) => ComunicarSerieService(Supabase.instance.client));
