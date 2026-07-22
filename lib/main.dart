@@ -13,6 +13,7 @@ import 'core/erros.dart';
 import 'core/supabase_config.dart';
 import 'features/auth/login_screen.dart';
 import 'features/nav/home_shell.dart';
+import 'repositories/providers.dart';
 import 'services/fcm_background_handler.dart';
 import 'services/fcm_service.dart';
 
@@ -82,6 +83,47 @@ final _fcmSincSessaoProvider = Provider<void>((ref) {
   }, fireImmediately: true);
 });
 
+/// Verifica se há build novo do Control: uma vez ao ganhar sessão e depois a
+/// cada 6 horas. "Side-effect only", tal como o [_fcmSincSessaoProvider]:
+/// observa `sessaoProvider` e preenche `actualizacaoDisponivelProvider`, que o
+/// banner e o modal em [HomeShell] mostram.
+///
+/// Reage à troca de *utilizador*, não a cada refresh de token (senão o timer
+/// reiniciava de hora a hora). Falha de rede é engolida em silêncio — uma
+/// verificação falhada nunca deve interromper o admin.
+final _verificadorActualizacaoProvider = Provider<void>((ref) {
+  Timer? timer;
+  String? ultimoUser;
+
+  ref.onDispose(() => timer?.cancel());
+
+  Future<void> verificar() async {
+    try {
+      final info = await ref.read(actualizacaoServiceProvider).verificar();
+      if (info != null) {
+        ref.read(actualizacaoDisponivelProvider.notifier).state = info;
+      }
+    } catch (_) {
+      // Rede off / servidor em baixo: silencioso de propósito.
+    }
+  }
+
+  ref.listen<AsyncValue<Session?>>(sessaoProvider, (anterior, actual) {
+    final userId = actual.value?.user.id;
+    if (userId == ultimoUser) return; // mero refresh de token: ignorar
+    ultimoUser = userId;
+    timer?.cancel();
+    timer = null;
+    if (userId != null) {
+      unawaited(verificar());
+      timer = Timer.periodic(const Duration(hours: 6), (_) => verificar());
+    } else {
+      // Logout: limpa qualquer banner pendente para não sobreviver à sessão.
+      ref.read(actualizacaoDisponivelProvider.notifier).state = null;
+    }
+  }, fireImmediately: true);
+});
+
 class WashInvoiceControlApp extends ConsumerWidget {
   const WashInvoiceControlApp({super.key});
 
@@ -89,6 +131,8 @@ class WashInvoiceControlApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Observa sessão ↔ token FCM (efeitos colaterais, sem valor devolvido).
     ref.watch(_fcmSincSessaoProvider);
+    // Observa sessão → verificação de actualizações (arranque + timer 6h).
+    ref.watch(_verificadorActualizacaoProvider);
 
     final sessao = ref.watch(sessaoProvider);
     return MaterialApp(

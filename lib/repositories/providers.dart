@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/actualizacao_info.dart';
+import '../services/actualizacao/actualizacao_service.dart';
 import '../services/licenca/comunicar_serie_service.dart';
 import '../services/licenca/gerir_licenca_service.dart';
 import 'aceites_repository.dart';
@@ -30,3 +32,13 @@ final gerirLicencaProvider =
 /// Comunicação de séries à AT (via Edge Function `comunicar-serie`).
 final comunicarSerieProvider =
     Provider((_) => ComunicarSerieService(Supabase.instance.client));
+
+/// Verifica se há build novo do Control (via Edge Function `versao-mais-recente`).
+final actualizacaoServiceProvider =
+    Provider((_) => ActualizacaoService(Supabase.instance.client));
+
+/// Actualização disponível actualmente conhecida (`null` = nenhuma). O
+/// verificador no arranque/timer 6h preenche; o banner e o modal observam; o X
+/// do banner (só quando não obrigatória) volta a pôr `null` para esta sessão.
+final actualizacaoDisponivelProvider =
+    StateProvider<ActualizacaoInfo?>((_) => null);
