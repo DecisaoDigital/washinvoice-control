@@ -26,6 +26,7 @@ import '../../models/ping.dart';
 import '../../repositories/providers.dart';
 import '../../services/licenca/gerir_licenca_service.dart';
 import '../../services/licenca_emissao.dart';
+import 'card_series_widget.dart';
 import 'controlo_remoto_widgets.dart';
 
 class _DetalheData {
@@ -521,6 +522,12 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
               ),
               const SizedBox(height: AppSpacing.lg),
               CardPreferencias(licenca: l),
+              // Card "Séries fiscais" — só aparece para clientes que emitem
+              // (Pro/Legado); auto-esconde-se para Base.
+              if (l.tier.temExtras) ...[
+                const SizedBox(height: AppSpacing.lg),
+                CardSeriesFiscais(licenca: l, onLicencaAlterada: _recarregar),
+              ],
               const SizedBox(height: AppSpacing.xl),
               const WiSeccaoTitulo(titulo: 'Histórico de acessos'),
               const SizedBox(height: AppSpacing.sm),
