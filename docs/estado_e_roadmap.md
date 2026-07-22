@@ -1,7 +1,7 @@
 # WashInvoice Control — Estado e Roadmap
 
 > Documento vivo. Actualizar sempre que uma ronda fechar ou uma decisão de arquitectura mudar.
-> Última actualização: 2026-07-15 (tarde — trigger DB automático fechado).
+> Última actualização: 2026-07-22 (hora local nos timestamps — v1.6.3, #101).
 
 ---
 
@@ -307,6 +307,29 @@ Branch `feature/mostrar-ip-telefone`. Sprint pequeno, par do POS 2.0.6.
   marcador do sistema (`Acoes.ligarPara`, o helper `tel:` já existente). Só
   aparece quando o cliente tem telemóvel preenchido.
 - **6 testes novos**; suite **132 verde**, analyze limpo.
+
+### Ronda: hora local nos timestamps — v1.6.3 (22/07/2026)
+
+Branch `feature/webservice-series-control-v2-1` (patch em cima da ronda das
+séries, ainda por fazer merge). Bug apanhado no teste do POS 2.0.6 + APK 1.6.2.
+
+- **#101**: o card "Último acesso" mostrava a hora **1h a menos** (10:56 em vez
+  de 11:56) — exactamente o offset UTC↔WEST no verão. Causa: `created_at` é
+  `timestamptz` (guardado em UTC) e `DateTime.parse` devolve um DateTime com
+  `isUtc = true`; `Dates.data`/`Dates.dataHora` formatavam sem `.toLocal()`.
+- **Fix central**: `.toLocal()` dentro de `Dates.data` e `Dates.dataHora`
+  ([lib/core/dates.dart](../lib/core/dates.dart)). Como **todos** os widgets de
+  timestamp passam por este helper (detalhe do cliente, historial
+  `licencas_audit`, pedidos de ajuda, séries, sugestões), a correcção propaga-se
+  a todos de uma vez. `.toLocal()` é idempotente — num DateTime já local é no-op.
+- **Não tocado**: modelos (`Ping`/`Licenca`/`SerieComunicada` continuam a
+  receber UTC via `DateTime.parse`), schema Supabase (timezone continua UTC), e
+  os `timeago.format(...)` (relativos — imunes ao bug). Export CSV do backup
+  mantém `toIso8601String()` (UTC, correcto para dados).
+- **Testes TZ-robustos** em `test/dates_test.dart`: comparam contra a hora local
+  calculada em runtime (o runner do CI pode estar em qualquer timezone) e, com
+  offset ≠ 0, garantem que a hora UTC crua já não aparece. Suite **verde**,
+  analyze limpo (só o aviso pré-existente `anonKey` deprecated em main.dart).
 
 ## 7. Roadmap — o que falta
 
