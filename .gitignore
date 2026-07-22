@@ -1,3 +1,12 @@
+# Certificados AT e chaves — NUNCA versionar (guardados em D:\WashInvoiceControl\FICHEIROSATributaria\)
+*.pfx
+*.p12
+*.p7b
+*.cer
+*.key
+*.crt
+*.pem
+
 # Miscellaneous
 *.class
 *.log
