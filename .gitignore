@@ -58,3 +58,6 @@ app.*.map.json
 
 # Firebase config (secret — fora do repo, ver docs/estado_e_roadmap.md §5)
 android/app/google-services.json
+
+# Estado local do Supabase CLI (ref do projecto ligado nesta maquina).
+supabase/.temp/

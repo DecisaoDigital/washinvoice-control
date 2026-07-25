@@ -33,7 +33,8 @@ function json(status: number, data: unknown) {
   });
 }
 
-const APPS = ['pos', 'control'];
+const APPS = ['pos', 'control', 'punho'];
+const PLATFORMS = ['all', 'windows', 'android', 'ios'];
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -44,7 +45,7 @@ Deno.serve(async (req) => {
   }
 
   // verify_jwt já garantiu um JWT válido; aqui só validamos o body.
-  let body: { app?: string; build_number_local?: number };
+  let body: { app?: string; plataforma?: string; build_number_local?: number };
   try {
     body = await req.json();
   } catch {
@@ -52,6 +53,10 @@ Deno.serve(async (req) => {
   }
 
   const app = body.app;
+  const plataforma = body.plataforma ?? 'all';
+  if (typeof plataforma !== 'string' || !PLATFORMS.includes(plataforma)) {
+    return json(400, { erro: 'plataforma invalida' });
+  }
   if (typeof app !== 'string' || !APPS.includes(app)) {
     return json(400, { erro: 'app inválida' });
   }
@@ -70,6 +75,7 @@ Deno.serve(async (req) => {
     .select('versao, build_number, url_download, obrigatoria, notas_lancamento')
     .eq('app', app)
     .eq('activa', true)
+    .in('plataforma', [plataforma, 'all'])
     .order('build_number', { ascending: false })
     .limit(1)
     .maybeSingle();
