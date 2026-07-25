@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../core/app_colors.dart';
+import '../../core/app_filter/app_filter_provider.dart';
 import '../../core/app_radius.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_theme.dart';
@@ -77,10 +78,15 @@ class _InstalacoesPorEstadoScreenState
   }
 
   Future<_Data> _carregar() async {
-    final licencasF = ref.read(licencasRepoProvider).listar();
+    // Este ecrã abre a partir dos KPIs do Dashboard, que já vêm filtrados —
+    // sem o mesmo filtro, o total do card não batia certo com a lista.
+    final app = ref.read(appFilterProvider).valorApp;
+
+    final licencasF = ref.read(licencasRepoProvider).listar(app: app);
     final clientesF = ref.read(clientesRepoProvider).listar();
-    final pingsF = ref.read(pingsRepoProvider).ultimosPorInstalacao();
-    final pendentesF = ref.read(pedidosRepoProvider).pendentes();
+    final pingsF =
+        ref.read(pingsRepoProvider).ultimosPorInstalacao(app: app);
+    final pendentesF = ref.read(pedidosRepoProvider).pendentes(app: app);
     await Future.wait([licencasF, clientesF, pingsF, pendentesF]);
 
     final licencas = await licencasF;
@@ -95,7 +101,7 @@ class _InstalacoesPorEstadoScreenState
   }
 
   Future<void> _recarregar() async {
-    setState(() => _future = _carregar());
+    setState(() { _future = _carregar(); });
     await _future;
   }
 
@@ -200,11 +206,19 @@ class _InstalacoesPorEstadoScreenState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        data.ctx.nomeDe(machineId: p.machineId, nif: p.nif),
-                        style: AppText.bodyStrong,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      Row(
+                        children: [
+                          WiAppBadgeAuto(p.app),
+                          Expanded(
+                            child: Text(
+                              data.ctx
+                                  .nomeDe(machineId: p.machineId, nif: p.nif),
+                              style: AppText.bodyStrong,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                       Text(
                         'Quer renovar: ${p.planoDesejado} · ${timeago.format(p.criadoEm, locale: 'pt')}',
@@ -269,11 +283,20 @@ class _CardLic extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  ctx.nomeDe(machineId: licenca.machineId, nif: licenca.nif),
-                  style: AppText.bodyStrong,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  children: [
+                    WiAppBadgeAuto(licenca.app),
+                    WiTierBadge(licenca.tier),
+                    Expanded(
+                      child: Text(
+                        ctx.nomeDe(
+                            machineId: licenca.machineId, nif: licenca.nif),
+                        style: AppText.bodyStrong,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
                 Text('${licenca.planoLabel} · ${_validade()}',
                     style: AppText.caption),

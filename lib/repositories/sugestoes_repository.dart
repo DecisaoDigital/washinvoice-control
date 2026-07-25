@@ -6,25 +6,24 @@ class SugestoesRepository {
   SupabaseClient get _client => Supabase.instance.client;
 
   /// Sugestões por ler (não lidas e não arquivadas), mais recentes primeiro.
-  Future<List<Sugestao>> listarPorLer() async {
-    final rows = await _client
+  Future<List<Sugestao>> listarPorLer({String? app}) async {
+    var q = _client
         .from('sugestoes')
         .select()
         .eq('lida', false)
-        .eq('arquivada', false)
-        .order('criado_em', ascending: false);
+        .eq('arquivada', false);
+    if (app != null) q = q.eq('app', app);
+    final rows = await q.order('criado_em', ascending: false);
     return (rows as List)
         .map((e) => Sugestao.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
   /// Sugestões arquivadas, mais recentes primeiro.
-  Future<List<Sugestao>> listarArquivo() async {
-    final rows = await _client
-        .from('sugestoes')
-        .select()
-        .eq('arquivada', true)
-        .order('criado_em', ascending: false);
+  Future<List<Sugestao>> listarArquivo({String? app}) async {
+    var q = _client.from('sugestoes').select().eq('arquivada', true);
+    if (app != null) q = q.eq('app', app);
+    final rows = await q.order('criado_em', ascending: false);
     return (rows as List)
         .map((e) => Sugestao.fromJson(e as Map<String, dynamic>))
         .toList();

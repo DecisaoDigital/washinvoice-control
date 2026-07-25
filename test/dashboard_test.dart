@@ -20,30 +20,30 @@ import 'package:washinvoice_control/repositories/sugestoes_repository.dart';
 
 class _FakeLicencas extends LicencasRepository {
   @override
-  Future<List<Licenca>> listar() async => [];
+  Future<List<Licenca>> listar({String? app}) async => [];
   @override
-  Future<List<Licenca>> aExpirar({int dias = 15}) async => [];
+  Future<List<Licenca>> aExpirar({int dias = 15, String? app}) async => [];
   @override
-  Future<Set<String>> machineIdsComLicenca() async => {};
+  Future<Set<String>> machineIdsComLicenca({String? app}) async => {};
 }
 
 class _FakePedidos extends PedidosRepository {
   @override
-  Future<List<PedidoRenovacao>> pendentes() async => [];
+  Future<List<PedidoRenovacao>> pendentes({String? app}) async => [];
 }
 
 class _FakePedidosAjuda extends PedidosAjudaRepository {
   final List<PedidoAjuda> abertos;
   _FakePedidosAjuda(this.abertos);
   @override
-  Future<List<PedidoAjuda>> listarAbertos() async => abertos;
+  Future<List<PedidoAjuda>> listarAbertos({String? app}) async => abertos;
 }
 
 class _FakePings extends PingsRepository {
   final List<Ping> ultimos;
   _FakePings(this.ultimos);
   @override
-  Future<List<Ping>> ultimosPorInstalacao() async => ultimos;
+  Future<List<Ping>> ultimosPorInstalacao({String? app}) async => ultimos;
 }
 
 class _FakeClientes extends ClientesRepository {
@@ -53,7 +53,7 @@ class _FakeClientes extends ClientesRepository {
 
 class _FakeSugestoes extends SugestoesRepository {
   @override
-  Future<List<Sugestao>> listarPorLer() async => [];
+  Future<List<Sugestao>> listarPorLer({String? app}) async => [];
 }
 
 Widget _app({

@@ -146,11 +146,17 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
           'Licença não encontrada para a máquina ${widget.machineId}.');
     }
     final historico = await pingsRepo.historico(licenca.machineId, limite: 1);
-    final pedido = await pedidosRepo.pendentePorNif(licenca.nif);
+    // O pedido pendente é o da app desta licença — o mesmo NIF pode ter
+    // pedidos noutra app, e sem o filtro o `maybeSingle()` rebentava.
+    final pedido =
+        await pedidosRepo.pendentePorNif(licenca.nif, app: licenca.app);
     final aceite = await aceitesRepo.ultimoPorMachineId(licenca.machineId);
 
-    final todosUltimos = await pingsRepo.ultimosPorInstalacao();
-    final todasLicencas = await licencasRepo.listar();
+    // Contexto restrito à app desta licença — não ao filtro global. O
+    // "Terminal 2 de 3" conta os terminais do mesmo NIF, e um cliente que
+    // tenha POS *e* Punho não deve ver os dois somados na mesma contagem.
+    final todosUltimos = await pingsRepo.ultimosPorInstalacao(app: licenca.app);
+    final todasLicencas = await licencasRepo.listar(app: licenca.app);
     final clientes = await clientesRepo.listar();
     final classV = ClassificadorVersoes(todosUltimos.map((p) => p.versao));
     final ultimoPing = historico.isNotEmpty ? historico.first : null;
@@ -177,7 +183,7 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
   }
 
   void _recarregar() {
-    setState(() => _future = _carregar());
+    setState(() { _future = _carregar(); });
   }
 
   Future<void> _marcarRenovacao(Licenca l, PedidoRenovacao? pedido) async {
@@ -443,9 +449,25 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(data.nomeCliente,
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w500)),
+                Row(
+                  children: [
+                    // PRO à esquerda do nome (#177); a app à direita. Aqui o
+                    // badge da app aparece sempre, mesmo com o filtro fixo numa
+                    // app — numa ficha individual saber de que app é o terminal
+                    // é informação, não ruído de lista.
+                    WiTierBadge(data.licenca.tier),
+                    Flexible(
+                      child: Text(
+                        data.nomeCliente,
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w500),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    WiAppBadge(data.licenca.app),
+                  ],
+                ),
                 Text(
                   data.subtituloTerminal,
                   style: TextStyle(

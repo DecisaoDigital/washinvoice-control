@@ -16,6 +16,7 @@ import 'features/nav/home_shell.dart';
 import 'repositories/providers.dart';
 import 'services/fcm_background_handler.dart';
 import 'services/fcm_service.dart';
+import 'services/push_titulo.dart';
 
 /// Estado de autenticação reactivo.
 ///
@@ -172,7 +173,13 @@ class _FcmForegroundListenerState extends State<_FcmForegroundListener> {
   void initState() {
     super.initState();
     _sub = FirebaseMessaging.onMessage.listen((mensagem) {
-      final titulo = mensagem.notification?.title ?? 'Notificação';
+      // `data['app']` distingue de que app veio o push (POS / Punho). Só o
+      // SnackBar de foreground é prefixado — a notificação nativa é desenhada
+      // pelo SO e tem de trazer o prefixo já da Edge Function.
+      final titulo = tituloComApp(
+        mensagem.notification?.title ?? 'Notificação',
+        mensagem.data['app'] as String?,
+      );
       final corpo = mensagem.notification?.body ?? '';
 
       // O SnackBar em foreground é silencioso (ao contrário da notificação

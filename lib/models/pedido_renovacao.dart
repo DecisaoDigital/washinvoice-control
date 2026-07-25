@@ -1,5 +1,9 @@
 class PedidoRenovacao {
   final String id;
+
+  /// App do pedido (`pedidos_renovacao.app`).
+  final String app;
+
   final String machineId;
   final String nif;
   final String planoDesejado;
@@ -9,6 +13,7 @@ class PedidoRenovacao {
 
   const PedidoRenovacao({
     required this.id,
+    this.app = 'pos',
     required this.machineId,
     required this.nif,
     required this.planoDesejado,
@@ -20,6 +25,7 @@ class PedidoRenovacao {
   factory PedidoRenovacao.fromJson(Map<String, dynamic> json) =>
       PedidoRenovacao(
         id: json['id'] as String,
+        app: json['app'] as String? ?? 'pos',
         machineId: json['machine_id'] as String,
         nif: json['nif'] as String,
         planoDesejado: json['plano_desejado'] as String,
@@ -32,6 +38,7 @@ class PedidoRenovacao {
 
   Map<String, dynamic> toJson() => {
         'id': id,
+        'app': app,
         'machine_id': machineId,
         'nif': nif,
         'plano_desejado': planoDesejado,

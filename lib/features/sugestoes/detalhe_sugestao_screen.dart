@@ -71,7 +71,7 @@ class _DetalheSugestaoScreenState
   }
 
   Future<void> _recarregar() async {
-    setState(() => _future = _carregar());
+    setState(() { _future = _carregar(); });
     await _future;
   }
 

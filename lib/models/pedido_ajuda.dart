@@ -1,5 +1,10 @@
 class PedidoAjuda {
   final String id;
+
+  /// App de onde o pedido veio (`pedidos_ajuda.app`). É o que diz ao Cesar em
+  /// que app ir ajudar antes sequer de abrir o detalhe.
+  final String app;
+
   final String machineId;
   final String? nif;
   final String? clienteId;
@@ -9,6 +14,7 @@ class PedidoAjuda {
 
   const PedidoAjuda({
     required this.id,
+    this.app = 'pos',
     required this.machineId,
     this.nif,
     this.clienteId,
@@ -24,6 +30,7 @@ class PedidoAjuda {
 
   factory PedidoAjuda.fromJson(Map<String, dynamic> json) => PedidoAjuda(
         id: json['id'] as String,
+        app: json['app'] as String? ?? 'pos',
         machineId: json['machine_id'] as String,
         nif: json['nif'] as String?,
         clienteId: json['cliente_id'] as String?,
@@ -36,6 +43,7 @@ class PedidoAjuda {
 
   PedidoAjuda copyWith({DateTime? resolvidoEm, String? notas}) => PedidoAjuda(
         id: id,
+        app: app,
         machineId: machineId,
         nif: nif,
         clienteId: clienteId,

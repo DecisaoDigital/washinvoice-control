@@ -32,31 +32,31 @@ Licenca _lic(String id, String nome, DateTime validade) => Licenca(
 
 class _FakeLicencas extends LicencasRepository {
   @override
-  Future<List<Licenca>> listar() async => [
+  Future<List<Licenca>> listar({String? app}) async => [
         _lic('1', 'Loja Activa', DateTime(2030)),
         _lic('2', 'Loja Expirada', DateTime(2020)),
       ];
   @override
-  Future<List<Licenca>> aExpirar({int dias = 15}) async => [];
+  Future<List<Licenca>> aExpirar({int dias = 15, String? app}) async => [];
   @override
-  Future<Set<String>> machineIdsComLicenca() async => {'m1', 'm2'};
+  Future<Set<String>> machineIdsComLicenca({String? app}) async => {'m1', 'm2'};
 }
 
 class _FakePedidos extends PedidosRepository {
   @override
-  Future<List<PedidoRenovacao>> pendentes() async => [];
+  Future<List<PedidoRenovacao>> pendentes({String? app}) async => [];
 }
 
 class _FakePedidosAjuda extends PedidosAjudaRepository {
   @override
-  Future<List<PedidoAjuda>> listarAbertos() async => [];
+  Future<List<PedidoAjuda>> listarAbertos({String? app}) async => [];
   @override
-  Future<List<PedidoAjuda>> listarHistorico() async => [];
+  Future<List<PedidoAjuda>> listarHistorico({String? app}) async => [];
 }
 
 class _FakePings extends PingsRepository {
   @override
-  Future<List<Ping>> ultimosPorInstalacao() async => [];
+  Future<List<Ping>> ultimosPorInstalacao({String? app}) async => [];
 }
 
 class _FakeClientes extends ClientesRepository {
@@ -66,7 +66,7 @@ class _FakeClientes extends ClientesRepository {
 
 class _FakeSugestoes extends SugestoesRepository {
   @override
-  Future<List<Sugestao>> listarPorLer() async => [];
+  Future<List<Sugestao>> listarPorLer({String? app}) async => [];
 }
 
 void main() {

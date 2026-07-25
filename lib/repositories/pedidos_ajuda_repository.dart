@@ -6,24 +6,26 @@ class PedidosAjudaRepository {
   SupabaseClient get _client => Supabase.instance.client;
 
   /// Pedidos ainda por resolver, mais recentes primeiro.
-  Future<List<PedidoAjuda>> listarAbertos() async {
-    final rows = await _client
+  Future<List<PedidoAjuda>> listarAbertos({String? app}) async {
+    var q = _client
         .from('pedidos_ajuda')
         .select()
-        .filter('resolvido_em', 'is', null)
-        .order('criado_em', ascending: false);
+        .filter('resolvido_em', 'is', null);
+    if (app != null) q = q.eq('app', app);
+    final rows = await q.order('criado_em', ascending: false);
     return (rows as List)
         .map((e) => PedidoAjuda.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
   /// Pedidos já resolvidos, resolução mais recente primeiro.
-  Future<List<PedidoAjuda>> listarHistorico() async {
-    final rows = await _client
+  Future<List<PedidoAjuda>> listarHistorico({String? app}) async {
+    var q = _client
         .from('pedidos_ajuda')
         .select()
-        .not('resolvido_em', 'is', null)
-        .order('resolvido_em', ascending: false);
+        .not('resolvido_em', 'is', null);
+    if (app != null) q = q.eq('app', app);
+    final rows = await q.order('resolvido_em', ascending: false);
     return (rows as List)
         .map((e) => PedidoAjuda.fromJson(e as Map<String, dynamic>))
         .toList();

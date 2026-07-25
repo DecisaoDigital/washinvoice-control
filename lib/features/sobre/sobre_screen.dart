@@ -82,7 +82,7 @@ class _SobreScreenState extends ConsumerState<SobreScreen> {
           if (snapshot.hasError) {
             return ErroView(
               erro: snapshot.error!,
-              onRetry: () => setState(() => _future = _carregar()),
+              onRetry: () => setState(() { _future = _carregar(); }),
             );
           }
           final data = snapshot.data!;

@@ -2,14 +2,18 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/licenca.dart';
 
+/// Acesso a `licencas`.
+///
+/// Os métodos de leitura aceitam `app` opcional (`pos` / `punho`): vem do
+/// `appFilterProvider`, e `null` significa "todas as apps" — não se aplica
+/// filtro nenhum. Ver `docs/design/multi_app.md`.
 class LicencasRepository {
   SupabaseClient get _client => Supabase.instance.client;
 
-  Future<List<Licenca>> listar() async {
-    final rows = await _client
-        .from('licencas')
-        .select()
-        .order('validade', ascending: true);
+  Future<List<Licenca>> listar({String? app}) async {
+    var q = _client.from('licencas').select();
+    if (app != null) q = q.eq('app', app);
+    final rows = await q.order('validade', ascending: true);
     return (rows as List)
         .map((e) => Licenca.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -36,23 +40,26 @@ class LicencasRepository {
   /// Todas as licenças de um NIF. Um NIF (cliente) pode ter **várias** licenças
   /// (um terminal cada), por isso devolve `List` — **não** usar para abrir o
   /// detalhe (usar [porMachineId]). Destinado a contextos de pesquisa.
-  Future<List<Licenca>> porNif(String nif) async {
-    final rows = await _client.from('licencas').select().eq('nif', nif);
+  Future<List<Licenca>> porNif(String nif, {String? app}) async {
+    var q = _client.from('licencas').select().eq('nif', nif);
+    if (app != null) q = q.eq('app', app);
+    final rows = await q;
     return (rows as List)
         .map((e) => Licenca.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
-  Future<List<Licenca>> aExpirar({int dias = 15}) async {
+  Future<List<Licenca>> aExpirar({int dias = 15, String? app}) async {
     final agora = DateTime.now();
     final limite = agora.add(Duration(days: dias));
-    final rows = await _client
+    var q = _client
         .from('licencas')
         .select()
         .eq('activa', true)
         .gte('validade', agora.toIso8601String())
-        .lte('validade', limite.toIso8601String())
-        .order('validade', ascending: true);
+        .lte('validade', limite.toIso8601String());
+    if (app != null) q = q.eq('app', app);
+    final rows = await q.order('validade', ascending: true);
     return (rows as List)
         .map((e) => Licenca.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -64,6 +71,10 @@ class LicencasRepository {
   /// É o que o RLS usa para o POS ler só a SUA licença (`user_id = auth.uid()`).
   /// Fica `null` quando ainda não há utilizador criado — a licença fica órfã
   /// (o POS não a consegue ler) até ser reemitida com o `user_id` preenchido.
+  ///
+  /// [app] tem de ir sempre (`licencas.app` é `NOT NULL` sem default). Fica em
+  /// `pos` por omissão porque é a única app cujas licenças o Cesar cria à mão
+  /// aqui — o Punho auto-onboarda pela Edge Function `registar-terminal`.
   Future<void> criar({
     required String machineId,
     required String nif,
@@ -74,8 +85,10 @@ class LicencasRepository {
     bool activa = true,
     bool oferta = false,
     String? userId,
+    String app = 'pos',
   }) async {
     await _client.from('licencas').insert({
+      'app': app,
       'machine_id': machineId,
       'nif': nif,
       'nome': nome,
@@ -89,8 +102,10 @@ class LicencasRepository {
   }
 
   /// Lista os machine_id que já têm licença (para detetar instalações novas).
-  Future<Set<String>> machineIdsComLicenca() async {
-    final rows = await _client.from('licencas').select('machine_id');
+  Future<Set<String>> machineIdsComLicenca({String? app}) async {
+    var q = _client.from('licencas').select('machine_id');
+    if (app != null) q = q.eq('app', app);
+    final rows = await q;
     return {
       for (final r in rows as List) (r as Map<String, dynamic>)['machine_id'] as String,
     };

@@ -30,6 +30,16 @@ extension TierInfo on Tier {
 
 class Licenca {
   final String id;
+
+  /// App da Decisão Digital a que a licença pertence (`licencas.app`: `pos` ou
+  /// `punho`). Na BD é `NOT NULL` **sem default** — quem insere tem de o dizer
+  /// explicitamente. Aqui assume `pos` quando a chave falta, que é o que a
+  /// migration multi-app fez às linhas que já existiam.
+  ///
+  /// Fora de [toUpdateJson] de propósito: a app de uma licença é identidade,
+  /// não um campo editável.
+  final String app;
+
   final String? clienteId;
   final String machineId;
   final String nif;
@@ -84,6 +94,7 @@ class Licenca {
 
   const Licenca({
     required this.id,
+    this.app = 'pos',
     this.clienteId,
     required this.machineId,
     required this.nif,
@@ -146,6 +157,7 @@ class Licenca {
 
   factory Licenca.fromJson(Map<String, dynamic> json) => Licenca(
         id: json['id'] as String,
+        app: json['app'] as String? ?? 'pos',
         clienteId: json['cliente_id'] as String?,
         machineId: json['machine_id'] as String,
         nif: json['nif'] as String,
@@ -177,6 +189,7 @@ class Licenca {
   /// [toInsertJson] / [toUpdateJson], que excluem os campos geridos pela BD.
   Map<String, dynamic> toJson() => {
         'id': id,
+        'app': app,
         'cliente_id': clienteId,
         'machine_id': machineId,
         'nif': nif,
@@ -196,7 +209,11 @@ class Licenca {
   /// Inclui `machine_id` (identidade do terminal, definida na criação).
   /// Nota: `user_id` (ligação ao POS para RLS) não vive no modelo — é definido
   /// à parte por `LicencasRepository.criar`.
+  ///
+  /// Inclui `app` — na BD é `NOT NULL` sem default, portanto omiti-lo faz o
+  /// INSERT rebentar.
   Map<String, dynamic> toInsertJson() => {
+        'app': app,
         'cliente_id': clienteId,
         'machine_id': machineId,
         'nif': nif,
@@ -218,6 +235,9 @@ class Licenca {
   /// `tier` só se muda pela Edge Function `gerir-licenca` (para haver auditoria
   /// de quem promoveu quem), e as preferências pertencem ao admin do POS — o
   /// Control só as lê.
+  ///
+  /// **`app` também está excluído**: uma licença não muda de app. Se mudasse,
+  /// deixava de ser a mesma instalação.
   Map<String, dynamic> toUpdateJson() => {
         'cliente_id': clienteId,
         'nif': nif,
@@ -232,6 +252,7 @@ class Licenca {
 
   Licenca copyWith({
     String? id,
+    String? app,
     String? clienteId,
     String? machineId,
     String? nif,
@@ -250,6 +271,7 @@ class Licenca {
   }) =>
       Licenca(
         id: id ?? this.id,
+        app: app ?? this.app,
         clienteId: clienteId ?? this.clienteId,
         machineId: machineId ?? this.machineId,
         nif: nif ?? this.nif,

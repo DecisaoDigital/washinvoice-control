@@ -1,7 +1,47 @@
 # WashInvoice Control — Estado e Roadmap
 
 > Documento vivo. Actualizar sempre que uma ronda fechar ou uma decisão de arquitectura mudar.
-> Última actualização: 2026-07-22 (auto-update do Control — v1.7.0, #100).
+> Última actualização: 2026-07-25 (multi-app POS + Punho e badge PRO — v1.8.0, #177).
+
+---
+
+## 0. Multi-app (25/07/2026, v1.8.0)
+
+O Control deixou de ser o backoffice **do WashInvoice** e passou a ser o backoffice
+**da Decisão Digital**: mostra o parque de todas as apps da empresa. Primeiras duas:
+`pos` (WashInvoice) e `punho`.
+
+**Base de dados.** Coluna `app text NOT NULL` (sem default) em `licencas`, `pings`,
+`pedidos_ajuda`, `pedidos_renovacao`, `sugestoes` e `aceites_termos`. Sem default é
+deliberado — quem escreve tem de dizer a que app pertence, em vez de calhar em `pos`
+por omissão e ninguém dar por isso. As linhas que já existiam migraram para `'pos'`.
+As Edge Functions `registar-terminal` e `validar-licenca` (v6) exigem `body.app`.
+
+**Selector.** Dashboard, Instalações, Mapa, Pedidos de ajuda e Sugestões levam um
+selector na AppBar: Todas as apps | WashInvoice | Punho. A escolha é global e fica
+persistida em SharedPreferences (`app_filtro`). Mudar de app recarrega os ecrãs
+montados. Com o filtro em "Todas", o Dashboard mostra a repartição
+("WashInvoice: 3 · Punho: 1") por baixo dos KPIs — senão os totais não diriam de
+que app são.
+
+**Badges.** `POS` (azul) e `PUNHO` (verde) por linha, e só quando o filtro está em
+"Todas" — com o filtro fixo numa app, marcar cada linha seria ruído. Excepção: na
+ficha do cliente e na pesquisa global o badge aparece sempre.
+
+**Badge PRO** (#177): antes do nome do cliente, azul de marca, letras menores que o
+nome. Aparece para `tier` **pro e legado** — o modelo diz que legado se comporta
+como Pro, logo escondê-lo mostraria como Base quem tem os extras todos.
+
+**Push.** O SnackBar de foreground prefixa o título com a app (`[PUNHO] Novo
+terminal`) a partir de `data['app']`. Pushes sem esse campo mantêm o título
+original. **A notificação nativa (app em background/fechada) é desenhada pelo SO** a
+partir do payload `notification` — o prefixo aí tem de vir já da Edge Function
+`enviar-push`.
+
+**Não filtrados de propósito:** exportação de backup (um backup tem de ser completo)
+e pesquisa global (é o escape à vista filtrada). Ver `docs/design/multi_app.md`.
+
+Próximas apps a integrar: nenhuma prevista a curto prazo.
 
 ---
 

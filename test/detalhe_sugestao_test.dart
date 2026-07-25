@@ -20,12 +20,12 @@ class _FakeClientes extends ClientesRepository {
 
 class _FakeLicencas extends LicencasRepository {
   @override
-  Future<List<Licenca>> listar() async => [];
+  Future<List<Licenca>> listar({String? app}) async => [];
 }
 
 class _FakePings extends PingsRepository {
   @override
-  Future<List<Ping>> ultimosPorInstalacao() async => [];
+  Future<List<Ping>> ultimosPorInstalacao({String? app}) async => [];
 }
 
 class _FakeSugestoes extends SugestoesRepository {

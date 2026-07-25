@@ -1,5 +1,11 @@
 class Ping {
   final String id;
+
+  /// App de origem do ping (`pings.app`: `pos` ou `punho`). `NOT NULL` na BD;
+  /// assume `pos` se a chave faltar — foi para aí que a migration multi-app
+  /// mandou as linhas antigas.
+  final String app;
+
   final String machineId;
   final String? nif;
   final String? versao;
@@ -36,6 +42,7 @@ class Ping {
 
   const Ping({
     required this.id,
+    this.app = 'pos',
     required this.machineId,
     this.nif,
     this.versao,
@@ -54,6 +61,7 @@ class Ping {
 
   factory Ping.fromJson(Map<String, dynamic> json) => Ping(
         id: json['id'] as String,
+        app: json['app'] as String? ?? 'pos',
         machineId: json['machine_id'] as String,
         nif: json['nif'] as String?,
         versao: json['versao'] as String?,
@@ -72,6 +80,7 @@ class Ping {
 
   Map<String, dynamic> toJson() => {
         'id': id,
+        'app': app,
         'machine_id': machineId,
         'nif': nif,
         'versao': versao,

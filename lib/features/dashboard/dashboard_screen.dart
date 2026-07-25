@@ -9,9 +9,11 @@ import 'package:timeago/timeago.dart' as timeago;
 
 import '../../core/acoes.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_filter/app_filter_provider.dart';
 import '../../core/app_radius.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_theme.dart';
+import '../../core/apps_ui.dart';
 import '../../core/config.dart';
 import '../../core/contexto_instalacoes.dart';
 import '../../core/erros.dart';
@@ -61,6 +63,24 @@ class _DashboardData {
     required this.versaoApp,
   });
 
+  /// Quantas licenças por app, apps conhecidas primeiro e pela ordem do
+  /// selector. Só serve o breakdown que aparece com o filtro em "Todas" — com
+  /// o filtro numa app o número já é o total dos KPIs.
+  Map<String, int> get totaisPorApp {
+    final contagem = <String, int>{};
+    for (final l in licencas) {
+      contagem[l.app] = (contagem[l.app] ?? 0) + 1;
+    }
+    final ordenado = <String, int>{};
+    for (final a in AppsUi.conhecidas) {
+      if (contagem.containsKey(a)) ordenado[a] = contagem[a]!;
+    }
+    for (final e in contagem.entries) {
+      ordenado.putIfAbsent(e.key, () => e.value);
+    }
+    return ordenado;
+  }
+
   int get totalActivas =>
       licencas.where((l) => l.estado == EstadoLicenca.activa).length;
   int get totalAExpirar =>
@@ -104,13 +124,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final pingsRepo = ref.read(pingsRepoProvider);
     final clientesRepo = ref.read(clientesRepoProvider);
 
-    final licencas = licencasRepo.listar();
-    final aExpirar = licencasRepo.aExpirar();
-    final pendentes = pedidosRepo.pendentes();
-    final ajuda = ajudaRepo.listarAbertos();
-    final sugestoes = ref.read(sugestoesRepoProvider).listarPorLer();
-    final actividade = pingsRepo.ultimosPorInstalacao();
-    final comLicenca = licencasRepo.machineIdsComLicenca();
+    // Filtro de app escolhido no selector (`null` = todas). Lido com `read`,
+    // não `watch`: quem dispara o recarregamento é o `ref.listen` do build.
+    final app = ref.read(appFilterProvider).valorApp;
+
+    final licencas = licencasRepo.listar(app: app);
+    final aExpirar = licencasRepo.aExpirar(app: app);
+    final pendentes = pedidosRepo.pendentes(app: app);
+    final ajuda = ajudaRepo.listarAbertos(app: app);
+    final sugestoes = ref.read(sugestoesRepoProvider).listarPorLer(app: app);
+    final actividade = pingsRepo.ultimosPorInstalacao(app: app);
+    final comLicenca = licencasRepo.machineIdsComLicenca(app: app);
     final clientes = clientesRepo.listar();
     final info = PackageInfo.fromPlatform();
     await Future.wait([
@@ -156,7 +180,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Future<void> _recarregar() async {
-    setState(() => _future = _carregar());
+    setState(() { _future = _carregar(); });
     await _future;
   }
 
@@ -217,12 +241,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Mudar de app recarrega tudo — os KPIs e as listas são todos filtrados
+    // no servidor, não há como reaproveitar o que já está em memória.
+    ref.listen(appFilterProvider, (_, __) => _recarregar());
+
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: 56,
         titleSpacing: AppSpacing.lg,
         title: const _Wordmark(),
         actions: [
+          const WiAppSelector(),
+          const SizedBox(width: AppSpacing.xs),
           IconButton(
             iconSize: 20,
             icon: const Icon(Icons.search),
@@ -271,6 +301,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               padding: const EdgeInsets.all(AppSpacing.lg),
               children: [
                 _KpiRow(data: data, onAbrir: _abrirPorEstado),
+                if (ref.watch(appFilterProvider) == AppFiltro.todas &&
+                    data.totaisPorApp.length > 1) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _BreakdownPorApp(totais: data.totaisPorApp),
+                ],
                 const SizedBox(height: AppSpacing.lg),
 
                 if (data.novasInstalacoes.isNotEmpty) ...[
@@ -454,6 +489,45 @@ class _Wordmark extends StatelessWidget {
   }
 }
 
+/// Repartição das instalações por app — "POS 3 · Punho 1".
+///
+/// Só aparece com o filtro em "Todas as apps" e havendo mais do que uma app
+/// com licenças: os KPIs acima somam tudo, e sem esta linha não se via de que
+/// app é o quê.
+class _BreakdownPorApp extends StatelessWidget {
+  final Map<String, int> totais;
+  const _BreakdownPorApp({required this.totais});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.xs,
+      children: [
+        for (final e in totais.entries)
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: 4,
+            ),
+            decoration: BoxDecoration(
+              color: AppsUi.corPastel(e.key),
+              borderRadius: AppRadius.pillAll,
+            ),
+            child: Text(
+              '${AppsUi.nome(e.key)}: ${e.value}',
+              style: TextStyle(
+                color: AppsUi.corForte(e.key),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _KpiRow extends StatelessWidget {
   final _DashboardData data;
   final void Function(FiltroKpi) onAbrir;
@@ -535,11 +609,20 @@ class _CardNovaInstalacao extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  // Mesmo identificador que a "Actividade recente" (ctx.nomeDe),
-                  // para o mesmo terminal aparecer igual nos dois sítios.
-                  ctx.nomeDe(machineId: ping.machineId, nif: ping.nif),
-                  style: AppText.bodyStrong,
+                Row(
+                  children: [
+                    WiAppBadgeAuto(ping.app),
+                    Expanded(
+                      child: Text(
+                        // Mesmo identificador que a "Actividade recente"
+                        // (ctx.nomeDe), para o mesmo terminal aparecer igual
+                        // nos dois sítios.
+                        ctx.nomeDe(machineId: ping.machineId, nif: ping.nif),
+                        style: AppText.bodyStrong,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -595,9 +678,18 @@ class _CardPedidoAjuda extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  ctx.nomeDe(machineId: pedido.machineId, nif: pedido.nif),
-                  style: AppText.bodyStrong,
+                Row(
+                  children: [
+                    WiAppBadgeAuto(pedido.app),
+                    Expanded(
+                      child: Text(
+                        ctx.nomeDe(
+                            machineId: pedido.machineId, nif: pedido.nif),
+                        style: AppText.bodyStrong,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
                 // Linha 2 = preview das notas (mais útil que Sinal−Localidade,
                 // que caía em "? − " quando o pedido chega sem ping associado).
@@ -660,9 +752,19 @@ class _CardLicenca extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  ctx.nomeDe(machineId: licenca.machineId, nif: licenca.nif),
-                  style: AppText.bodyStrong,
+                Row(
+                  children: [
+                    WiAppBadgeAuto(licenca.app),
+                    WiTierBadge(licenca.tier),
+                    Expanded(
+                      child: Text(
+                        ctx.nomeDe(
+                            machineId: licenca.machineId, nif: licenca.nif),
+                        style: AppText.bodyStrong,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
                 Text(
                   '${licenca.planoLabel} · expira $validade',
@@ -700,7 +802,15 @@ class _CardPedidoRenovacao extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('NIF ${pedido.nif}', style: AppText.bodyStrong),
+                Row(
+                  children: [
+                    WiAppBadgeAuto(pedido.app),
+                    Expanded(
+                      child: Text('NIF ${pedido.nif}',
+                          style: AppText.bodyStrong),
+                    ),
+                  ],
+                ),
                 Text(
                   'Quer renovar: ${pedido.planoDesejado} · ${timeago.format(pedido.criadoEm, locale: 'pt')}',
                   style: AppText.caption,
@@ -802,11 +912,18 @@ class _LinhaActividade extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    ctx.nomeDe(machineId: ping.machineId, nif: ping.nif),
-                    style: AppText.bodyStrong,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    children: [
+                      WiAppBadgeAuto(ping.app),
+                      Expanded(
+                        child: Text(
+                          ctx.nomeDe(machineId: ping.machineId, nif: ping.nif),
+                          style: AppText.bodyStrong,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                   Text(localidade, style: AppText.caption),
                 ],

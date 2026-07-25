@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../../core/app_filter/app_filter_provider.dart';
+import '../../core/app_spacing.dart';
 import '../../core/contexto_instalacoes.dart';
 import '../../core/erros.dart';
+import '../../core/widgets/widgets.dart';
 import '../../models/licenca.dart';
 import '../../models/ping.dart';
 import '../../repositories/providers.dart';
@@ -46,8 +49,10 @@ class _MapaScreenState extends ConsumerState<MapaScreen> {
     final licencasRepo = ref.read(licencasRepoProvider);
     final clientesRepo = ref.read(clientesRepoProvider);
 
-    final pingsF = pingsRepo.comLocalizacao();
-    final licencasF = licencasRepo.listar();
+    final app = ref.read(appFilterProvider).valorApp;
+
+    final pingsF = pingsRepo.comLocalizacao(app: app);
+    final licencasF = licencasRepo.listar(app: app);
     final clientesF = clientesRepo.listar();
     final iconesF = _carregarIcones();
     await Future.wait([pingsF, licencasF, clientesF, iconesF]);
@@ -100,8 +105,19 @@ class _MapaScreenState extends ConsumerState<MapaScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(
+      appFilterProvider,
+      (_, __) => setState(() { _future = _carregar(); }),
+    );
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Mapa')),
+      appBar: AppBar(
+        title: const Text('Mapa'),
+        actions: const [
+          WiAppSelector(),
+          SizedBox(width: AppSpacing.sm),
+        ],
+      ),
       body: FutureBuilder<_MapaData>(
         future: _future,
         builder: (context, snapshot) {
@@ -111,7 +127,7 @@ class _MapaScreenState extends ConsumerState<MapaScreen> {
           if (snapshot.hasError) {
             return ErroView(
               erro: snapshot.error!,
-              onRetry: () => setState(() => _future = _carregar()),
+              onRetry: () => setState(() { _future = _carregar(); }),
             );
           }
           return GoogleMap(
