@@ -6,12 +6,14 @@ import '../services/actualizacao/actualizacao_service.dart';
 import '../services/licenca/comunicar_serie_service.dart';
 import '../services/licenca/gerir_licenca_service.dart';
 import 'aceites_repository.dart';
+import 'acessos_repository.dart';
 import 'audit_licencas_repository.dart';
 import 'clientes_repository.dart';
 import 'licencas_repository.dart';
 import 'pedidos_ajuda_repository.dart';
 import 'pedidos_repository.dart';
 import 'pings_repository.dart';
+import 'punho_admin_repository.dart';
 import 'series_repository.dart';
 import 'sugestoes_repository.dart';
 
@@ -24,6 +26,11 @@ final pedidosAjudaRepoProvider = Provider((_) => PedidosAjudaRepository());
 final sugestoesRepoProvider = Provider((_) => SugestoesRepository());
 final auditLicencasRepoProvider = Provider((_) => AuditLicencasRepository());
 final seriesRepoProvider = Provider((_) => SeriesRepository());
+final acessosRepoProvider = Provider((_) => AcessosRepository());
+
+/// Administração dos pedidos de acesso ao **Punho** (RPCs `punho_*_admin`).
+/// Separado do [acessosRepoProvider], que trata dos acessos ao próprio Control.
+final punhoAdminRepoProvider = Provider((_) => PunhoAdminRepository());
 
 /// Acções remotas sobre licenças (via Edge Function `gerir-licenca`).
 final gerirLicencaProvider =

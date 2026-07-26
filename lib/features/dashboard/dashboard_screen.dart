@@ -245,11 +245,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     // no servidor, não há como reaproveitar o que já está em memória.
     ref.listen(appFilterProvider, (_, __) => _recarregar());
 
+    // Telemóvel em retrato não tem largura para o wordmark completo mais o
+    // selector de app mais quatro ícones. 600 dp é a fronteira habitual do
+    // Material entre telemóvel e tablet; inline de propósito — não vale a pena
+    // um sistema de breakpoints para um ecrã só.
+    final compacto = MediaQuery.sizeOf(context).width < 600;
+
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: 56,
         titleSpacing: AppSpacing.lg,
-        title: const _Wordmark(),
+        title: _Wordmark(compacto: compacto),
         actions: [
           const WiAppSelector(),
           const SizedBox(width: AppSpacing.xs),
@@ -461,15 +467,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 }
 
+/// Marca na AppBar do Dashboard.
+///
+/// Em [compacto] fica só o logo: o wordmark completo ocupa ~190 dp e, somado
+/// ao selector de app e aos quatro ícones, não cabe nos ~411 dp de um telemóvel
+/// em retrato — o Material AppBar não rebenta, sobrepõe em silêncio. O nome da
+/// app continua no rodapé do Dashboard ("WashInvoice Control · vX.Y.Z"), por
+/// isso não se perde informação.
 class _Wordmark extends StatelessWidget {
-  const _Wordmark();
+  final bool compacto;
+  const _Wordmark({required this.compacto});
 
   @override
   Widget build(BuildContext context) {
+    const logo = Icon(Icons.local_laundry_service, size: 22, color: Colors.white);
+    if (compacto) return logo;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.local_laundry_service, size: 22, color: Colors.white),
+        logo,
         const SizedBox(width: AppSpacing.sm),
         const Text(
           'WashInvoice',

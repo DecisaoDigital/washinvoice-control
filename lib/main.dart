@@ -12,6 +12,7 @@ import 'core/app_theme.dart';
 import 'core/erros.dart';
 import 'core/supabase_config.dart';
 import 'features/auth/login_screen.dart';
+import 'features/auth/acesso_pendente_screen.dart';
 import 'features/nav/home_shell.dart';
 import 'repositories/providers.dart';
 import 'services/fcm_background_handler.dart';
@@ -34,6 +35,19 @@ final sessaoProvider = StreamProvider<Session?>((ref) async* {
   await for (final estado in auth.onAuthStateChange) {
     yield estado.session;
   }
+});
+
+/// Estado do pedido de acesso da sessão actual: `aprovado`, `pendente`,
+/// `recusado` ou `revogado`.
+///
+/// Ter sessão Supabase não basta para entrar: o acesso é sempre libertado à
+/// mão no Control. Fica num provider (e não num `FutureBuilder` inline) para
+/// o RPC correr uma única vez por sessão em vez de a cada rebuild, e para
+/// poder ser recarregado/substituído nos testes.
+final estadoAcessoProvider = FutureProvider<String>((ref) async {
+  // Depende da sessão: ao entrar ou sair, o estado é recalculado.
+  ref.watch(sessaoProvider);
+  return ref.read(acessosRepoProvider).meuEstado();
 });
 
 /// Sinal para o Dashboard recarregar quando chega um push relevante (novo
@@ -84,8 +98,10 @@ final _fcmSincSessaoProvider = Provider<void>((ref) {
   }, fireImmediately: true);
 });
 
-/// Verifica se há build novo do Control: uma vez ao ganhar sessão e depois a
-/// cada 6 horas. "Side-effect only", tal como o [_fcmSincSessaoProvider]:
+/// Verifica se há build novo do Control: uma vez ao ganhar sessão e depois
+/// como safety net diário (24h). Alinhado com o POS (#103, #119) — 6h era
+/// excessivo para o cadence real de releases do Control. "Side-effect only",
+/// tal como o [_fcmSincSessaoProvider]:
 /// observa `sessaoProvider` e preenche `actualizacaoDisponivelProvider`, que o
 /// banner e o modal em [HomeShell] mostram.
 ///
@@ -117,7 +133,7 @@ final _verificadorActualizacaoProvider = Provider<void>((ref) {
     timer = null;
     if (userId != null) {
       unawaited(verificar());
-      timer = Timer.periodic(const Duration(hours: 6), (_) => verificar());
+      timer = Timer.periodic(const Duration(hours: 24), (_) => verificar());
     } else {
       // Logout: limpa qualquer banner pendente para não sobreviver à sessão.
       ref.read(actualizacaoDisponivelProvider.notifier).state = null;
@@ -132,7 +148,7 @@ class WashInvoiceControlApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Observa sessão ↔ token FCM (efeitos colaterais, sem valor devolvido).
     ref.watch(_fcmSincSessaoProvider);
-    // Observa sessão → verificação de actualizações (arranque + timer 6h).
+    // Observa sessão → verificação de actualizações (arranque + safety net 24h).
     ref.watch(_verificadorActualizacaoProvider);
 
     final sessao = ref.watch(sessaoProvider);
@@ -148,10 +164,41 @@ class WashInvoiceControlApp extends ConsumerWidget {
         // Falha a ler o estado de autenticação: cai no Login por segurança.
         error: (_, __) => const LoginScreen(),
         // Sessão presente → HomeShell. Ausente (confirmado) → LoginScreen.
-        data: (session) => session != null
-            ? const _FcmForegroundListener(child: HomeShell())
-            : const LoginScreen(),
+        data: (session) => session != null ? const _AcessoInicial() : const LoginScreen(),
       ),
+    );
+  }
+}
+
+class _AcessoInicial extends ConsumerWidget {
+  const _AcessoInicial();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ref.watch(estadoAcessoProvider).when(
+      loading: () => const _SplashScreen(),
+      // Sem resposta do RPC (rede em baixo, SQL de acessos ainda não aplicado)
+      // não se abre a app: mostra-se o erro com retentativa, em vez de ficar
+      // preso no splash.
+      error: (erro, _) => Scaffold(
+        appBar: AppBar(
+          title: const Text('WashInvoice Control'),
+          actions: [
+            // Escape para não ficar preso num erro persistente.
+            IconButton(
+              tooltip: 'Terminar sessão',
+              icon: const Icon(Icons.logout),
+              onPressed: () => Supabase.instance.client.auth.signOut(),
+            ),
+          ],
+        ),
+        body: ErroView(
+          erro: erro,
+          onRetry: () => ref.invalidate(estadoAcessoProvider),
+        ),
+      ),
+      data: (estado) => estado == 'aprovado'
+          ? const _FcmForegroundListener(child: HomeShell())
+          : AcessoPendenteScreen(estado: estado),
     );
   }
 }

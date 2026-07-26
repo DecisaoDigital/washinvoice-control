@@ -111,5 +111,29 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getString(kPrefFiltroApp), 'punho');
     });
+
+    testWidgets('a pastilha inteira abre a cascata, não só a seta',
+        (tester) async {
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(body: Center(child: WiAppSelector())),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final pastilha = tester.getRect(find.byType(WiAppSelector));
+      // Regra de alvo de toque do Material.
+      expect(pastilha.width, greaterThanOrEqualTo(48));
+      expect(pastilha.height, greaterThanOrEqualTo(48));
+
+      // Toque no ícone da app, na ponta esquerda da pastilha — longe da seta.
+      await tester.tapAt(Offset(pastilha.left + 6, pastilha.center.dy));
+      await tester.pumpAndSettle();
+
+      // Cascata aberta: as etiquetas longas de todas as opções estão no ecrã.
+      expect(find.text('Punho').last, findsOneWidget);
+    });
   });
 }

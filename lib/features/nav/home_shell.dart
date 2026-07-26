@@ -8,6 +8,8 @@ import '../actualizacao/banner_actualizacao.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../instalacoes/instalacoes_screen.dart';
 import '../mapa/mapa_screen.dart';
+import '../acessos/gestao_acessos_screen.dart';
+import '../acessos/punho/punho_pedidos_screen.dart';
 
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
@@ -24,7 +26,13 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     DashboardScreen(),
     InstalacoesScreen(),
     MapaScreen(),
+    GestaoAcessosScreen(),
   ];
+
+  /// "Pedidos Punho" é exclusivo do admin global — as RPCs `punho_*_admin`
+  /// recusam qualquer outra conta. Um gerente de organização não vê o
+  /// separador, em vez de lhe bater com um erro.
+  static const _paginaPunho = PunhoPedidosScreen();
 
   @override
   void initState() {
@@ -55,33 +63,50 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       (_, actual) => _talvezModalObrigatorio(actual),
     );
 
+    final admin = ref.watch(souAdminGlobalProvider).valueOrNull ?? false;
+    final paginas = [..._paginas, if (admin) _paginaPunho];
+    // Se o separador desaparecer (perfil resolvido depois do primeiro build),
+    // o índice actual pode ficar fora do intervalo.
+    final indice = _index.clamp(0, paginas.length - 1);
+
     return Scaffold(
       body: Column(
         children: [
           const BannerActualizacao(),
           Expanded(
-            child: IndexedStack(index: _index, children: _paginas),
+            child: IndexedStack(index: indice, children: paginas),
           ),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _index,
+        currentIndex: indice,
         onTap: (i) => setState(() => _index = i),
         selectedItemColor: AppColors.azul,
         unselectedItemColor: AppColors.textTertiary,
-        items: const [
-          BottomNavigationBarItem(
+        items: [
+          const BottomNavigationBarItem(
             icon: Icon(Icons.dashboard),
             label: 'Dashboard',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.devices),
             label: 'Instalações',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.map),
             label: 'Mapa',
           ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.manage_accounts_outlined),
+            label: 'Acessos',
+          ),
+          // Ícone deliberadamente diferente do de "Acessos": são coisas
+          // distintas — equipa do escritório vs. clientes da app Punho.
+          if (admin)
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.approval),
+              label: 'Punho',
+            ),
         ],
       ),
     );
