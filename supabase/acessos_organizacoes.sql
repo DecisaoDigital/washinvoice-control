@@ -1,3 +1,23 @@
+-- ############################################################################
+-- ⛔ NÃO APLICAR ESTE FICHEIRO. Foi dividido em 2026-07-26.
+--
+--    Aplicar:  acessos_organizacoes_parte_a.sql   (controlo de acesso)
+--    Adiada:   a segunda metade deste ficheiro     (organizacao_id nas 5
+--              tabelas de negócio + substituição das policies delas)
+--
+-- PORQUÊ: este ficheiro assume o modelo do rls_policies.sql — POS autenticado
+-- com `licencas.user_id`. Produção nunca adoptou esse modelo: `licencas.user_id`
+-- NÃO EXISTE, e a frota POS escreve pings/aceites/renovações por policies de
+-- role `public` com check `true`. Aplicado como está, este script:
+--   1) dropa TODAS as policies das 5 tabelas de negócio (incluindo as que
+--      servem a frota), e só depois
+--   2) falha ao criar policies que referem `licencas.user_id`.
+-- Verificado contra produção em 2026-07-26 antes de qualquer escrita.
+--
+-- A segunda metade só volta à mesa quando for aprovada a primeira conta
+-- não-admin em `pedidos_acesso` — ver o cabeçalho da Parte A.
+-- ############################################################################
+
 -- Gestão de organizações e acessos. Executar SEMPRE depois de rls_policies.sql
 -- (depende de public.admins e de public.is_admin()).
 -- É IDEMPOTENTE: pode ser corrido as vezes que forem precisas.
