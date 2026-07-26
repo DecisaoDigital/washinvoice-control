@@ -1,0 +1,308 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/app_colors.dart';
+import '../../../core/app_spacing.dart';
+import '../../../core/dates.dart';
+import '../../../core/erros.dart';
+import '../../../core/widgets/widgets.dart';
+import '../../../repositories/providers.dart';
+import '../../../repositories/punho_admin_repository.dart';
+import 'punho_decidir_modal.dart';
+
+/// Pedidos de acesso à app **Punho**, decididos à mão pelo admin global.
+///
+/// Distinto de `PedidosAcessoScreen`, que trata dos acessos ao próprio Control:
+/// aqui são utilizadores de uma app cliente, com empresas e convites próprios.
+///
+/// O selector multi-app da AppBar (`appFilterProvider`) **não se aplica** a este
+/// ecrã: é sempre Punho, por definição. Por isso não é observado em lado nenhum
+/// deste ficheiro.
+class PunhoPedidosScreen extends ConsumerStatefulWidget {
+  const PunhoPedidosScreen({super.key});
+
+  @override
+  ConsumerState<PunhoPedidosScreen> createState() => _PunhoPedidosScreenState();
+}
+
+class _PunhoPedidosScreenState extends ConsumerState<PunhoPedidosScreen> {
+  String _estado = 'pendente';
+  late Future<_Dados> _future;
+  bool _aDecidir = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _recarregar();
+  }
+
+  void _recarregar() {
+    _future = _carregar();
+  }
+
+  Future<_Dados> _carregar() async {
+    final repo = ref.read(punhoAdminRepoProvider);
+    final r = await Future.wait([
+      repo.listarPedidos(estado: _estado),
+      repo.listarEmpresas(),
+    ]);
+    return _Dados(r[0] as List<PunhoPedido>, r[1] as List<PunhoEmpresa>);
+  }
+
+  Future<void> _abrirDecisao(PunhoPedido pedido, List<PunhoEmpresa> empresas) async {
+    final escolha = await showDialog<DecisaoPunho>(
+      context: context,
+      builder: (_) => PunhoDecidirModal(pedido: pedido, empresas: empresas),
+    );
+    if (escolha != null) await _aplicar(pedido, escolha);
+  }
+
+  Future<void> _abrirRevogacao(PunhoPedido pedido) async {
+    final escolha = await showDialog<DecisaoPunho>(
+      context: context,
+      builder: (_) => PunhoRevogarModal(pedido: pedido),
+    );
+    if (escolha != null) await _aplicar(pedido, escolha);
+  }
+
+  Future<void> _aplicar(PunhoPedido pedido, DecisaoPunho escolha) async {
+    // Feedback visível enquanto a RPC corre — a decisão escreve em várias
+    // tabelas e pode demorar.
+    setState(() => _aDecidir = true);
+    try {
+      final resultado = await ref
+          .read(punhoAdminRepoProvider)
+          .decidir(
+            pedido.id,
+            escolha.decisao,
+            empresaId: escolha.empresaId,
+            limiteUtilizadores: escolha.limiteUtilizadores,
+          );
+      if (!mounted) return;
+      messengerKey.currentState?.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Pedido de ${pedido.nomeApresentavel}: ${resultado['estado_novo']}.',
+          ),
+        ),
+      );
+      setState(_recarregar);
+    } catch (e) {
+      if (mounted) mostrarErro(e);
+    } finally {
+      if (mounted) setState(() => _aDecidir = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Pedidos Punho'),
+        actions: [
+          IconButton(
+            tooltip: 'Recarregar',
+            icon: const Icon(Icons.refresh),
+            onPressed: _aDecidir ? null : () => setState(_recarregar),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          if (_aDecidir) const LinearProgressIndicator(minHeight: 2),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.md,
+              AppSpacing.lg,
+              0,
+            ),
+            child: Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                for (final estado in punhoEstados)
+                  WiChipFiltro(
+                    label: _rotuloEstado(estado),
+                    activo: _estado == estado,
+                    onTap: _aDecidir
+                        ? null
+                        : () => setState(() {
+                            _estado = estado;
+                            _recarregar();
+                          }),
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: FutureBuilder<_Dados>(
+              future: _future,
+              builder: (context, snap) {
+                if (snap.hasError) {
+                  return ErroView(
+                    erro: snap.error!,
+                    onRetry: () => setState(_recarregar),
+                  );
+                }
+                if (!snap.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final dados = snap.data!;
+                if (dados.pedidos.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.xxl),
+                      child: Text('Não há pedidos ${_rotuloEstado(_estado).toLowerCase()}.'),
+                    ),
+                  );
+                }
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    setState(_recarregar);
+                    await _future;
+                  },
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    itemCount: dados.pedidos.length,
+                    itemBuilder: (_, i) => _PedidoCard(
+                      pedido: dados.pedidos[i],
+                      ocupado: _aDecidir,
+                      onDecidir: () => _abrirDecisao(dados.pedidos[i], dados.empresas),
+                      onRevogar: () => _abrirRevogacao(dados.pedidos[i]),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _rotuloEstado(String estado) => switch (estado) {
+  'pendente' => 'Pendentes',
+  'aprovado' => 'Aprovados',
+  'recusado' => 'Recusados',
+  _ => 'Revogados',
+};
+
+class _Dados {
+  final List<PunhoPedido> pedidos;
+  final List<PunhoEmpresa> empresas;
+  _Dados(this.pedidos, this.empresas);
+}
+
+class _PedidoCard extends StatelessWidget {
+  const _PedidoCard({
+    required this.pedido,
+    required this.ocupado,
+    required this.onDecidir,
+    required this.onRevogar,
+  });
+
+  final PunhoPedido pedido;
+  final bool ocupado;
+  final VoidCallback onDecidir, onRevogar;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pedido;
+    final aprovado = p.estado == 'aprovado';
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    p.nomeApresentavel,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                _BadgeOrigem(porConvite: p.porConvite),
+              ],
+            ),
+            Text(p.email),
+            const SizedBox(height: AppSpacing.sm),
+            Text('Organização indicada: ${p.organizacaoIndicada}'),
+            Text('Cargo pretendido: ${p.perfilApresentavel}'),
+            Text('Pedido em ${Dates.data(p.criadoEm)}'),
+            if (p.porConvite && p.conviteEmpresaNome != null)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.xs),
+                child: Text(
+                  'Convite da empresa ${p.conviteEmpresaNome}'
+                  '${p.conviteCriadoEm == null ? '' : ' · emitido em ${Dates.data(p.conviteCriadoEm!)}'}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            if (aprovado && p.empresaNome != null)
+              Text('Empresa: ${p.empresaNome}'),
+            const SizedBox(height: AppSpacing.md),
+            if (aprovado)
+              OutlinedButton(
+                onPressed: ocupado ? null : onRevogar,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.vermelho,
+                ),
+                child: const Text('Revogar'),
+              )
+            else if (p.estado == 'pendente')
+              FilledButton(
+                onPressed: ocupado ? null : onDecidir,
+                child: const Text('Decidir'),
+              )
+            else
+              // Recusado ou revogado: reabrir é aprovar, e isso passa pelo
+              // mesmo diálogo.
+              OutlinedButton(
+                onPressed: ocupado ? null : onDecidir,
+                child: const Text('Reabrir'),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BadgeOrigem extends StatelessWidget {
+  const _BadgeOrigem({required this.porConvite});
+  final bool porConvite;
+
+  @override
+  Widget build(BuildContext context) {
+    final cor = porConvite ? AppColors.azul700 : AppColors.textSecondary;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        border: Border.all(color: cor),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        porConvite ? 'CONVITE' : 'LIVRE',
+        style: TextStyle(
+          fontSize: 11,
+          letterSpacing: 1,
+          fontWeight: FontWeight.w700,
+          color: cor,
+        ),
+      ),
+    );
+  }
+}
