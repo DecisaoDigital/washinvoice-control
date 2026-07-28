@@ -1,7 +1,47 @@
 # WashInvoice Control — Estado e Roadmap
 
 > Documento vivo. Actualizar sempre que uma ronda fechar ou uma decisão de arquitectura mudar.
-> Última actualização: 2026-07-25 (multi-app POS + Punho e badge PRO — v1.8.0, #177).
+> Última actualização: 2026-07-26 (Punho schema em produção + Control aprova pedidos Punho — v1.8.1, tasks #188-190).
+
+---
+
+## 0.0 Sessão 26/07/2026 (v1.8.1) — Punho em produção + aprovação central
+
+**Dossier AT enviado** ao início da noite (v1.8 do dossier, 45 ficheiros, SHA-256 `22d9a827...86131`).
+
+**Punho — schema completo em produção** (`oefqbkhioncakojipqyx`). Aplicadas as 8 migrations por ordem cronológica sem intercorrências:
+
+| Migration | Objecto |
+|---|---|
+| `20260725_punho_core` | tabelas base (`punho_empresas`, `punho_membros`, `punho_clientes`, `punho_reservas`, `punho_reserva_maquinas`, `punho_subscricoes`) + funções `punho_empresa_atual`, `punho_e_gestor` |
+| `20260726_punho_rls_completion` | função `punho_membro_ativo` |
+| `20260727_punho_onboarding_rpc` | RPC de onboarding atómico |
+| `20260728_punho_auth_and_rls_hardening` | RLS + triggers de validação em tabelas `punho_*` |
+| `20260729_punho_operational_state_sync` | tabela `punho_estado_operacional` |
+| `20260730_punho_pedidos_acesso` | `punho_pedidos_acesso` + trigger `punho_criar_pedido_ao_registar` em `auth.users` (filtra `raw_user_meta_data->>'app' = 'punho'`) |
+| `20260731_punho_contas_organizacao` | `punho_convites`, RPCs `punho_meu_acesso` / `punho_validar_convite` / `punho_criar_convite`; revoga `punho_criar_empresa_inicial` de `authenticated` |
+| `20260801_punho_aprovacao_pelo_control` | RPCs `punho_decidir_pedido`, `punho_listar_pedidos_admin`, `punho_listar_empresas_admin` — só chamáveis por `is_admin()` |
+
+Achado importante ao aplicar: a `punho_criar_empresa_inicial` estava com `grant execute to authenticated` — qualquer conta autenticada podia criar empresa e ficar gestora. Ficou revogada; criar empresa passa a ser exclusivo do Control via RPC `security definer`.
+
+Smoke test do trigger em `auth.users` passou: signup sem `app='punho'` não cria pedido, com `app='punho'` cria (`origem='livre'`, `estado='pendente'`).
+
+**Control — Parte A de `acessos_organizacoes` aplicada** (`acessos_organizacoes_parte_a.sql`, migration `20260726032530`). Cria `organizacoes`, `pedidos_acesso`, `convites_organizacao` + trigger de auth (filtra `app in ('', 'control')` para não colidir com o do Punho) + RPCs `meu_estado_acesso`, `decidir_pedido_acesso`, `criar_convite_organizacao`. **A Parte B** (adicionar `organizacao_id` às 5 tabelas de negócio + substituir policies) **não foi aplicada** — o SQL original assumia `licencas.user_id` que nunca existiu em prod. Bloco `⛔ NÃO APLICAR` no topo do ficheiro original. Reescrever contra modelo real **antes** de aprovar primeiro não-admin no separador Acessos (task #190).
+
+**Control — separador "Punho" novo**, visível só ao admin global. Repository `punho_admin_repository.dart` + `punho_pedidos_screen.dart` + modais de decidir/revogar. Testes: 220 verdes (+21). Branch `feat/aprovar-pedidos-punho`, 3 commits à frente de `feature/multi-app-e-badge-pro`, ainda por merge.
+
+**Control — melhorias de infra:**
+- Timer de verificação de actualizações: 6h → 24h (alinhado com POS, #119).
+- Botão on-demand "Verificar actualização" no ecrã Sobre → chama `actualizacaoService.verificar()` sem esperar o safety net.
+- Fix confirmado: `Dates.data` e `Dates.dataHora` já fazem `.toLocal()` (task #101 estava a mais no pending).
+
+**AppBar Dashboard (task #188).** Fix já commitado (título compacto <600 dp, `WiAppSelector` com pastilha própria, hit-target 48×48 em todo o "POS ▽"). Falta compilar APK 1.8.1 e testar no Redmi.
+
+**Pendências identificadas:**
+- Metade B RLS multi-organização — reescrever contra modelo real antes de aprovar primeiro não-admin (task #190).
+- Merge `feat/aprovar-pedidos-punho` → `main` antes do build APK.
+- Line endings CRLF/LF a poluir `git status` — dezenas de ficheiros "modified" sem conteúdo real diff. Arrumação futura.
+- Sem `pg_dump` automático nem PITR (Supabase Free). Backup manual JSON antes de mudanças arriscadas.
 
 ---
 

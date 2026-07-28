@@ -12,7 +12,7 @@
 
 create table if not exists public.versoes_apps (
   id uuid primary key default gen_random_uuid(),
-  app text not null check (app in ('pos', 'control')),
+  app text not null check (app in ('pos', 'control', 'punho')),
   versao text not null,
   build_number integer not null,
   url_download text not null,
@@ -20,8 +20,27 @@ create table if not exists public.versoes_apps (
   obrigatoria boolean not null default false,
   notas_lancamento text,
   activa boolean not null default true,
-  unique (app, build_number)
+  plataforma text not null default 'all'
+    check (plataforma in ('all', 'windows', 'android', 'ios')),
+  unique (app, build_number, plataforma)
 );
+
+-- Alterações aditivas para BDs já criadas antes destas colunas/constraints.
+-- Idempotentes. Reflectem o estado real observado no projecto
+-- oefqbkhioncakojipqyx em 2026-07-27.
+alter table public.versoes_apps
+  drop constraint if exists versoes_apps_app_check;
+alter table public.versoes_apps
+  add constraint versoes_apps_app_check
+    check (app in ('pos', 'control', 'punho'));
+
+alter table public.versoes_apps
+  add column if not exists plataforma text not null default 'all';
+alter table public.versoes_apps
+  drop constraint if exists versoes_apps_plataforma_check;
+alter table public.versoes_apps
+  add constraint versoes_apps_plataforma_check
+    check (plataforma in ('all', 'windows', 'android', 'ios'));
 
 comment on table public.versoes_apps is 'Catálogo de versões dos apps WashInvoice (POS Windows) e WashInvoiceControl (Android). A Edge Function versao-mais-recente devolve a versão activa com build_number mais alto. build_number é a chave de comparação (não a string de versão).';
 
