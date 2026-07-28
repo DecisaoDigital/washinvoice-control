@@ -7,7 +7,6 @@ import '../../core/app_colors.dart';
 import '../../core/app_radius.dart';
 import '../../core/app_spacing.dart';
 import '../../core/erros.dart';
-import '../nav/home_shell.dart';
 
 // Credenciais: ver Supabase Dashboard → Authentication → Users
 class LoginScreen extends StatefulWidget {
@@ -20,8 +19,13 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  final _nomeCtrl = TextEditingController();
+  final _organizacaoCtrl = TextEditingController();
+  final _conviteCtrl = TextEditingController();
   bool _aEntrar = false;
   bool _ocultarPass = true;
+  bool _criarConta = false;
+  String _cargo = 'funcionario';
   String? _erro;
   String _versao = '';
 
@@ -37,6 +41,9 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
+    _nomeCtrl.dispose();
+    _organizacaoCtrl.dispose();
+    _conviteCtrl.dispose();
     super.dispose();
   }
 
@@ -53,15 +60,37 @@ class _LoginScreenState extends State<LoginScreen> {
       // Sinaliza ao SO que o login teve sucesso — dispara o "guardar palavra-passe"
       // do Google Password Manager.
       TextInput.finishAutofillContext();
-      if (!mounted) return;
-      Navigator.of(
-        context,
-      ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeShell()));
+      // O ecrã raiz observa a sessão e só abre a app quando o pedido tiver
+      // sido aprovado manualmente.
     } catch (e) {
       setState(() => _erro = descreverErro(e));
     } finally {
       if (mounted) setState(() => _aEntrar = false);
     }
+  }
+
+  Future<void> _registar() async {
+    if (_nomeCtrl.text.trim().isEmpty || _organizacaoCtrl.text.trim().isEmpty ||
+        _emailCtrl.text.trim().isEmpty || _passwordCtrl.text.length < 6) {
+      setState(() => _erro = 'Preenche nome, organização, email e uma palavra-passe com pelo menos 6 caracteres.');
+      return;
+    }
+    setState(() { _aEntrar = true; _erro = null; });
+    try {
+      await Supabase.instance.client.auth.signUp(
+        email: _emailCtrl.text.trim(), password: _passwordCtrl.text,
+        data: {
+          'nome': _nomeCtrl.text.trim(),
+          'organizacao': _organizacaoCtrl.text.trim(),
+          'cargo': _cargo,
+          'codigo_convite': _conviteCtrl.text.trim(),
+        },
+      );
+      if (!mounted) return;
+      setState(() => _erro = 'Conta criada. Confirma o email, se solicitado, e aguarda a aprovação manual do acesso.');
+    } catch (e) {
+      setState(() => _erro = descreverErro(e));
+    } finally { if (mounted) setState(() => _aEntrar = false); }
   }
 
   @override
@@ -112,8 +141,8 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Acesso restrito',
+            Text(
+              _criarConta ? 'Criar conta' : 'Acesso restrito',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -128,12 +157,32 @@ class _LoginScreenState extends State<LoginScreen> {
               decoration: _decoracao(),
             ),
             const SizedBox(height: AppSpacing.md),
+            if (_criarConta) ...[
+              const _Rotulo('NOME'),
+              TextField(controller: _nomeCtrl, decoration: _decoracao()),
+              const SizedBox(height: AppSpacing.md),
+              const _Rotulo('ORGANIZAÇÃO'),
+              TextField(controller: _organizacaoCtrl, decoration: _decoracao()),
+              const SizedBox(height: AppSpacing.md),
+              const _Rotulo('CARGO PRETENDIDO'),
+              DropdownButtonFormField<String>(value: _cargo, decoration: _decoracao(),
+                items: const [
+                  DropdownMenuItem(value: 'funcionario', child: Text('Funcionário')),
+                  DropdownMenuItem(value: 'admin', child: Text('Administrador')),
+                ], onChanged: (v) => setState(() => _cargo = v ?? 'funcionario')),
+              const SizedBox(height: AppSpacing.md),
+              const _Rotulo('CÓDIGO DE CONVITE (OPCIONAL)'),
+              TextField(controller: _conviteCtrl, decoration: _decoracao()),
+              const SizedBox(height: AppSpacing.md),
+            ],
             const _Rotulo('PALAVRA-PASSE'),
             TextField(
               controller: _passwordCtrl,
               obscureText: _ocultarPass,
               autofillHints: const [AutofillHints.password],
-              onSubmitted: (_) => _aEntrar ? null : _login(),
+              onSubmitted: (_) => _aEntrar
+                  ? null
+                  : (_criarConta ? _registar() : _login()),
               decoration: _decoracao().copyWith(
                 suffixIcon: IconButton(
                   icon: Icon(
@@ -145,7 +194,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: AppSpacing.xl),
             FilledButton(
-              onPressed: _aEntrar ? null : _login,
+              onPressed: _aEntrar ? null : (_criarConta ? _registar : _login),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.azul700,
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -160,10 +209,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         strokeWidth: 2,
                       ),
                     )
-                  : const Row(
+                  : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('Entrar'),
+                        Text(_criarConta ? 'Pedir acesso' : 'Entrar'),
                         SizedBox(width: AppSpacing.sm),
                         Icon(Icons.arrow_forward, size: 18),
                       ],
@@ -176,6 +225,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: const TextStyle(color: AppColors.vermelho, fontSize: 12),
               ),
             ],
+            const SizedBox(height: AppSpacing.md),
+            TextButton(
+              onPressed: _aEntrar ? null : () => setState(() { _criarConta = !_criarConta; _erro = null; }),
+              child: Text(_criarConta ? 'Já tenho conta' : 'Criar conta'),
+            ),
           ],
         ),
       ),

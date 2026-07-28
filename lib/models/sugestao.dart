@@ -1,5 +1,9 @@
 class Sugestao {
   final String id;
+
+  /// App de onde a sugestão veio (`sugestoes.app`).
+  final String app;
+
   final String? machineId;
   final String? nif;
   final String? clienteId;
@@ -11,6 +15,7 @@ class Sugestao {
 
   const Sugestao({
     required this.id,
+    this.app = 'pos',
     this.machineId,
     this.nif,
     this.clienteId,
@@ -23,6 +28,7 @@ class Sugestao {
 
   factory Sugestao.fromJson(Map<String, dynamic> json) => Sugestao(
         id: json['id'] as String,
+        app: json['app'] as String? ?? 'pos',
         machineId: json['machine_id'] as String?,
         nif: json['nif'] as String?,
         clienteId: json['cliente_id'] as String?,
@@ -35,6 +41,7 @@ class Sugestao {
 
   Sugestao copyWith({bool? lida, bool? marcada, bool? arquivada}) => Sugestao(
         id: id,
+        app: app,
         machineId: machineId,
         nif: nif,
         clienteId: clienteId,

@@ -28,26 +28,26 @@ class _FakeClientes extends ClientesRepository {
 
 class _FakeLicencas extends LicencasRepository {
   @override
-  Future<List<Licenca>> listar() async => [];
+  Future<List<Licenca>> listar({String? app}) async => [];
 }
 
 class _FakePings extends PingsRepository {
   @override
-  Future<List<Ping>> ultimosPorInstalacao() async => [];
+  Future<List<Ping>> ultimosPorInstalacao({String? app}) async => [];
 }
 
 class _FakePedidosAjuda extends PedidosAjudaRepository {
   @override
-  Future<List<PedidoAjuda>> listarAbertos() async => [];
+  Future<List<PedidoAjuda>> listarAbertos({String? app}) async => [];
   @override
-  Future<List<PedidoAjuda>> listarHistorico() async => [];
+  Future<List<PedidoAjuda>> listarHistorico({String? app}) async => [];
 }
 
 class _FakeSugestoes extends SugestoesRepository {
   @override
-  Future<List<Sugestao>> listarPorLer() async => [];
+  Future<List<Sugestao>> listarPorLer({String? app}) async => [];
   @override
-  Future<List<Sugestao>> listarArquivo() async => [];
+  Future<List<Sugestao>> listarArquivo({String? app}) async => [];
 }
 
 void main() {

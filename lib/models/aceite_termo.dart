@@ -1,5 +1,9 @@
 class AceiteTermo {
   final String id;
+
+  /// App em que os termos foram aceites (`aceites_termos.app`).
+  final String app;
+
   final String machineId;
   final String? nif;
   final String? versaoTermos;
@@ -10,6 +14,7 @@ class AceiteTermo {
 
   const AceiteTermo({
     required this.id,
+    this.app = 'pos',
     required this.machineId,
     this.nif,
     this.versaoTermos,
@@ -21,6 +26,7 @@ class AceiteTermo {
 
   factory AceiteTermo.fromJson(Map<String, dynamic> json) => AceiteTermo(
         id: json['id'] as String,
+        app: json['app'] as String? ?? 'pos',
         machineId: json['machine_id'] as String,
         nif: json['nif'] as String?,
         versaoTermos: json['versao_termos'] as String?,
@@ -34,6 +40,7 @@ class AceiteTermo {
 
   Map<String, dynamic> toJson() => {
         'id': id,
+        'app': app,
         'machine_id': machineId,
         'nif': nif,
         'versao_termos': versaoTermos,

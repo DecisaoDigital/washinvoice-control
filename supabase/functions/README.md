@@ -23,6 +23,37 @@ Chave privada em secret `RSA_PRIVATE_KEY` (nunca no cliente).
 
 `verify_jwt: true` — POS chama com JWT anon (auto-injectado pelo supabase_flutter).
 
+### `gerir-licenca/`
+
+Mutações de licença a partir do **Control** (prolongar, definir validade,
+suspender, reactivar, cancelar, mudar tier). Corre com service_role depois de
+confirmar `is_admin()`. Ver o README próprio da função.
+
+`verify_jwt: true` **+ verificação de admin** — o Control chama com o session
+token do utilizador, injectado explicitamente (ver abaixo).
+
+## Quem chama com que credencial
+
+| Origem        | Credencial no `Authorization`                   | Como |
+| ------------- | ----------------------------------------------- | ---- |
+| POS           | JWT anon / publishable key                      | auto-injectada pelo `supabase_flutter` |
+| Control       | **session token do utilizador** (`accessToken`) | injectado **explicitamente** pelo cliente Flutter |
+| Triggers/curl | `EDGE_INVOKE_SECRET`                            | header à mão (só `enviar-push`) |
+
+A distinção importa: `verify_jwt: true` só garante que **existe** um JWT válido
+— e a anon key produz um. Uma função que precise de saber **quem** chama (o
+caso de `gerir-licenca`, que verifica `is_admin()`) tem de receber o token da
+sessão. Com a anon key, o `getUser()` dentro da função não encontra utilizador
+e devolve 401.
+
+Por isso o `GerirLicencaService` do Control passa o header à mão:
+
+```dart
+final sessao = supabase.auth.currentSession;   // null → erro claro ao utilizador
+supabase.functions.invoke('gerir-licenca', body: body,
+    headers: {'Authorization': 'Bearer ${sessao.accessToken}'});
+```
+
 ## Deploy
 
 Via Supabase MCP (`deploy_edge_function`), Supabase CLI (`supabase functions deploy`), ou dashboard.

@@ -10,6 +10,7 @@ import 'package:timeago/timeago.dart' as timeago;
 import '../../core/app_colors.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_theme.dart';
+import '../../core/acoes.dart';
 import '../../core/contexto_instalacoes.dart';
 import '../../core/dates.dart';
 import '../../core/erros.dart';
@@ -23,7 +24,10 @@ import '../../models/licenca.dart';
 import '../../models/pedido_renovacao.dart';
 import '../../models/ping.dart';
 import '../../repositories/providers.dart';
+import '../../services/licenca/gerir_licenca_service.dart';
 import '../../services/licenca_emissao.dart';
+import 'card_series_widget.dart';
+import 'controlo_remoto_widgets.dart';
 
 class _DetalheData {
   final Licenca licenca;
@@ -47,16 +51,68 @@ class _DetalheData {
     this.total,
   );
 
-  String get nomeCliente {
-    if (cliente != null) return cliente!.nome;
-    if (licenca.nome != null && licenca.nome!.trim().isNotEmpty) {
-      return licenca.nome!.trim();
-    }
-    return 'NIF ${licenca.nif}';
+  /// Designação social (nome legal). O cliente sincronizado manda; a licença é
+  /// o recurso quando ainda não há linha em `clientes`.
+  String get designacaoSocial {
+    final doCliente = cliente?.nome.trim() ?? '';
+    if (doCliente.isNotEmpty) return doCliente;
+    return licenca.nome?.trim() ?? '';
   }
 
-  String get subtituloTerminal =>
-      total > 1 ? 'Terminal $ordem de $total' : 'Terminal único';
+  /// Nome comercial — como a loja é conhecida.
+  String get nomeComercial {
+    final doCliente = cliente?.nomeComercial?.trim() ?? '';
+    if (doCliente.isNotEmpty) return doCliente;
+    return licenca.nomeComercial?.trim() ?? '';
+  }
+
+  /// O que vai em destaque no cabeçalho: o nome comercial, porque é por ele
+  /// que se reconhece a loja. Sem ele, a designação social. Sem nenhum (POS
+  /// ainda não sincronizou), o NIF, que pelo menos identifica.
+  /// `true` quando o POS ainda não sincronizou a ficha da empresa — instalação
+  /// nova, sem nome nem NIF real.
+  bool get porConfigurar =>
+      nomeComercial.isEmpty && designacaoSocial.isEmpty;
+
+  String get nomeCliente {
+    if (nomeComercial.isNotEmpty) return nomeComercial;
+    if (designacaoSocial.isNotEmpty) return designacaoSocial;
+    // Instalação nova: o nome da máquina é o que identifica o terminal. Um NIF
+    // placeholder não identifica ninguém, e o `machineId` é um hash ilegível.
+    final host = licenca.hostname;
+    if (host != null) return host;
+    final nif = licenca.nif.trim();
+    if (nif.isNotEmpty && nif != '000000000') return 'NIF $nif';
+    return 'Sem NIF ainda';
+  }
+
+  /// Região que o ping reporta (cidade do GPS ou do fornecedor de internet).
+  /// Vazio quando não há sinal utilizável.
+  String get regiaoDoPing {
+    final p = ultimoPing;
+    if (p == null || p.metodoGeo == null || p.metodoGeo == 'nenhum') return '';
+    return Localidades.traduzir(p.cidade);
+  }
+
+  /// Linha pequena do cabeçalho: designação social (só quando o destaque é o
+  /// nome comercial — senão repetia-se) e a posição do terminal.
+  String get subtituloTerminal {
+    final terminal = total > 1 ? 'Terminal $ordem de $total' : 'Terminal único';
+
+    // Instalação nova: o título é o nome da máquina, por isso o que falta saber
+    // é *onde* ela está. A região do ping é a única pista disponível antes de o
+    // cliente configurar a ficha.
+    if (porConfigurar) {
+      final regiao = regiaoDoPing;
+      return regiao.isEmpty
+          ? 'Instalação nova · $terminal'
+          : 'Instalação nova · $regiao';
+    }
+
+    final mostrarDesignacao =
+        nomeComercial.isNotEmpty && designacaoSocial.isNotEmpty;
+    return mostrarDesignacao ? '$designacaoSocial · $terminal' : terminal;
+  }
 }
 
 class DetalheClienteScreen extends ConsumerStatefulWidget {
@@ -90,11 +146,17 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
           'Licença não encontrada para a máquina ${widget.machineId}.');
     }
     final historico = await pingsRepo.historico(licenca.machineId, limite: 1);
-    final pedido = await pedidosRepo.pendentePorNif(licenca.nif);
+    // O pedido pendente é o da app desta licença — o mesmo NIF pode ter
+    // pedidos noutra app, e sem o filtro o `maybeSingle()` rebentava.
+    final pedido =
+        await pedidosRepo.pendentePorNif(licenca.nif, app: licenca.app);
     final aceite = await aceitesRepo.ultimoPorMachineId(licenca.machineId);
 
-    final todosUltimos = await pingsRepo.ultimosPorInstalacao();
-    final todasLicencas = await licencasRepo.listar();
+    // Contexto restrito à app desta licença — não ao filtro global. O
+    // "Terminal 2 de 3" conta os terminais do mesmo NIF, e um cliente que
+    // tenha POS *e* Punho não deve ver os dois somados na mesma contagem.
+    final todosUltimos = await pingsRepo.ultimosPorInstalacao(app: licenca.app);
+    final todasLicencas = await licencasRepo.listar(app: licenca.app);
     final clientes = await clientesRepo.listar();
     final classV = ClassificadorVersoes(todosUltimos.map((p) => p.versao));
     final ultimoPing = historico.isNotEmpty ? historico.first : null;
@@ -121,7 +183,7 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
   }
 
   void _recarregar() {
-    setState(() => _future = _carregar());
+    setState(() { _future = _carregar(); });
   }
 
   Future<void> _marcarRenovacao(Licenca l, PedidoRenovacao? pedido) async {
@@ -136,11 +198,10 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
     if (novaData == null) return;
 
     try {
-      final licencasRepo = ref.read(licencasRepoProvider);
       final pedidosRepo = ref.read(pedidosRepoProvider);
-      await licencasRepo.actualizar(
-        l.copyWith(validade: novaData, activa: true),
-      );
+      // Via Edge Function, como todas as mutações de licença: fica auditado
+      // quem renovou e continua a funcionar quando a RLS fechar.
+      await ref.read(gerirLicencaProvider).definirValidade(l.machineId, novaData);
       if (pedido != null) {
         await pedidosRepo.confirmar(pedido.id);
       }
@@ -154,20 +215,131 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
     }
   }
 
-  Future<void> _toggleActiva(Licenca l) async {
+  // ── Controlo remoto ────────────────────────────────────────────────────────
+  // Todas as acções passam pela Edge Function `gerir-licenca`: é ela que corre
+  // com service_role (para o dia em que a RLS fechar) e que regista em
+  // `licencas_audit` QUEM fez a acção — o trigger sozinho não consegue, porque
+  // escritas com service_role não têm `auth.uid()`.
+
+  /// `true` enquanto uma acção remota está a decorrer (trava os botões todos,
+  /// para não se carregar em "+5 dias" três vezes seguidas).
+  bool _aExecutar = false;
+
+  /// Executa [accao] com confirmação, indicador de progresso e refresh.
+  ///
+  /// [confirmacao] a `null` salta o diálogo (usado para as acções aditivas
+  /// como prolongar, que não têm consequência destrutiva).
+  Future<void> _accaoRemota({
+    required String machineId,
+    required Future<LicencaAtualizada> Function(GerirLicencaService s) accao,
+    required String Function(LicencaAtualizada r) sucesso,
+    ({String titulo, String corpo, String confirmar, bool destrutiva})?
+        confirmacao,
+  }) async {
+    if (_aExecutar) return;
+
+    if (confirmacao != null) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(confirmacao.titulo),
+          content: Text(confirmacao.corpo),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: confirmacao.destrutiva
+                  ? FilledButton.styleFrom(backgroundColor: Colors.red.shade700)
+                  : null,
+              child: Text(confirmacao.confirmar),
+            ),
+          ],
+        ),
+      );
+      if (ok != true) return;
+    }
+
+    setState(() => _aExecutar = true);
     try {
-      final licencasRepo = ref.read(licencasRepoProvider);
-      await licencasRepo.activar(l.id, activa: !l.activa);
+      final resultado = await accao(ref.read(gerirLicencaProvider));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l.activa ? 'Licença suspensa.' : 'Licença activada.'),
-        ),
+        SnackBar(content: Text(sucesso(resultado))),
       );
       _recarregar();
     } catch (e, st) {
       mostrarErro(e, stack: st);
+    } finally {
+      if (mounted) setState(() => _aExecutar = false);
     }
+  }
+
+  Future<void> _prolongar(Licenca l, int dias) => _accaoRemota(
+        machineId: l.machineId,
+        accao: (s) => s.prolongar(l.machineId, dias),
+        sucesso: (r) =>
+            'Prolongada $dias dias — validade ${Dates.data(r.validade)}. '
+            'O POS actualiza em ≤5 min.',
+      );
+
+  Future<void> _suspender(Licenca l) => _accaoRemota(
+        machineId: l.machineId,
+        accao: (s) => s.suspender(l.machineId),
+        sucesso: (_) => 'Licença suspensa. O POS tranca em ≤5 min.',
+        confirmacao: (
+          titulo: 'Suspender licença?',
+          corpo: 'O terminal fica bloqueado dentro de 5 minutos. '
+              'Podes reactivar a qualquer momento.',
+          confirmar: 'Suspender',
+          destrutiva: true,
+        ),
+      );
+
+  Future<void> _reactivar(Licenca l) => _accaoRemota(
+        machineId: l.machineId,
+        accao: (s) => s.reactivar(l.machineId),
+        sucesso: (_) => 'Licença reactivada. O POS destranca em ≤5 min.',
+      );
+
+  Future<void> _cancelar(Licenca l) => _accaoRemota(
+        machineId: l.machineId,
+        accao: (s) => s.cancelar(l.machineId),
+        sucesso: (_) => 'Licença cancelada.',
+        confirmacao: (
+          titulo: 'Tem a certeza?',
+          corpo: 'Isto termina a licença imediatamente: fica inactiva e com '
+              'validade de hoje. A linha não é apagada (fica o histórico), '
+              'mas o terminal deixa de trabalhar.',
+          confirmar: 'Cancelar licença',
+          destrutiva: true,
+        ),
+      );
+
+  Future<void> _mudarTier(Licenca l, Tier novo) => _accaoRemota(
+        machineId: l.machineId,
+        accao: (s) => s.mudarTier(l.machineId, novo),
+        sucesso: (r) => 'Plano alterado para ${r.tier.rotulo}. '
+            'O POS actualiza em ≤5 min.',
+        confirmacao: novo == Tier.base
+            ? (
+                titulo: 'Descer para Base?',
+                corpo: 'O cliente perde Guias, Gestão e Gráficos. '
+                    'As preferências ficam guardadas para retomar se voltar a Pro.',
+                confirmar: 'Descer para Base',
+                destrutiva: true,
+              )
+            : null,
+      );
+
+  Future<void> _verHistorial(Licenca l) async {
+    final repo = ref.read(auditLicencasRepoProvider);
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => ModalHistorial(licencaId: l.id, repo: repo),
+    );
   }
 
   /// **Acção manual e separada** (só o Cesar, após confirmar o pagamento): gera
@@ -222,7 +394,12 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
             licencasRepo.licencaActivaComSerie(s, excetoMachineId: exceto),
       );
       await licencasRepo.definirSerie(l.id, serie.trim());
-      if (!l.activa) await licencasRepo.activar(l.id, activa: true);
+      // A activação passa pela Edge Function como qualquer outra mutação de
+      // estado — assim fica auditada com o autor, e continua a funcionar no dia
+      // em que a RLS de `licencas` fechar.
+      if (!l.activa) {
+        await ref.read(gerirLicencaProvider).reactivar(l.machineId);
+      }
 
       final dir = await getTemporaryDirectory();
       final ficheiro = File('${dir.path}/licenca.json');
@@ -272,9 +449,25 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(data.nomeCliente,
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w500)),
+                Row(
+                  children: [
+                    // PRO à esquerda do nome (#177); a app à direita. Aqui o
+                    // badge da app aparece sempre, mesmo com o filtro fixo numa
+                    // app — numa ficha individual saber de que app é o terminal
+                    // é informação, não ruído de lista.
+                    WiTierBadge(data.licenca.tier),
+                    Flexible(
+                      child: Text(
+                        data.nomeCliente,
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w500),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    WiAppBadge(data.licenca.app),
+                  ],
+                ),
                 Text(
                   data.subtituloTerminal,
                   style: TextStyle(
@@ -336,21 +529,27 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
                   onPressed: () => _gerarLicenca(l),
                 ),
               ),
+              const SizedBox(height: AppSpacing.xl),
+              const WiSeccaoTitulo(titulo: 'Controlo remoto'),
               const SizedBox(height: AppSpacing.sm),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  icon: Icon(l.activa ? Icons.block : Icons.check_circle),
-                  label: Text(
-                      l.activa ? 'Suspender licença' : 'Reactivar licença'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor:
-                        l.activa ? AppColors.vermelho : AppColors.verde,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  onPressed: () => _toggleActiva(l),
-                ),
+              CardControloRemoto(
+                licenca: l,
+                ocupado: _aExecutar,
+                onProlongar: (dias) => _prolongar(l, dias),
+                onSuspender: () => _suspender(l),
+                onReactivar: () => _reactivar(l),
+                onCancelar: () => _cancelar(l),
+                onMudarTier: (t) => _mudarTier(l, t),
+                onVerHistorial: () => _verHistorial(l),
               ),
+              const SizedBox(height: AppSpacing.lg),
+              CardPreferencias(licenca: l),
+              // Card "Séries fiscais" — só aparece para clientes que emitem
+              // (Pro/Legado); auto-esconde-se para Base.
+              if (l.tier.temExtras) ...[
+                const SizedBox(height: AppSpacing.lg),
+                CardSeriesFiscais(licenca: l, onLicencaAlterada: _recarregar),
+              ],
               const SizedBox(height: AppSpacing.xl),
               const WiSeccaoTitulo(titulo: 'Histórico de acessos'),
               const SizedBox(height: AppSpacing.sm),
@@ -433,6 +632,19 @@ class _CardLicenca extends StatelessWidget {
           const _CardHeader(
               icone: Icons.workspace_premium, titulo: 'Licença'),
           WiLinhaKV(rotulo: 'NIF', valor: l.nif),
+          // Telefone do cliente — só quando preenchido no POS. Toque no ícone
+          // abre o marcador do sistema.
+          if (data.cliente?.telemovel != null &&
+              data.cliente!.telemovel!.trim().isNotEmpty)
+            WiLinhaKV(
+              rotulo: 'Telefone',
+              valor: data.cliente!.telemovel!.trim(),
+              trailing: InkWell(
+                onTap: () => Acoes.ligarPara(data.cliente!.telemovel),
+                child: const Icon(Icons.phone,
+                    size: 18, color: AppColors.verde),
+              ),
+            ),
           WiLinhaKV(rotulo: 'Plano', valor: l.planoLabel),
           WiLinhaKV(rotulo: 'Validade', valor: _validadeTexto(l)),
           if (l.serie != null) WiLinhaKV(rotulo: 'Série', valor: l.serie!),
@@ -456,6 +668,15 @@ class _CardUltimoAcesso extends StatelessWidget {
   final _DetalheData data;
   const _CardUltimoAcesso({required this.data});
 
+  /// Cidade que o sinal reporta. Sem método de geolocalização não há cidade
+  /// para mostrar — devolve travessão em vez de uma cidade órfã que pareceria
+  /// vinda de lado nenhum.
+  static String _cidadeDoPing(Ping p) {
+    if (p.metodoGeo == null || p.metodoGeo == 'nenhum') return '—';
+    final cidade = Localidades.traduzir(p.cidade);
+    return cidade.isEmpty ? '—' : cidade;
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = data.ultimoPing!;
@@ -464,36 +685,72 @@ class _CardUltimoAcesso extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const _CardHeader(icone: Icons.podcasts, titulo: 'Último acesso'),
+          // Data absoluta primeiro e o relativo entre parênteses: "há 2 dias"
+          // sozinho não chega para se perceber se o terminal esteve parado no
+          // fim-de-semana ou se falhou mesmo.
           WiLinhaKV(
-              rotulo: 'Quando',
-              valor: timeago.format(p.criadoEm, locale: 'pt')),
+            rotulo: 'Quando',
+            valor: '${Dates.dataHora(p.criadoEm)} '
+                '(${timeago.format(p.criadoEm, locale: 'pt')})',
+          ),
+          // Uma só linha para o sinal. Antes eram duas — "Sinal" (o método) e
+          // "Sinal diz" (a cidade) — e pareciam dois sinais diferentes quando
+          // é um só. Agora o método é a etiqueta: `GPS: Lisboa`.
           Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(width: 100, child: Text('Sinal', style: AppText.label)),
-                Icon(Exibicao.iconeSinal(p.metodoGeo),
-                    size: 16, color: Exibicao.corSinal(p.metodoGeo)),
-                const SizedBox(width: 6),
+                SizedBox(
+                  width: 100,
+                  child: Row(
+                    children: [
+                      Icon(Exibicao.iconeSinal(p.metodoGeo),
+                          size: 16, color: Exibicao.corSinal(p.metodoGeo)),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(Exibicao.rotuloSinal(p.metodoGeo),
+                            style: AppText.label),
+                      ),
+                    ],
+                  ),
+                ),
                 Expanded(
-                  child: Text(Exibicao.descricaoSinal(p.metodoGeo),
-                      style: AppText.bodyStrong),
+                  child: Text(_cidadeDoPing(p), style: AppText.bodyStrong),
                 ),
               ],
             ),
           ),
-          WiLinhaKV(
-              rotulo: 'Sinal diz',
-              valor: Localidades.traduzir(p.cidade).isEmpty
-                  ? '—'
-                  : Localidades.traduzir(p.cidade)),
           WiLinhaKV(
               rotulo: 'Loja',
               valor: (data.cliente?.localidade != null &&
                       data.cliente!.localidade!.trim().isNotEmpty)
                   ? data.cliente!.localidade!.trim()
                   : '—'),
+          // IP público — só quando o ping o traz (pings antigos não têm).
+          if (p.ipPublico != null && p.ipPublico!.trim().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+              child: Row(
+                children: [
+                  const SizedBox(
+                    width: 100,
+                    child: Row(
+                      children: [
+                        Icon(Icons.wifi,
+                            size: 16, color: AppColors.textTertiary),
+                        SizedBox(width: 6),
+                        Text('IP', style: AppText.label),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child:
+                        Text(p.ipPublico!.trim(), style: AppText.bodyStrong),
+                  ),
+                ],
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
             child: Row(

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../core/app_colors.dart';
+import '../../core/app_filter/app_filter_provider.dart';
 import '../../core/app_radius.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_theme.dart';
@@ -134,8 +135,12 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
     final pingsRepo = ref.read(pingsRepoProvider);
     final clientesRepo = ref.read(clientesRepoProvider);
 
-    final licencasF = licencasRepo.listar();
-    final pingsF = pingsRepo.ultimosPorInstalacao();
+    // `read` e não `watch`: quem dispara o recarregamento é o `ref.listen` do
+    // build (mesmo padrão do Dashboard).
+    final app = ref.read(appFilterProvider).valorApp;
+
+    final licencasF = licencasRepo.listar(app: app);
+    final pingsF = pingsRepo.ultimosPorInstalacao(app: app);
     final clientesF = clientesRepo.listar();
     await Future.wait([licencasF, pingsF, clientesF]);
 
@@ -152,8 +157,110 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
   }
 
   Future<void> _recarregar() async {
-    setState(() => _future = _carregar());
+    setState(() { _future = _carregar(); });
     await _future;
+  }
+
+  void _abrirDetalhe(String machineId) {
+    Navigator.of(context)
+        .push(MaterialPageRoute(
+          builder: (_) => DetalheClienteScreen(machineId: machineId),
+        ))
+        .then((_) => _recarregar());
+  }
+
+  /// Atalhos da vista lista: prolongar 5 dias e suspender/reactivar sem entrar
+  /// no detalhe. As acções destrutivas com consequência maior (cancelar, mudar
+  /// de plano) ficam só no detalhe — não se põem a um toque de distância numa
+  /// lista onde se percorre depressa.
+  Future<void> _accoesRapidas(Licenca l) async {
+    final escolha = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.more_time, color: AppColors.azul700),
+              title: const Text('+5 dias'),
+              onTap: () => Navigator.pop(ctx, 'prolongar'),
+            ),
+            if (l.activa)
+              ListTile(
+                leading: const Icon(Icons.block, color: AppColors.vermelho),
+                title: const Text('Suspender'),
+                onTap: () => Navigator.pop(ctx, 'suspender'),
+              )
+            else
+              ListTile(
+                leading: const Icon(Icons.check_circle, color: AppColors.verde),
+                title: const Text('Reactivar'),
+                onTap: () => Navigator.pop(ctx, 'reactivar'),
+              ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.open_in_new),
+              title: const Text('Ver detalhes'),
+              onTap: () => Navigator.pop(ctx, 'detalhe'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (escolha == null || !mounted) return;
+
+    if (escolha == 'detalhe') {
+      _abrirDetalhe(l.machineId);
+      return;
+    }
+
+    // Suspender daqui pede confirmação: na lista é fácil tocar na linha errada.
+    if (escolha == 'suspender') {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Suspender licença?'),
+          content: Text(
+            'O terminal de ${l.nome ?? l.nif} fica bloqueado dentro de '
+            '5 minutos. Podes reactivar a qualquer momento.',
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar')),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.vermelho),
+              child: const Text('Suspender'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true || !mounted) return;
+    }
+
+    final servico = ref.read(gerirLicencaProvider);
+    try {
+      final mensagem = switch (escolha) {
+        'prolongar' => await servico
+            .prolongar(l.machineId, 5)
+            .then((r) => 'Prolongada 5 dias — validade ${Dates.data(r.validade)}.'),
+        'suspender' => await servico
+            .suspender(l.machineId)
+            .then((_) => 'Licença suspensa. O POS tranca em ≤5 min.'),
+        'reactivar' => await servico
+            .reactivar(l.machineId)
+            .then((_) => 'Licença reactivada. O POS destranca em ≤5 min.'),
+        _ => null,
+      };
+      if (!mounted || mensagem == null) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(mensagem)));
+      await _recarregar();
+    } catch (e, st) {
+      mostrarErro(e, stack: st);
+    }
   }
 
   List<Licenca> _filtrar(_InstalacoesData data) {
@@ -237,10 +344,16 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Mudar de app no Dashboard tem de reflectir-se aqui — o filtro é global e
+    // este ecrã fica montado no IndexedStack mesmo quando não está visível.
+    ref.listen(appFilterProvider, (_, __) => _recarregar());
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Instalações'),
         actions: [
+          const WiAppSelector(),
+          const SizedBox(width: AppSpacing.xs),
           IconButton(
             iconSize: 20,
             icon: const Icon(Icons.refresh),
@@ -321,14 +434,9 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
                                     ping: ping,
                                     ctx: data.ctx,
                                     estadoVersao: classV.estadoDe(ping?.versao),
-                                    onTap: () {
-                                      Navigator.of(context)
-                                          .push(MaterialPageRoute(
-                                            builder: (_) => DetalheClienteScreen(
-                                                machineId: l.machineId),
-                                          ))
-                                          .then((_) => _recarregar());
-                                    },
+                                    onTap: () => _abrirDetalhe(l.machineId),
+                                    onAccoesRapidas: () =>
+                                        _accoesRapidas(l),
                                   );
                                 },
                               ),
@@ -386,6 +494,7 @@ class _CartaoInstalacao extends StatelessWidget {
   final ContextoInstalacoes ctx;
   final EstadoVersao estadoVersao;
   final VoidCallback onTap;
+  final VoidCallback onAccoesRapidas;
 
   const _CartaoInstalacao({
     required this.licenca,
@@ -393,6 +502,7 @@ class _CartaoInstalacao extends StatelessWidget {
     required this.ctx,
     required this.estadoVersao,
     required this.onTap,
+    required this.onAccoesRapidas,
   });
 
   String _validadeTexto() {
@@ -428,11 +538,20 @@ class _CartaoInstalacao extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  ctx.nomeDe(machineId: licenca.machineId, nif: licenca.nif),
-                  style: AppText.bodyStrong,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  children: [
+                    WiAppBadgeAuto(licenca.app),
+                    WiTierBadge(licenca.tier),
+                    Expanded(
+                      child: Text(
+                        ctx.nomeDe(
+                            machineId: licenca.machineId, nif: licenca.nif),
+                        style: AppText.bodyStrong,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
                 Text(
                   '${licenca.planoLabel} · ${_validadeTexto()}',
@@ -462,6 +581,13 @@ class _CartaoInstalacao extends StatelessWidget {
             VersaoBadge(versao: ping!.versao, estado: estadoVersao),
             const SizedBox(width: 4),
           ],
+          // Atalhos rápidos sem entrar no detalhe — para a gestão do dia-a-dia
+          // (um cliente liga a pedir mais uns dias e resolve-se aqui mesmo).
+          IconButton(
+            icon: const Icon(Icons.more_horiz, color: AppColors.textTertiary),
+            tooltip: 'Acções rápidas',
+            onPressed: onAccoesRapidas,
+          ),
           const Icon(Icons.chevron_right, color: AppColors.textTertiary),
         ],
       ),

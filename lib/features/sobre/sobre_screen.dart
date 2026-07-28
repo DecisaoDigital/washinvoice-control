@@ -35,11 +35,40 @@ class _SobreData {
 
 class _SobreScreenState extends ConsumerState<SobreScreen> {
   late Future<_SobreData> _future;
+  bool _aVerificar = false;
 
   @override
   void initState() {
     super.initState();
     _future = _carregar();
+  }
+
+  /// Check on-demand contra a Edge Function `versao-mais-recente`. Complementa
+  /// o safety net diário (main.dart:_verificadorActualizacaoProvider) para
+  /// quem quer saber já se há build novo, sem esperar 24h. Se houver, o
+  /// banner/modal em HomeShell aparecem sozinhos ao observar
+  /// `actualizacaoDisponivelProvider`.
+  Future<void> _verificarActualizacao() async {
+    if (_aVerificar) return;
+    setState(() => _aVerificar = true);
+    try {
+      final info = await ref.read(actualizacaoServiceProvider).verificar();
+      if (!mounted) return;
+      if (info != null) {
+        ref.read(actualizacaoDisponivelProvider.notifier).state = info;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Actualização disponível: ${info.versaoActual}')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Já estás na versão mais recente.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) mostrarErro(e);
+    } finally {
+      if (mounted) setState(() => _aVerificar = false);
+    }
   }
 
   Future<_SobreData> _carregar() async {
@@ -82,7 +111,7 @@ class _SobreScreenState extends ConsumerState<SobreScreen> {
           if (snapshot.hasError) {
             return ErroView(
               erro: snapshot.error!,
-              onRetry: () => setState(() => _future = _carregar()),
+              onRetry: () => setState(() { _future = _carregar(); }),
             );
           }
           final data = snapshot.data!;
@@ -102,6 +131,23 @@ class _SobreScreenState extends ConsumerState<SobreScreen> {
                       rotulo: 'Versão',
                       valor: '${v.version} (build ${v.buildNumber})'),
                   WiLinhaKV(rotulo: 'Pacote', valor: v.packageName, mono: true),
+                  const SizedBox(height: AppSpacing.sm),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: FilledButton.tonalIcon(
+                      onPressed: _aVerificar ? null : _verificarActualizacao,
+                      icon: _aVerificar
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.system_update_alt, size: 18),
+                      label: Text(_aVerificar
+                          ? 'A verificar...'
+                          : 'Verificar actualização'),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: AppSpacing.md),

@@ -82,7 +82,7 @@ class _DetalhePedidoAjudaScreenState
   }
 
   Future<void> _recarregar() async {
-    setState(() => _future = _carregar());
+    setState(() { _future = _carregar(); });
     await _future;
   }
 
@@ -289,23 +289,43 @@ class _DetalhePedidoAjudaScreenState
         children: [
           const _Header(icone: Icons.podcasts, titulo: 'Último ping'),
           WiLinhaKV(
-              rotulo: 'Quando',
-              valor: timeago.format(p.criadoEm, locale: 'pt')),
+            rotulo: 'Quando',
+            valor: '${Dates.dataHora(p.criadoEm)} '
+                '(${timeago.format(p.criadoEm, locale: 'pt')})',
+          ),
+          // Método e cidade numa só linha, como no detalhe do cliente: duas
+          // linhas separadas pareciam dois sinais diferentes.
           Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(
-                    width: 100, child: Text('Sinal', style: AppText.label)),
-                Icon(Exibicao.iconeSinal(p.metodoGeo),
-                    size: 16, color: Exibicao.corSinal(p.metodoGeo)),
-                const SizedBox(width: 6),
-                Text(Exibicao.descricaoSinal(p.metodoGeo),
-                    style: AppText.bodyStrong),
+                SizedBox(
+                  width: 100,
+                  child: Row(
+                    children: [
+                      Icon(Exibicao.iconeSinal(p.metodoGeo),
+                          size: 16, color: Exibicao.corSinal(p.metodoGeo)),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(Exibicao.rotuloSinal(p.metodoGeo),
+                            style: AppText.label),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    (p.metodoGeo == null || p.metodoGeo == 'nenhum' ||
+                            cidade.isEmpty)
+                        ? '—'
+                        : cidade,
+                    style: AppText.bodyStrong,
+                  ),
+                ),
               ],
             ),
           ),
-          WiLinhaKV(rotulo: 'Cidade', valor: cidade.isEmpty ? '—' : cidade),
           WiLinhaKV(rotulo: 'Versão POS', valor: 'v${p.versao ?? '?'}'),
         ],
       ),

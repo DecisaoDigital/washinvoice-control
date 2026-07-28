@@ -108,6 +108,13 @@ Feita **inteiramente no cliente** (`licenca_emissao.dart`): assina com HMAC (mes
                        └──────────────────────┘
 ```
 
+> **Auto-update (v1.7.0, #100).** Tabela nova `versoes_apps` (catálogo de versões
+> por app, `pos`/`control`) + Edge Function `versao-mais-recente` (dado
+> `{app, build_number_local}` devolve a versão activa mais alta). Hoje só o
+> Control consome (`app='control'`), mas a infra fica preparada para o POS
+> reutilizar (`app='pos'`) no sprint seguinte, sem alterações do lado do servidor.
+> Processo de lançamento em `docs/negocio/auto_update.md`.
+
 ---
 
 ## 5. Divergência crítica — `rls_policies.sql` vs realidade

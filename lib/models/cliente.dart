@@ -1,7 +1,13 @@
 class Cliente {
   final String id; // uuid
   final String nif;
+  /// Designação social (nome legal). Vem do POS via `sincronizar-empresa`.
   final String nome;
+
+  /// Nome comercial — como a loja é conhecida (ex.: "WashExpress"). Distinto
+  /// de [nome], que é o legal. `null` enquanto o POS não sincronizar.
+  final String? nomeComercial;
+
   final String? email;
   final String? telemovel;
   final String? notas;
@@ -16,6 +22,7 @@ class Cliente {
     required this.id,
     required this.nif,
     required this.nome,
+    this.nomeComercial,
     this.email,
     this.telemovel,
     this.notas,
@@ -27,6 +34,7 @@ class Cliente {
         id: json['id'] as String,
         nif: json['nif'] as String,
         nome: json['nome'] as String,
+        nomeComercial: json['nome_comercial'] as String?,
         email: json['email'] as String?,
         telemovel: json['telemovel'] as String?,
         notas: json['notas'] as String?,
@@ -40,6 +48,7 @@ class Cliente {
         'id': id,
         'nif': nif,
         'nome': nome,
+        'nome_comercial': nomeComercial,
         'email': email,
         'telemovel': telemovel,
         'notas': notas,
@@ -51,6 +60,7 @@ class Cliente {
   Map<String, dynamic> toInsertJson() => {
         'nif': nif,
         'nome': nome,
+        'nome_comercial': nomeComercial,
         'email': email,
         'telemovel': telemovel,
         'notas': notas,
@@ -62,6 +72,7 @@ class Cliente {
   Map<String, dynamic> toUpdateJson() => {
         'nif': nif,
         'nome': nome,
+        'nome_comercial': nomeComercial,
         'email': email,
         'telemovel': telemovel,
         'notas': notas,
@@ -72,6 +83,7 @@ class Cliente {
     String? id,
     String? nif,
     String? nome,
+    String? nomeComercial,
     String? email,
     String? telemovel,
     String? notas,
@@ -82,6 +94,7 @@ class Cliente {
         id: id ?? this.id,
         nif: nif ?? this.nif,
         nome: nome ?? this.nome,
+        nomeComercial: nomeComercial ?? this.nomeComercial,
         email: email ?? this.email,
         telemovel: telemovel ?? this.telemovel,
         notas: notas ?? this.notas,

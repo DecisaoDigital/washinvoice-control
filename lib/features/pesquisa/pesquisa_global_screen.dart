@@ -63,6 +63,10 @@ class _PesquisaGlobalScreenState extends ConsumerState<PesquisaGlobalScreen> {
   }
 
   Future<_PesquisaData> _carregar() async {
+    // **Sem filtro de app de propósito.** A pesquisa global é o escape à
+    // vista filtrada: se o Cesar tem o selector em Punho e procura um cliente
+    // POS, quer encontrá-lo, não receber "sem resultados". Os badges de app
+    // nos resultados dizem de onde é cada linha.
     final clientesF = ref.read(clientesRepoProvider).listar();
     final licencasF = ref.read(licencasRepoProvider).listar();
     final pingsF = ref.read(pingsRepoProvider).ultimosPorInstalacao();
@@ -124,7 +128,7 @@ class _PesquisaGlobalScreenState extends ConsumerState<PesquisaGlobalScreen> {
           if (snapshot.hasError) {
             return ErroView(
                 erro: snapshot.error!,
-                onRetry: () => setState(() => _future = _carregar()));
+                onRetry: () => setState(() { _future = _carregar(); }));
           }
           if (_query.length < 2) {
             return const WiEmptyState(
@@ -197,6 +201,7 @@ class _PesquisaGlobalScreenState extends ConsumerState<PesquisaGlobalScreen> {
           for (final l in licencas)
             _ResultadoCard(
               icone: Icons.workspace_premium,
+              app: l.app,
               titulo: d.ctx.nomeDe(machineId: l.machineId, nif: l.nif),
               subtitulo:
                   '${l.planoLabel}${l.serie != null ? ' · série ${l.serie}' : ''}',
@@ -208,6 +213,7 @@ class _PesquisaGlobalScreenState extends ConsumerState<PesquisaGlobalScreen> {
           for (final p in pings)
             _ResultadoCard(
               icone: Icons.podcasts,
+              app: p.app,
               titulo: d.ctx.nomeDe(machineId: p.machineId, nif: p.nif),
               subtitulo: Localidades.traduzir(p.cidade).isEmpty
                   ? 'v${p.versao ?? '?'}'
@@ -219,6 +225,7 @@ class _PesquisaGlobalScreenState extends ConsumerState<PesquisaGlobalScreen> {
           for (final p in pedidos)
             _ResultadoCard(
               icone: Icons.help_outline,
+              app: p.app,
               titulo: d.ctx.nomeDe(machineId: p.machineId, nif: p.nif),
               subtitulo: p.resolvido ? 'Resolvido' : 'Aberto',
               onTap: () => _abrir(DetalhePedidoAjudaScreen(pedido: p)),
@@ -228,6 +235,7 @@ class _PesquisaGlobalScreenState extends ConsumerState<PesquisaGlobalScreen> {
           for (final s in sugestoes)
             _ResultadoCard(
               icone: Icons.lightbulb_outline,
+              app: s.app,
               titulo: d.ctx.nomeDe(machineId: s.machineId ?? '', nif: s.nif),
               subtitulo: s.texto,
               onTap: () => _abrir(DetalheSugestaoScreen(sugestao: s)),
@@ -281,11 +289,18 @@ class _ResultadoCard extends StatelessWidget {
   final String titulo;
   final String subtitulo;
   final VoidCallback onTap;
+
+  /// App do resultado (`null` para os que não pertencem a nenhuma, como os
+  /// clientes). Ao contrário das listas, aqui o badge aparece sempre: a
+  /// pesquisa ignora o filtro global, portanto é a única pista da origem.
+  final String? app;
+
   const _ResultadoCard({
     required this.icone,
     required this.titulo,
     required this.subtitulo,
     required this.onTap,
+    this.app,
   });
 
   @override
@@ -302,10 +317,20 @@ class _ResultadoCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(titulo,
-                    style: AppText.bodyStrong,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                Row(
+                  children: [
+                    if (app != null) ...[
+                      WiAppBadge(app!),
+                      const SizedBox(width: AppSpacing.sm),
+                    ],
+                    Expanded(
+                      child: Text(titulo,
+                          style: AppText.bodyStrong,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                  ],
+                ),
                 Text(subtitulo,
                     style: AppText.caption,
                     maxLines: 1,

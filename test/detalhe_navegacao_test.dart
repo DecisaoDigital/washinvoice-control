@@ -24,7 +24,7 @@ class _FakeLicencasRepo extends LicencasRepository {
       porMaquina[machineId];
 
   @override
-  Future<List<Licenca>> listar() async => porMaquina.values.toList();
+  Future<List<Licenca>> listar({String? app}) async => porMaquina.values.toList();
 }
 
 class _FakeClientesRepo extends ClientesRepository {
@@ -37,12 +37,12 @@ class _FakePingsRepo extends PingsRepository {
   Future<List<Ping>> historico(String machineId, {int limite = 20}) async => [];
 
   @override
-  Future<List<Ping>> ultimosPorInstalacao() async => [];
+  Future<List<Ping>> ultimosPorInstalacao({String? app}) async => [];
 }
 
 class _FakePedidosRepo extends PedidosRepository {
   @override
-  Future<PedidoRenovacao?> pendentePorNif(String nif) async => null;
+  Future<PedidoRenovacao?> pendentePorNif(String nif, {String? app}) async => null;
 }
 
 class _FakeAceitesRepo extends AceitesRepository {

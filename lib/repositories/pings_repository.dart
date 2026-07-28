@@ -9,11 +9,10 @@ class PingsRepository {
   ///
   /// Faz a redução no cliente: ordena por data desc e mantém o primeiro
   /// ping de cada machine_id.
-  Future<List<Ping>> ultimosPorInstalacao() async {
-    final rows = await _client
-        .from('pings')
-        .select()
-        .order('created_at', ascending: false);
+  Future<List<Ping>> ultimosPorInstalacao({String? app}) async {
+    var q = _client.from('pings').select();
+    if (app != null) q = q.eq('app', app);
+    final rows = await q.order('created_at', ascending: false);
     final vistos = <String>{};
     final ultimos = <Ping>[];
     for (final row in rows as List) {
@@ -27,10 +26,10 @@ class PingsRepository {
 
   /// Último ping recebido de qualquer máquina (o mais recente de todos).
   /// Usado no ecrã Sobre/Sistema para mostrar a última actividade global.
-  Future<Ping?> ultimoGlobal() async {
-    final row = await _client
-        .from('pings')
-        .select()
+  Future<Ping?> ultimoGlobal({String? app}) async {
+    var q = _client.from('pings').select();
+    if (app != null) q = q.eq('app', app);
+    final row = await q
         .order('created_at', ascending: false)
         .limit(1)
         .maybeSingle();
@@ -53,13 +52,14 @@ class PingsRepository {
 
   /// Todas as instalações com localização para o mapa (último ping geolocalizado
   /// de cada machine_id).
-  Future<List<Ping>> comLocalizacao() async {
-    final rows = await _client
+  Future<List<Ping>> comLocalizacao({String? app}) async {
+    var q = _client
         .from('pings')
         .select()
         .not('lat', 'is', null)
-        .not('lon', 'is', null)
-        .order('created_at', ascending: false);
+        .not('lon', 'is', null);
+    if (app != null) q = q.eq('app', app);
+    final rows = await q.order('created_at', ascending: false);
     final vistos = <String>{};
     final resultado = <Ping>[];
     for (final row in rows as List) {

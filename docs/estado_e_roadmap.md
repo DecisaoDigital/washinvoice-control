@@ -1,7 +1,87 @@
 # WashInvoice Control — Estado e Roadmap
 
 > Documento vivo. Actualizar sempre que uma ronda fechar ou uma decisão de arquitectura mudar.
-> Última actualização: 2026-07-15 (tarde — trigger DB automático fechado).
+> Última actualização: 2026-07-26 (Punho schema em produção + Control aprova pedidos Punho — v1.8.1, tasks #188-190).
+
+---
+
+## 0.0 Sessão 26/07/2026 (v1.8.1) — Punho em produção + aprovação central
+
+**Dossier AT enviado** ao início da noite (v1.8 do dossier, 45 ficheiros, SHA-256 `22d9a827...86131`).
+
+**Punho — schema completo em produção** (`oefqbkhioncakojipqyx`). Aplicadas as 8 migrations por ordem cronológica sem intercorrências:
+
+| Migration | Objecto |
+|---|---|
+| `20260725_punho_core` | tabelas base (`punho_empresas`, `punho_membros`, `punho_clientes`, `punho_reservas`, `punho_reserva_maquinas`, `punho_subscricoes`) + funções `punho_empresa_atual`, `punho_e_gestor` |
+| `20260726_punho_rls_completion` | função `punho_membro_ativo` |
+| `20260727_punho_onboarding_rpc` | RPC de onboarding atómico |
+| `20260728_punho_auth_and_rls_hardening` | RLS + triggers de validação em tabelas `punho_*` |
+| `20260729_punho_operational_state_sync` | tabela `punho_estado_operacional` |
+| `20260730_punho_pedidos_acesso` | `punho_pedidos_acesso` + trigger `punho_criar_pedido_ao_registar` em `auth.users` (filtra `raw_user_meta_data->>'app' = 'punho'`) |
+| `20260731_punho_contas_organizacao` | `punho_convites`, RPCs `punho_meu_acesso` / `punho_validar_convite` / `punho_criar_convite`; revoga `punho_criar_empresa_inicial` de `authenticated` |
+| `20260801_punho_aprovacao_pelo_control` | RPCs `punho_decidir_pedido`, `punho_listar_pedidos_admin`, `punho_listar_empresas_admin` — só chamáveis por `is_admin()` |
+
+Achado importante ao aplicar: a `punho_criar_empresa_inicial` estava com `grant execute to authenticated` — qualquer conta autenticada podia criar empresa e ficar gestora. Ficou revogada; criar empresa passa a ser exclusivo do Control via RPC `security definer`.
+
+Smoke test do trigger em `auth.users` passou: signup sem `app='punho'` não cria pedido, com `app='punho'` cria (`origem='livre'`, `estado='pendente'`).
+
+**Control — Parte A de `acessos_organizacoes` aplicada** (`acessos_organizacoes_parte_a.sql`, migration `20260726032530`). Cria `organizacoes`, `pedidos_acesso`, `convites_organizacao` + trigger de auth (filtra `app in ('', 'control')` para não colidir com o do Punho) + RPCs `meu_estado_acesso`, `decidir_pedido_acesso`, `criar_convite_organizacao`. **A Parte B** (adicionar `organizacao_id` às 5 tabelas de negócio + substituir policies) **não foi aplicada** — o SQL original assumia `licencas.user_id` que nunca existiu em prod. Bloco `⛔ NÃO APLICAR` no topo do ficheiro original. Reescrever contra modelo real **antes** de aprovar primeiro não-admin no separador Acessos (task #190).
+
+**Control — separador "Punho" novo**, visível só ao admin global. Repository `punho_admin_repository.dart` + `punho_pedidos_screen.dart` + modais de decidir/revogar. Testes: 220 verdes (+21). Branch `feat/aprovar-pedidos-punho`, 3 commits à frente de `feature/multi-app-e-badge-pro`, ainda por merge.
+
+**Control — melhorias de infra:**
+- Timer de verificação de actualizações: 6h → 24h (alinhado com POS, #119).
+- Botão on-demand "Verificar actualização" no ecrã Sobre → chama `actualizacaoService.verificar()` sem esperar o safety net.
+- Fix confirmado: `Dates.data` e `Dates.dataHora` já fazem `.toLocal()` (task #101 estava a mais no pending).
+
+**AppBar Dashboard (task #188).** Fix já commitado (título compacto <600 dp, `WiAppSelector` com pastilha própria, hit-target 48×48 em todo o "POS ▽"). Falta compilar APK 1.8.1 e testar no Redmi.
+
+**Pendências identificadas:**
+- Metade B RLS multi-organização — reescrever contra modelo real antes de aprovar primeiro não-admin (task #190).
+- Merge `feat/aprovar-pedidos-punho` → `main` antes do build APK.
+- Line endings CRLF/LF a poluir `git status` — dezenas de ficheiros "modified" sem conteúdo real diff. Arrumação futura.
+- Sem `pg_dump` automático nem PITR (Supabase Free). Backup manual JSON antes de mudanças arriscadas.
+
+---
+
+## 0. Multi-app (25/07/2026, v1.8.0)
+
+O Control deixou de ser o backoffice **do WashInvoice** e passou a ser o backoffice
+**da Decisão Digital**: mostra o parque de todas as apps da empresa. Primeiras duas:
+`pos` (WashInvoice) e `punho`.
+
+**Base de dados.** Coluna `app text NOT NULL` (sem default) em `licencas`, `pings`,
+`pedidos_ajuda`, `pedidos_renovacao`, `sugestoes` e `aceites_termos`. Sem default é
+deliberado — quem escreve tem de dizer a que app pertence, em vez de calhar em `pos`
+por omissão e ninguém dar por isso. As linhas que já existiam migraram para `'pos'`.
+As Edge Functions `registar-terminal` e `validar-licenca` (v6) exigem `body.app`.
+
+**Selector.** Dashboard, Instalações, Mapa, Pedidos de ajuda e Sugestões levam um
+selector na AppBar: Todas as apps | WashInvoice | Punho. A escolha é global e fica
+persistida em SharedPreferences (`app_filtro`). Mudar de app recarrega os ecrãs
+montados. Com o filtro em "Todas", o Dashboard mostra a repartição
+("WashInvoice: 3 · Punho: 1") por baixo dos KPIs — senão os totais não diriam de
+que app são.
+
+**Badges.** `POS` (azul) e `PUNHO` (verde) por linha, e só quando o filtro está em
+"Todas" — com o filtro fixo numa app, marcar cada linha seria ruído. Excepção: na
+ficha do cliente e na pesquisa global o badge aparece sempre.
+
+**Badge PRO** (#177): antes do nome do cliente, azul de marca, letras menores que o
+nome. Aparece para `tier` **pro e legado** — o modelo diz que legado se comporta
+como Pro, logo escondê-lo mostraria como Base quem tem os extras todos.
+
+**Push.** O SnackBar de foreground prefixa o título com a app (`[PUNHO] Novo
+terminal`) a partir de `data['app']`. Pushes sem esse campo mantêm o título
+original. **A notificação nativa (app em background/fechada) é desenhada pelo SO** a
+partir do payload `notification` — o prefixo aí tem de vir já da Edge Function
+`enviar-push`.
+
+**Não filtrados de propósito:** exportação de backup (um backup tem de ser completo)
+e pesquisa global (é o escape à vista filtrada). Ver `docs/design/multi_app.md`.
+
+Próximas apps a integrar: nenhuma prevista a curto prazo.
 
 ---
 
@@ -49,6 +129,7 @@ Marca comercial: **WashInvoice**. "WashControl" é nome interno para diferenciar
 | `pedidos_ajuda` | Pedidos de ajuda do cliente (POS insere; Control resolve) | INSERT anon aberto; SELECT/UPDATE authenticated (v1.4) |
 | `sugestoes` | Sugestões do cliente (POS insere; Control lê/marca/arquiva) | INSERT anon aberto; SELECT/UPDATE authenticated (v1.4) |
 | `licencas_audit` | Auditoria de `licencas` (INSERT/UPDATE/DELETE com actor, campos alterados, antes/depois JSONB) via trigger `trg_audit_licencas` (v1.4.3) | RLS: SELECT authenticated |
+| `versoes_apps` | Catálogo de versões por app (`pos`/`control`) para auto-update: build_number, url_download, obrigatoria (v1.7.0, #100). Preparada também para o POS | RLS ligado: `service_role` tudo; `authenticated` SELECT das activas |
 
 ---
 
@@ -58,6 +139,11 @@ Marca comercial: **WashInvoice**. "WashControl" é nome interno para diferenciar
 |---|---|---|---|
 | `assinar-documento` | Assina texto fiscal (Portaria 363/2010) com RSA. Chave privada em secret. Valida licença por `machine_id` via service_role. | Anon key (JWT auto) do POS | Deployed, verify_jwt=true |
 | `enviar-push` | Recebe `{title, body, data?}`, gera JWT OAuth2 do Google, chama FCM v1, envia para o admin registado | Autenticação custom via `EDGE_INVOKE_SECRET` | Deployed, verify_jwt=false, **testada e funcional** |
+| `validar-licenca` | POS valida a sua licença ao arranque. Devolve estado + `tier` + `preferencias_features` | Anon/publishable key do POS | Deployed (v2), verify_jwt=true |
+| `registar-terminal` | Auto-onboarding: cria linha de trial 5 dias, `tier='base'` | Anon/publishable key do POS | Deployed (v2), verify_jwt=true |
+| `sincronizar-empresa` | POS envia ficha da empresa + preferências de features | Anon/publishable key do POS | Deployed, verify_jwt=true |
+| `gerir-licenca` | **Control** muda licenças: prolongar, definir validade, suspender, reactivar, cancelar, mudar tier. Auditado em `licencas_audit` | JWT do admin (anon key sozinha → 401) | Deployed (v2), verify_jwt=true + `is_admin()` |
+| `versao-mais-recente` | Auto-update: dado `{app, build_number_local}` devolve a versão activa mais alta de `versoes_apps` e se há actualização. Sem gate de admin; lê com service_role. Reutilizável pelo POS (v1.7.0, #100) | JWT de qualquer sessão | Deployed, verify_jwt=true |
 
 > **v1.4.3:** as Edge Functions passam a estar **versionadas no repo** em
 > `supabase/functions/` (`enviar-push/`, `assinar-documento/` com `assinatura.ts`,
@@ -229,7 +315,103 @@ Problemas de dados mal tratados (não de render):
 - `../ROADMAP.md` (raiz do repo pai) — aviso bloqueante: sem RLS aplicado, base está aberta.
 - Este documento.
 
+### Ronda: painel de controlo remoto (18/07/2026)
+
+Branch `feature/painel-controlo-remoto` (a partir de `master`).
+
+Antes desta ronda, para dar 5 dias a um cliente que ligava, era preciso ir ao
+SQL do Supabase. Agora resolve-se em dois cliques no `DetalheClienteScreen` ou
+directamente na lista.
+
+- **Edge Function `gerir-licenca`**, com autorização em duas camadas: cliente
+  anon + header do caller para `getUser()` e `is_admin()`, e só depois
+  service_role para a mutação. `verify_jwt: true` sozinho **não** chegava — a
+  anon key também produz JWTs válidos. Verificado: chamada com anon key → 401.
+- **Migration aditiva `admins` + `is_admin()`.** Estavam definidas em
+  `supabase/rls_policies.sql` mas o ficheiro **nunca tinha sido aplicado** — a
+  função não existia na base. Não fecha RLS; isso continua no gate do Cesar.
+- **Toda a mutação de licença passa pela function.** `activar()` e
+  `actualizar()` do repositório ficaram `@Deprecated` e sem chamadores. Foi
+  preciso acrescentar a acção `definir_validade` porque a renovação usa uma
+  data escolhida à mão, que `prolongar` (5/15/30) não exprime.
+- **Auditoria em `licencas_audit`** — não se criou `audit_licencas`. Cada acção
+  produz duas linhas: a do trigger (`acao` nula, `actor_uid` nulo porque
+  service_role não tem `auth.uid()`) e a explícita da function, com o autor
+  verificado. O modal filtra por `acao is not null`.
+- **`tier` vs `plano`:** o chip de plano na UI lê `licencas.tier`.
+  `licencas.plano` não se toca — é a duração e entra na assinatura HMAC do
+  `licenca.json` do POS.
+- **Card de preferências read-only** com a mesma regra do `featureVisivel` do
+  POS: num terminal Base tudo aparece desligado, mesmo com o JSONB a `true`.
+- **28 testes novos**; suite **101 verde**, analyze limpo.
+
+⚠️ `licencas.tier` tem `default 'base'`, portanto as licenças existentes ficaram
+todas Base. Promover o terminal de teste a Pro antes de o exercitar.
+
+### Ronda: correcções da sessão de teste — v1.6.0 (19/07/2026)
+
+Mesmo branch `feature/painel-controlo-remoto`.
+
+- **401 na `gerir-licenca`.** O `supabase_flutter` auto-injecta a anon key no
+  `Authorization` do `functions.invoke`: o `verify_jwt: true` passava, mas o
+  `getUser()` dentro da função não encontrava utilizador e devolvia 401. O
+  cliente passa agora o `accessToken` da sessão explicitamente, e dá erro claro
+  ("inicia sessão de novo") quando não há sessão. Auditoria feita: o
+  `GerirLicencaService` é o **único** caller de Edge Functions no Control, não
+  havia mais nada para corrigir.
+- **Nome comercial.** `Licenca` e `Cliente` ganham `nomeComercial`. O destaque
+  na UI passa a ser o nome comercial — é por ele que se reconhece a loja — com
+  a designação social na linha pequena. Feito no `ContextoInstalacoes.nomeDe`,
+  que já alimentava lista, pesquisa e KPIs: uma alteração, todos os ecrãs.
+  Cascata: comercial (cliente → licença) → designação (idem) → NIF.
+- **Card "Último acesso".** "Sinal" e "Sinal diz" eram duas linhas e pareciam
+  dois sinais quando é um só. Fundidas numa: o método passa a ser a etiqueta
+  (`GPS: Lisboa`), com o ícone colorido à esquerda. Sem sinal mostra `—` em vez
+  de uma cidade órfã. "Quando" passa a dar data absoluta e relativa — "há 2
+  dias" sozinho não distingue um fim-de-semana de uma avaria. Mesmo tratamento
+  no detalhe de pedido de ajuda.
+- **19 testes novos**; suite **120 verde**, analyze limpo.
+
+Nota: a linha "Loja" que o prompt pedia já existia no card.
+
 ---
+
+### Ronda: mostrar IP e telefone — v1.6.2 (21/07/2026)
+
+Branch `feature/mostrar-ip-telefone`. Sprint pequeno, par do POS 2.0.6.
+
+- **#95**: o modelo `Ping` passa a ler `ip_publico`, `estado_licenca`,
+  `termos_aceites` e `origem` — o POS já os enviava desde a ronda de
+  observabilidade, faltava o Control lê-los. No `DetalheClienteScreen`, o card
+  "Último acesso" mostra `IP: <endereço>` quando o ping o traz. Os `select()`
+  dos pings já eram `*`, portanto não houve alteração de repositório.
+- **#96**: os dados do cliente ganham a linha "Telefone", com ícone que abre o
+  marcador do sistema (`Acoes.ligarPara`, o helper `tel:` já existente). Só
+  aparece quando o cliente tem telemóvel preenchido.
+- **6 testes novos**; suite **132 verde**, analyze limpo.
+
+### Ronda: hora local nos timestamps — v1.6.3 (22/07/2026)
+
+Branch `feature/webservice-series-control-v2-1` (patch em cima da ronda das
+séries, ainda por fazer merge). Bug apanhado no teste do POS 2.0.6 + APK 1.6.2.
+
+- **#101**: o card "Último acesso" mostrava a hora **1h a menos** (10:56 em vez
+  de 11:56) — exactamente o offset UTC↔WEST no verão. Causa: `created_at` é
+  `timestamptz` (guardado em UTC) e `DateTime.parse` devolve um DateTime com
+  `isUtc = true`; `Dates.data`/`Dates.dataHora` formatavam sem `.toLocal()`.
+- **Fix central**: `.toLocal()` dentro de `Dates.data` e `Dates.dataHora`
+  ([lib/core/dates.dart](../lib/core/dates.dart)). Como **todos** os widgets de
+  timestamp passam por este helper (detalhe do cliente, historial
+  `licencas_audit`, pedidos de ajuda, séries, sugestões), a correcção propaga-se
+  a todos de uma vez. `.toLocal()` é idempotente — num DateTime já local é no-op.
+- **Não tocado**: modelos (`Ping`/`Licenca`/`SerieComunicada` continuam a
+  receber UTC via `DateTime.parse`), schema Supabase (timezone continua UTC), e
+  os `timeago.format(...)` (relativos — imunes ao bug). Export CSV do backup
+  mantém `toIso8601String()` (UTC, correcto para dados).
+- **Testes TZ-robustos** em `test/dates_test.dart`: comparam contra a hora local
+  calculada em runtime (o runner do CI pode estar em qualquer timezone) e, com
+  offset ≠ 0, garantem que a hora UTC crua já não aparece. Suite **verde**,
+  analyze limpo (só o aviso pré-existente `anonKey` deprecated em main.dart).
 
 ## 7. Roadmap — o que falta
 

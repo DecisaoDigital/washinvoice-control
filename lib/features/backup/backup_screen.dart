@@ -49,6 +49,9 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   }
 
   Future<_BackupData> _carregar() async {
+    // **Sem filtro de app de propósito.** "Exportar tudo" tem de exportar
+    // tudo — um backup que só trouxesse a app seleccionada no momento seria
+    // um backup incompleto sem o dizer.
     final clientesF = ref.read(clientesRepoProvider).listar();
     final licencasF = ref.read(licencasRepoProvider).listar();
     final pingsF = ref.read(pingsRepoProvider).ultimosPorInstalacao();
@@ -85,23 +88,23 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       );
 
   String _csvLicencas(_BackupData d) => Csv.documento(
-        ['id', 'cliente_id', 'machine_id', 'nif', 'nome', 'plano', 'validade',
-            'activa', 'oferta', 'serie', 'criado_em'],
+        ['id', 'app', 'cliente_id', 'machine_id', 'nif', 'nome', 'plano',
+            'validade', 'activa', 'oferta', 'serie', 'criado_em'],
         [
           for (final l in d.licencas)
-            [l.id, l.clienteId, l.machineId, l.nif, l.nome, l.plano,
+            [l.id, l.app, l.clienteId, l.machineId, l.nif, l.nome, l.plano,
                 Dates.data(l.validade), l.activa, l.oferta, l.serie,
                 l.criadoEm.toIso8601String()],
         ],
       );
 
   String _csvPedidos(_BackupData d) => Csv.documento(
-        ['id', 'machine_id', 'nif', 'cliente', 'criado_em', 'resolvido_em',
-            'duracao', 'notas'],
+        ['id', 'app', 'machine_id', 'nif', 'cliente', 'criado_em',
+            'resolvido_em', 'duracao', 'notas'],
         [
           for (final p in d.pedidos)
             [
-              p.id, p.machineId, p.nif,
+              p.id, p.app, p.machineId, p.nif,
               d.ctx.nomeDe(machineId: p.machineId, nif: p.nif),
               p.criadoEm.toIso8601String(),
               p.resolvidoEm?.toIso8601String() ?? '',
@@ -112,12 +115,12 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       );
 
   String _csvSugestoes(_BackupData d) => Csv.documento(
-        ['id', 'machine_id', 'nif', 'cliente', 'texto', 'criado_em', 'lida',
-            'marcada', 'arquivada'],
+        ['id', 'app', 'machine_id', 'nif', 'cliente', 'texto', 'criado_em',
+            'lida', 'marcada', 'arquivada'],
         [
           for (final s in d.sugestoes)
             [
-              s.id, s.machineId, s.nif,
+              s.id, s.app, s.machineId, s.nif,
               d.ctx.nomeDe(machineId: s.machineId ?? '', nif: s.nif),
               s.texto, s.criadoEm.toIso8601String(), s.lida, s.marcada,
               s.arquivada,
@@ -182,7 +185,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
           if (snapshot.hasError) {
             return ErroView(
                 erro: snapshot.error!,
-                onRetry: () => setState(() => _future = _carregar()));
+                onRetry: () => setState(() { _future = _carregar(); }));
           }
           final d = snapshot.data!;
           return ListView(

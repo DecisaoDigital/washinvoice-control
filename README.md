@@ -144,6 +144,20 @@ O modelo de acesso (ver [`supabase/rls_policies.sql`](supabase/rls_policies.sql)
 3. Sem este passo, `is_admin()` devolve `false` para todos e o Control
    autenticado fica sem acesso a nenhuma tabela.
 
+### Registo de organizações e utilizadores
+
+1. Correr `supabase/acessos_organizacoes.sql` no SQL Editor depois de
+   `supabase/rls_policies.sql`.
+2. O primeiro utilizador do WashInvoice Control continua a ter de ser marcado
+   como admin global em `public.admins` (secção anterior). É esse utilizador
+   que aprova, recusa e revoga pedidos no separador **Acessos**.
+3. Todas as contas criadas pela app ficam pendentes. O pedido guarda a origem
+   (`livre` ou `convite`), a organização indicada e o cargo pretendido; nunca
+   recebe acesso automaticamente.
+4. O mesmo script acrescenta `organizacao_id` aos dados operacionais e recria
+   as policies RLS: uma conta aprovada só consegue ler ou escrever dados da
+   sua organização. O admin global do Control mantém a visão completa.
+
 ### Provisionar um terminal (POS) — manual, nesta fase
 
 Para os primeiros clientes o provisionamento é manual:

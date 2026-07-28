@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../core/app_colors.dart';
+import '../../core/app_filter/app_filter_provider.dart';
 import '../../core/app_radius.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_theme.dart';
@@ -49,11 +50,13 @@ class _SugestoesScreenState extends ConsumerState<SugestoesScreen> {
     final licencasRepo = ref.read(licencasRepoProvider);
     final pingsRepo = ref.read(pingsRepoProvider);
 
-    final porLer = sugestoesRepo.listarPorLer();
-    final arquivo = sugestoesRepo.listarArquivo();
+    final app = ref.read(appFilterProvider).valorApp;
+
+    final porLer = sugestoesRepo.listarPorLer(app: app);
+    final arquivo = sugestoesRepo.listarArquivo(app: app);
     final clientes = clientesRepo.listar();
-    final licencas = licencasRepo.listar();
-    final pings = pingsRepo.ultimosPorInstalacao();
+    final licencas = licencasRepo.listar(app: app);
+    final pings = pingsRepo.ultimosPorInstalacao(app: app);
     await Future.wait([porLer, arquivo, clientes, licencas, pings]);
 
     return _SugestoesData(
@@ -68,7 +71,7 @@ class _SugestoesScreenState extends ConsumerState<SugestoesScreen> {
   }
 
   Future<void> _recarregar() async {
-    setState(() => _future = _carregar());
+    setState(() { _future = _carregar(); });
     await _future;
   }
 
@@ -92,8 +95,14 @@ class _SugestoesScreenState extends ConsumerState<SugestoesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(appFilterProvider, (_, __) => _recarregar());
+
     return Scaffold(
       appBar: AppBar(
+        actions: const [
+          WiAppSelector(),
+          SizedBox(width: AppSpacing.sm),
+        ],
         title: FutureBuilder<_SugestoesData>(
           future: _future,
           builder: (context, snapshot) {
@@ -286,6 +295,7 @@ class _CardPorLer extends StatelessWidget {
             children: [
               const Icon(Icons.lightbulb, color: AppColors.roxo700, size: 22),
               const SizedBox(width: AppSpacing.sm),
+              WiAppBadgeAuto(sugestao.app),
               Expanded(child: Text(nome, style: AppText.bodyStrong)),
               Text('há $tempo', style: AppText.caption),
             ],
@@ -395,8 +405,15 @@ class _CardArquivo extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(nome, style: AppText.bodyStrong, maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                Row(
+                  children: [
+                    WiAppBadgeAuto(sugestao.app),
+                    Expanded(
+                      child: Text(nome, style: AppText.bodyStrong, maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                  ],
+                ),
                 Text(sugestao.texto,
                     style: AppText.caption,
                     maxLines: 1,

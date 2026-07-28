@@ -4,6 +4,7 @@ import 'package:timeago/timeago.dart' as timeago;
 
 import '../../core/acoes.dart';
 import '../../core/app_colors.dart';
+import '../../core/app_filter/app_filter_provider.dart';
 import '../../core/app_radius.dart';
 import '../../core/app_spacing.dart';
 import '../../core/app_theme.dart';
@@ -58,11 +59,13 @@ class _PedidosAjudaScreenState extends ConsumerState<PedidosAjudaScreen> {
     final licencasRepo = ref.read(licencasRepoProvider);
     final pingsRepo = ref.read(pingsRepoProvider);
 
-    final abertos = ajudaRepo.listarAbertos();
-    final historico = ajudaRepo.listarHistorico();
+    final app = ref.read(appFilterProvider).valorApp;
+
+    final abertos = ajudaRepo.listarAbertos(app: app);
+    final historico = ajudaRepo.listarHistorico(app: app);
     final clientes = clientesRepo.listar();
-    final licencas = licencasRepo.listar();
-    final pings = pingsRepo.ultimosPorInstalacao();
+    final licencas = licencasRepo.listar(app: app);
+    final pings = pingsRepo.ultimosPorInstalacao(app: app);
     await Future.wait([abertos, historico, clientes, licencas, pings]);
 
     return _PedidosData(
@@ -77,7 +80,7 @@ class _PedidosAjudaScreenState extends ConsumerState<PedidosAjudaScreen> {
   }
 
   Future<void> _recarregar() async {
-    setState(() => _future = _carregar());
+    setState(() { _future = _carregar(); });
     await _future;
   }
 
@@ -96,9 +99,15 @@ class _PedidosAjudaScreenState extends ConsumerState<PedidosAjudaScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(appFilterProvider, (_, __) => _recarregar());
+
     return Scaffold(
       appBar: AppBar(
         title: const _TituloAppBar(),
+        actions: const [
+          WiAppSelector(),
+          SizedBox(width: AppSpacing.sm),
+        ],
       ),
       body: FutureBuilder<_PedidosData>(
         future: _future,
@@ -292,7 +301,18 @@ class _CardAberto extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(nome, style: AppText.bodyStrong),
+                    Row(
+                      children: [
+                        WiAppBadgeAuto(pedido.app),
+                        Expanded(
+                          child: Text(
+                            nome,
+                            style: AppText.bodyStrong,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 2),
                     Text(sinalLocalidade, style: AppText.caption),
                     Text(
@@ -405,8 +425,15 @@ class _CardHistorico extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(nome, style: AppText.bodyStrong, maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                Row(
+                  children: [
+                    WiAppBadgeAuto(pedido.app),
+                    Expanded(
+                      child: Text(nome, style: AppText.bodyStrong, maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                  ],
+                ),
                 Text(
                   'Resolvido $resolvido · duração ${formatarDuracao(pedido.duracao)}',
                   style: AppText.caption,

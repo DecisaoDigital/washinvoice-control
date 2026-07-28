@@ -12,9 +12,13 @@ import 'core/app_theme.dart';
 import 'core/erros.dart';
 import 'core/supabase_config.dart';
 import 'features/auth/login_screen.dart';
+import 'features/auth/acesso_pendente_screen.dart';
 import 'features/nav/home_shell.dart';
+import 'repositories/providers.dart';
 import 'services/fcm_background_handler.dart';
 import 'services/fcm_service.dart';
+import 'services/push_routing.dart';
+import 'services/push_titulo.dart';
 
 /// Estado de autenticação reactivo.
 ///
@@ -32,6 +36,19 @@ final sessaoProvider = StreamProvider<Session?>((ref) async* {
   await for (final estado in auth.onAuthStateChange) {
     yield estado.session;
   }
+});
+
+/// Estado do pedido de acesso da sessão actual: `aprovado`, `pendente`,
+/// `recusado` ou `revogado`.
+///
+/// Ter sessão Supabase não basta para entrar: o acesso é sempre libertado à
+/// mão no Control. Fica num provider (e não num `FutureBuilder` inline) para
+/// o RPC correr uma única vez por sessão em vez de a cada rebuild, e para
+/// poder ser recarregado/substituído nos testes.
+final estadoAcessoProvider = FutureProvider<String>((ref) async {
+  // Depende da sessão: ao entrar ou sair, o estado é recalculado.
+  ref.watch(sessaoProvider);
+  return ref.read(acessosRepoProvider).meuEstado();
 });
 
 /// Sinal para o Dashboard recarregar quando chega um push relevante (novo
@@ -82,6 +99,49 @@ final _fcmSincSessaoProvider = Provider<void>((ref) {
   }, fireImmediately: true);
 });
 
+/// Verifica se há build novo do Control: uma vez ao ganhar sessão e depois
+/// como safety net diário (24h). Alinhado com o POS (#103, #119) — 6h era
+/// excessivo para o cadence real de releases do Control. "Side-effect only",
+/// tal como o [_fcmSincSessaoProvider]:
+/// observa `sessaoProvider` e preenche `actualizacaoDisponivelProvider`, que o
+/// banner e o modal em [HomeShell] mostram.
+///
+/// Reage à troca de *utilizador*, não a cada refresh de token (senão o timer
+/// reiniciava de hora a hora). Falha de rede é engolida em silêncio — uma
+/// verificação falhada nunca deve interromper o admin.
+final _verificadorActualizacaoProvider = Provider<void>((ref) {
+  Timer? timer;
+  String? ultimoUser;
+
+  ref.onDispose(() => timer?.cancel());
+
+  Future<void> verificar() async {
+    try {
+      final info = await ref.read(actualizacaoServiceProvider).verificar();
+      if (info != null) {
+        ref.read(actualizacaoDisponivelProvider.notifier).state = info;
+      }
+    } catch (_) {
+      // Rede off / servidor em baixo: silencioso de propósito.
+    }
+  }
+
+  ref.listen<AsyncValue<Session?>>(sessaoProvider, (anterior, actual) {
+    final userId = actual.value?.user.id;
+    if (userId == ultimoUser) return; // mero refresh de token: ignorar
+    ultimoUser = userId;
+    timer?.cancel();
+    timer = null;
+    if (userId != null) {
+      unawaited(verificar());
+      timer = Timer.periodic(const Duration(hours: 24), (_) => verificar());
+    } else {
+      // Logout: limpa qualquer banner pendente para não sobreviver à sessão.
+      ref.read(actualizacaoDisponivelProvider.notifier).state = null;
+    }
+  }, fireImmediately: true);
+});
+
 class WashInvoiceControlApp extends ConsumerWidget {
   const WashInvoiceControlApp({super.key});
 
@@ -89,6 +149,8 @@ class WashInvoiceControlApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Observa sessão ↔ token FCM (efeitos colaterais, sem valor devolvido).
     ref.watch(_fcmSincSessaoProvider);
+    // Observa sessão → verificação de actualizações (arranque + safety net 24h).
+    ref.watch(_verificadorActualizacaoProvider);
 
     final sessao = ref.watch(sessaoProvider);
     return MaterialApp(
@@ -103,32 +165,92 @@ class WashInvoiceControlApp extends ConsumerWidget {
         // Falha a ler o estado de autenticação: cai no Login por segurança.
         error: (_, __) => const LoginScreen(),
         // Sessão presente → HomeShell. Ausente (confirmado) → LoginScreen.
-        data: (session) => session != null
-            ? const _FcmForegroundListener(child: HomeShell())
-            : const LoginScreen(),
+        data: (session) => session != null ? const _AcessoInicial() : const LoginScreen(),
       ),
     );
   }
 }
 
-/// Wrapper que escuta pushes recebidos com a app em foreground e mostra
-/// SnackBar. Só é montado quando há sessão activa (dentro do HomeShell).
-class _FcmForegroundListener extends StatefulWidget {
+class _AcessoInicial extends ConsumerWidget {
+  const _AcessoInicial();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ref.watch(estadoAcessoProvider).when(
+      loading: () => const _SplashScreen(),
+      // Sem resposta do RPC (rede em baixo, SQL de acessos ainda não aplicado)
+      // não se abre a app: mostra-se o erro com retentativa, em vez de ficar
+      // preso no splash.
+      error: (erro, _) => Scaffold(
+        appBar: AppBar(
+          title: const Text('WashInvoice Control'),
+          actions: [
+            // Escape para não ficar preso num erro persistente.
+            IconButton(
+              tooltip: 'Terminar sessão',
+              icon: const Icon(Icons.logout),
+              onPressed: () => Supabase.instance.client.auth.signOut(),
+            ),
+          ],
+        ),
+        body: ErroView(
+          erro: erro,
+          onRetry: () => ref.invalidate(estadoAcessoProvider),
+        ),
+      ),
+      data: (estado) => estado == 'aprovado'
+          ? const _FcmForegroundListener(child: HomeShell())
+          : AcessoPendenteScreen(estado: estado),
+    );
+  }
+}
+
+/// Wrapper que trata os pushes enquanto há sessão activa: mostra SnackBar para
+/// os que chegam com a app em foreground, e encaminha para o ecrã certo os que
+/// o Cesar toca. Só é montado quando o acesso está aprovado (envolve o
+/// HomeShell).
+class _FcmForegroundListener extends ConsumerStatefulWidget {
   final Widget child;
   const _FcmForegroundListener({required this.child});
 
   @override
-  State<_FcmForegroundListener> createState() => _FcmForegroundListenerState();
+  ConsumerState<_FcmForegroundListener> createState() =>
+      _FcmForegroundListenerState();
 }
 
-class _FcmForegroundListenerState extends State<_FcmForegroundListener> {
+class _FcmForegroundListenerState
+    extends ConsumerState<_FcmForegroundListener> {
   StreamSubscription<RemoteMessage>? _sub;
+  StreamSubscription<RemoteMessage>? _subAberturas;
 
   @override
   void initState() {
     super.initState();
+
+    // Toque numa notificação com a app em background. O destino sai de
+    // `data['tipo']` — ver `destinoDoPush`. Quem navega é o HomeShell.
+    _subAberturas = FirebaseMessaging.onMessageOpenedApp.listen((mensagem) {
+      _encaminhar(mensagem);
+    });
+
+    // Toque numa notificação com a app fechada: a mensagem que a arrancou fica
+    // guardada e só se lê uma vez.
+    unawaited(
+      FirebaseMessaging.instance.getInitialMessage().then((mensagem) {
+        if (mensagem != null) _encaminhar(mensagem);
+      }).catchError((_) {
+        // Sem Firebase válido não há mensagem inicial — a app abre no
+        // Dashboard, como sempre.
+      }),
+    );
+
     _sub = FirebaseMessaging.onMessage.listen((mensagem) {
-      final titulo = mensagem.notification?.title ?? 'Notificação';
+      // `data['app']` distingue de que app veio o push (POS / Punho). Só o
+      // SnackBar de foreground é prefixado — a notificação nativa é desenhada
+      // pelo SO e tem de trazer o prefixo já da Edge Function.
+      final titulo = tituloComApp(
+        mensagem.notification?.title ?? 'Notificação',
+        mensagem.data['app'] as String?,
+      );
       final corpo = mensagem.notification?.body ?? '';
 
       // O SnackBar em foreground é silencioso (ao contrário da notificação
@@ -150,9 +272,20 @@ class _FcmForegroundListenerState extends State<_FcmForegroundListener> {
     });
   }
 
+  /// Publica o destino do push para o HomeShell o executar. Pushes sem `tipo`
+  /// (os antigos) não têm destino conhecido e ficam sem navegação — a app abre
+  /// onde estava, tal como antes de haver routing.
+  void _encaminhar(RemoteMessage mensagem) {
+    if (!mounted) return;
+    final destino = destinoDoPush(mensagem.data);
+    if (destino == null) return;
+    ref.read(destinoPushProvider.notifier).state = destino;
+  }
+
   @override
   void dispose() {
     _sub?.cancel();
+    _subAberturas?.cancel();
     super.dispose();
   }
 
