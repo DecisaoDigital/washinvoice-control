@@ -57,8 +57,13 @@ class FakePunhoAdmin extends PunhoAdminRepository {
 
   final decisoes = <Map<String, Object?>>[];
 
+  /// Quantas vezes o ecrã foi à base buscar a lista — é assim que se vê se um
+  /// refresh aconteceu mesmo, e não só se o conteúdo mudou.
+  int listagens = 0;
+
   @override
   Future<List<PunhoPedido>> listarPedidos({String estado = 'pendente'}) async {
+    listagens++;
     if (erro != null) throw erro!;
     return porEstado[estado] ?? const [];
   }

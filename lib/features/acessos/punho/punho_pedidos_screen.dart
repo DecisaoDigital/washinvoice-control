@@ -10,6 +10,18 @@ import '../../../repositories/providers.dart';
 import '../../../repositories/punho_admin_repository.dart';
 import 'punho_decidir_modal.dart';
 
+/// Ticker que pede ao [PunhoPedidosScreen] para ir buscar os dados outra vez.
+///
+/// Existe por causa do `IndexedStack` do `HomeShell`: as páginas dos separadores
+/// ficam montadas para sempre, o `initState` corre uma única vez e mudar de
+/// separador não desmonta nada. Sem este sinal, entrar em "Punho" mostrava a
+/// lista tal como estava na primeira montagem — pedidos já decididos ou até
+/// já apagados continuavam à vista.
+///
+/// Incrementar = "os dados podem estar velhos". Quem incrementa: o `HomeShell`,
+/// ao entrar no separador e ao aterrar aqui vindo de um push.
+final punhoPedidosRefreshProvider = StateProvider<int>((_) => 0);
+
 /// Pedidos de acesso à app **Punho**, decididos à mão pelo admin global.
 ///
 /// Distinto de `PedidosAcessoScreen`, que trata dos acessos ao próprio Control:
@@ -25,7 +37,8 @@ class PunhoPedidosScreen extends ConsumerStatefulWidget {
   ConsumerState<PunhoPedidosScreen> createState() => _PunhoPedidosScreenState();
 }
 
-class _PunhoPedidosScreenState extends ConsumerState<PunhoPedidosScreen> {
+class _PunhoPedidosScreenState extends ConsumerState<PunhoPedidosScreen>
+    with WidgetsBindingObserver {
   String _estado = 'pendente';
   late Future<_Dados> _future;
   bool _aDecidir = false;
@@ -33,7 +46,28 @@ class _PunhoPedidosScreenState extends ConsumerState<PunhoPedidosScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _recarregar();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Voltar ao Control depois de ler um push noutra app é o momento em que os
+  /// dados à vista têm mais probabilidade de já não existirem na base.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) recarregarSePreciso();
+  }
+
+  /// Recarrega, excepto a meio de uma decisão: trocar o future debaixo de uma
+  /// RPC em curso só dava um pisca-pisca e escondia o resultado que aí vem.
+  void recarregarSePreciso() {
+    if (!mounted || _aDecidir) return;
+    setState(_recarregar);
   }
 
   void _recarregar() {
@@ -96,6 +130,12 @@ class _PunhoPedidosScreenState extends ConsumerState<PunhoPedidosScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Entrada no separador / aterragem vinda de um push.
+    ref.listen<int>(
+      punhoPedidosRefreshProvider,
+      (_, __) => recarregarSePreciso(),
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pedidos Punho'),
