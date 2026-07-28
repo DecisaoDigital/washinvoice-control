@@ -17,6 +17,7 @@ import 'features/nav/home_shell.dart';
 import 'repositories/providers.dart';
 import 'services/fcm_background_handler.dart';
 import 'services/fcm_service.dart';
+import 'services/push_routing.dart';
 import 'services/push_titulo.dart';
 
 /// Estado de autenticação reactivo.
@@ -203,22 +204,45 @@ class _AcessoInicial extends ConsumerWidget {
   }
 }
 
-/// Wrapper que escuta pushes recebidos com a app em foreground e mostra
-/// SnackBar. Só é montado quando há sessão activa (dentro do HomeShell).
-class _FcmForegroundListener extends StatefulWidget {
+/// Wrapper que trata os pushes enquanto há sessão activa: mostra SnackBar para
+/// os que chegam com a app em foreground, e encaminha para o ecrã certo os que
+/// o Cesar toca. Só é montado quando o acesso está aprovado (envolve o
+/// HomeShell).
+class _FcmForegroundListener extends ConsumerStatefulWidget {
   final Widget child;
   const _FcmForegroundListener({required this.child});
 
   @override
-  State<_FcmForegroundListener> createState() => _FcmForegroundListenerState();
+  ConsumerState<_FcmForegroundListener> createState() =>
+      _FcmForegroundListenerState();
 }
 
-class _FcmForegroundListenerState extends State<_FcmForegroundListener> {
+class _FcmForegroundListenerState
+    extends ConsumerState<_FcmForegroundListener> {
   StreamSubscription<RemoteMessage>? _sub;
+  StreamSubscription<RemoteMessage>? _subAberturas;
 
   @override
   void initState() {
     super.initState();
+
+    // Toque numa notificação com a app em background. O destino sai de
+    // `data['tipo']` — ver `destinoDoPush`. Quem navega é o HomeShell.
+    _subAberturas = FirebaseMessaging.onMessageOpenedApp.listen((mensagem) {
+      _encaminhar(mensagem);
+    });
+
+    // Toque numa notificação com a app fechada: a mensagem que a arrancou fica
+    // guardada e só se lê uma vez.
+    unawaited(
+      FirebaseMessaging.instance.getInitialMessage().then((mensagem) {
+        if (mensagem != null) _encaminhar(mensagem);
+      }).catchError((_) {
+        // Sem Firebase válido não há mensagem inicial — a app abre no
+        // Dashboard, como sempre.
+      }),
+    );
+
     _sub = FirebaseMessaging.onMessage.listen((mensagem) {
       // `data['app']` distingue de que app veio o push (POS / Punho). Só o
       // SnackBar de foreground é prefixado — a notificação nativa é desenhada
@@ -248,9 +272,20 @@ class _FcmForegroundListenerState extends State<_FcmForegroundListener> {
     });
   }
 
+  /// Publica o destino do push para o HomeShell o executar. Pushes sem `tipo`
+  /// (os antigos) não têm destino conhecido e ficam sem navegação — a app abre
+  /// onde estava, tal como antes de haver routing.
+  void _encaminhar(RemoteMessage mensagem) {
+    if (!mounted) return;
+    final destino = destinoDoPush(mensagem.data);
+    if (destino == null) return;
+    ref.read(destinoPushProvider.notifier).state = destino;
+  }
+
   @override
   void dispose() {
     _sub?.cancel();
+    _subAberturas?.cancel();
     super.dispose();
   }
 
