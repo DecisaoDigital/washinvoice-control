@@ -66,6 +66,16 @@ Deno.serve(async (req) => {
     return json(400, { erro: 'build_number_local tem de ser um número' });
   }
 
+  // Os APKs Android do Punho são publicados com --split-per-abi. O Flutter
+  // prefixa o versionCode com 1000/2000/4000 conforme a arquitectura, embora
+  // todos pertençam ao mesmo build lógico (por exemplo, 1009/2009/4009 = 9).
+  // O catálogo guarda esse build lógico para que uma única versão Android
+  // funcione em todas as arquitecturas.
+  const buildComparavel =
+    app === 'punho' && plataforma === 'android' && buildLocal >= 1000
+      ? buildLocal % 1000
+      : buildLocal;
+
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE, {
     auth: { persistSession: false },
   });
@@ -86,7 +96,7 @@ Deno.serve(async (req) => {
   }
 
   // Sem versão catalogada ou já na mais recente → nada a fazer.
-  if (!v || buildLocal >= v.build_number) {
+  if (!v || buildComparavel >= v.build_number) {
     return json(200, { actualizacao_disponivel: false });
   }
 
