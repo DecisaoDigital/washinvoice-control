@@ -93,6 +93,61 @@ class _LoginScreenState extends State<LoginScreen> {
     } finally { if (mounted) setState(() => _aEntrar = false); }
   }
 
+  Future<void> _esqueciPalavraPasse() async {
+    final controller = TextEditingController(text: _emailCtrl.text.trim());
+    final email = await showDialog<String?>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Recuperar palavra-passe'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Envio-te um email com o link para definir uma nova palavra-passe.',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(labelText: 'Email'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Enviar'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (email == null || email.isEmpty) return;
+    if (!email.contains('@') || !email.contains('.')) {
+      setState(() => _erro = 'Email invalido.');
+      return;
+    }
+    setState(() { _aEntrar = true; _erro = null; });
+    try {
+      await Supabase.instance.client.auth.resetPasswordForEmail(email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Se existir uma conta com esse email, receberas o link em breve.'),
+        ),
+      );
+    } catch (e) {
+      if (mounted) setState(() => _erro = 'Nao foi possivel enviar. Confirma a ligacao.');
+    } finally {
+      if (mounted) setState(() => _aEntrar = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -226,6 +281,11 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ],
             const SizedBox(height: AppSpacing.md),
+            if (!_criarConta)
+              TextButton(
+                onPressed: _aEntrar ? null : _esqueciPalavraPasse,
+                child: const Text('Esqueci a palavra-passe'),
+              ),
             TextButton(
               onPressed: _aEntrar ? null : () => setState(() { _criarConta = !_criarConta; _erro = null; }),
               child: Text(_criarConta ? 'Já tenho conta' : 'Criar conta'),

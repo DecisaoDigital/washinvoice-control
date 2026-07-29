@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -97,6 +98,73 @@ class _SobreScreenState extends ConsumerState<SobreScreen> {
     );
   }
 
+  Future<void> _mudarPalavraPasse() async {
+    final novaCtrl = TextEditingController();
+    final confirmaCtrl = TextEditingController();
+    var oculta = true;
+    final novaFinal = await showDialog<String?>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setSt) => AlertDialog(
+        title: const Text('Mudar palavra-passe'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: novaCtrl,
+              obscureText: oculta,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: 'Nova palavra-passe',
+                helperText: 'Pelo menos 8 caracteres.',
+                suffixIcon: IconButton(
+                  icon: Icon(oculta ? Icons.visibility : Icons.visibility_off),
+                  onPressed: () => setSt(() => oculta = !oculta),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: confirmaCtrl,
+              obscureText: oculta,
+              decoration: const InputDecoration(labelText: 'Confirmar'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final n = novaCtrl.text;
+              final c = confirmaCtrl.text;
+              if (n.length < 8) { ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Pelo menos 8 caracteres.'))); return; }
+              if (n != c) { ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('As palavras-passe nao coincidem.'))); return; }
+              Navigator.pop(ctx, n);
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      )),
+    );
+    novaCtrl.dispose();
+    confirmaCtrl.dispose();
+    if (novaFinal == null || novaFinal.isEmpty) return;
+    try {
+      await Supabase.instance.client.auth.updateUser(UserAttributes(password: novaFinal));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Palavra-passe actualizada.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Nao foi possivel: ${e.toString().split("\n").first}')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final email = Supabase.instance.client.auth.currentUser?.email;
@@ -148,6 +216,24 @@ class _SobreScreenState extends ConsumerState<SobreScreen> {
                           : 'Verificar actualização'),
                     ),
                   ),
+                  // #222: se ja ha actualizacao disponivel, meter tambem o botao
+                  // Descarregar inline (em vez de so o banner do HomeShell).
+                  if (ref.watch(actualizacaoDisponivelProvider) != null) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: FilledButton.icon(
+                        onPressed: () async {
+                          final info = ref.read(actualizacaoDisponivelProvider);
+                          if (info == null) return;
+                          final url = Uri.parse(info.urlDownload);
+                          await launchUrl(url, mode: LaunchMode.externalApplication);
+                        },
+                        icon: const Icon(Icons.download),
+                        label: Text('Descarregar v${ref.watch(actualizacaoDisponivelProvider)?.versaoActual}'),
+                      ),
+                    ),
+                  ],
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
@@ -201,6 +287,17 @@ class _SobreScreenState extends ConsumerState<SobreScreen> {
                 titulo: 'Sessão',
                 children: [
                   WiLinhaKV(rotulo: 'Utilizador', valor: email ?? '—'),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: _mudarPalavraPasse,
+                        icon: const Icon(Icons.password, size: 16),
+                        label: const Text('Mudar palavra-passe'),
+                      ),
+                    ),
+                  ),
                   WiLinhaKV(
                     rotulo: 'Último ping',
                     valor: data.ultimoPing == null

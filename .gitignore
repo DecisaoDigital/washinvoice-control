@@ -61,3 +61,4 @@ android/app/google-services.json
 
 # Estado local do Supabase CLI (ref do projecto ligado nesta maquina).
 supabase/.temp/
+android/key.properties

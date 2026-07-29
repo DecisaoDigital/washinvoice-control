@@ -154,13 +154,17 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           ),
           // Ícone deliberadamente diferente do de "Acessos": são coisas
           // distintas — equipa do escritório vs. clientes da app Punho.
-          if (admin)
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.approval),
-              label: 'Punho',
-            ),
         ],
       ),
+      floatingActionButton: admin && indice != _indicePunho
+          ? FloatingActionButton.small(
+              tooltip: 'Pedidos Punho',
+              backgroundColor: AppColors.azul,
+              foregroundColor: Colors.white,
+              onPressed: () => _seleccionar(_indicePunho!),
+              child: const Icon(Icons.approval),
+            )
+          : null,
     );
   }
 }
