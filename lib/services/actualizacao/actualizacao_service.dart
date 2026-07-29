@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -60,10 +62,18 @@ class ActualizacaoService {
     final build = await _buildLocal();
     final data = await _invocar({
       'app': 'control',
+      'plataforma': _plataforma,
       'build_number_local': build,
     });
     if (data == null) return null;
     if (data['actualizacao_disponivel'] != true) return null;
     return ActualizacaoInfo.fromJson(data);
   }
+
+  String get _plataforma => switch (Platform.operatingSystem) {
+    'windows' => 'windows',
+    'android' => 'android',
+    'ios' => 'ios',
+    _ => 'all',
+  };
 }
