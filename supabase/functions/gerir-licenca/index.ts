@@ -16,9 +16,16 @@
 //   2. Só depois, cliente service_role para a mutação em si.
 //
 // NÃO toca em `licencas.plano`: é a *duração* e entra na base da assinatura
-// HMAC do licenca.json do POS (`nif|machine_id|validade|plano[|serie]`).
+// HMAC do licenca.json do POS
+// (`nif|machine_id|validade|plano[|serie][|<serie ou vazio>|chave_mestre]`).
 // Alterá-la invalidaria a licença instalada no terminal. O nível comercial
 // vive em `licencas.tier`, fora da assinatura.
+//
+// `atribuir_chave_mestre` é a excepção que confirma a regra: escreve um campo
+// QUE ENTRA na assinatura. Por isso não chega correr a acção — é preciso gerar
+// e instalar o `licenca.json` novo a seguir, senão a base assinada no ficheiro
+// do terminal deixa de bater com a da base de dados. O Control faz as duas
+// coisas no mesmo gesto (ver `detalhe_cliente_screen.dart`).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 
@@ -46,7 +53,8 @@ type Accao =
   | 'suspender'
   | 'reactivar'
   | 'cancelar'
-  | 'mudar_tier';
+  | 'mudar_tier'
+  | 'atribuir_chave_mestre';
 
 const ACCOES: Accao[] = [
   'prolongar',
@@ -55,7 +63,19 @@ const ACCOES: Accao[] = [
   'reactivar',
   'cancelar',
   'mudar_tier',
+  'atribuir_chave_mestre',
 ];
+
+/** Prefixo legível da chave mestre, tirado do nome da máquina. Decoração para
+ *  se reconhecer a linha e a ler ao telefone — não tem significado técnico e a
+ *  chave não deriva dele. */
+function prefixoDeHost(infoHost: unknown): string | null {
+  if (typeof infoHost !== 'object' || infoHost === null) return null;
+  const h = (infoHost as Record<string, unknown>).hostname;
+  if (typeof h !== 'string') return null;
+  const letras = h.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 6);
+  return letras.length === 0 ? null : letras;
+}
 
 /** `YYYY-MM-DD` válido? */
 function dataValida(v: unknown): v is string {
@@ -230,6 +250,39 @@ Deno.serve(async (req) => {
       patch.tier = tier;
       break;
     }
+    case 'atribuir_chave_mestre': {
+      // A chave é da EMPRESA, não do terminal: a RPC devolve a que já existe
+      // para este NIF e só cria uma se não houver nenhuma. É isso que faz o
+      // segundo terminal do mesmo cliente entrar na mesma empresa em vez de
+      // fundar outra — e é por isso que se chama sempre, mesmo que a linha já
+      // tenha `chave_mestre` (assim uma linha dessincronizada corrige-se
+      // sozinha).
+      const prefixo = typeof parametros.prefixo === 'string'
+        ? parametros.prefixo
+        : prefixoDeHost(antes.info_host);
+
+      const { data: chave, error: erroChave } = await supabase.rpc(
+        'obter_ou_criar_chave_mestre',
+        {
+          p_nif: antes.nif,
+          p_machine_id: machineId,
+          p_app: antes.app,
+          p_nome: antes.nome,
+          p_prefixo: prefixo,
+        },
+      );
+
+      if (erroChave || typeof chave !== 'string' || chave.length === 0) {
+        console.error('erro obter_ou_criar_chave_mestre', erroChave);
+        return json(500, {
+          ok: false,
+          erro: erroChave?.message ?? 'não foi possível obter a chave mestre',
+        });
+      }
+
+      patch.chave_mestre = chave;
+      break;
+    }
   }
 
   const { data: actualizadas, error: erroUpdate } = await supabase
@@ -280,6 +333,7 @@ Deno.serve(async (req) => {
       validade: depois.validade,
       tier: depois.tier,
       plano: depois.plano,
+      chave_mestre: depois.chave_mestre ?? null,
       preferencias_features: depois.preferencias_features ?? {},
     },
   });

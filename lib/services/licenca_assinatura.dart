@@ -24,15 +24,31 @@ const String _hmacKey =
 /// **retrocompatível**: quando ausente/vazia a base é **idêntica** às licenças
 /// já emitidas; quando presente, é acrescentada no fim (`…|plano|serie`), de
 /// modo que só as licenças novas (com série) a incluem na assinatura.
+///
+/// [chaveMestre] (a chave da empresa, metade do par `mestre + dispositivo`) é
+/// **opcional** pela mesma razão: as licenças emitidas antes do modelo do par
+/// não a têm e continuam a validar exactamente como antes.
+///
+/// **Porque é que a série ganha um lugar vazio quando a chave mestre existe:**
+/// se a chave fosse simplesmente acrescentada ao fim, uma licença com
+/// `serie='ABC'` e sem chave mestre produzia a **mesma base** que uma sem série
+/// e com `chaveMestre='ABC'` — duas licenças diferentes com a mesma assinatura.
+/// Fixando a posição (`…|plano|<serie ou vazio>|<chave>`) cada campo fica no seu
+/// lugar e a ambiguidade desaparece.
 String baseAssinatura({
   required String? nif,
   required String machineId,
   required String validade,
   required String? plano,
   String? serie,
+  String? chaveMestre,
 }) {
   final base = '${nif ?? ''}|$machineId|$validade|${plano ?? ''}';
-  return (serie == null || serie.isEmpty) ? base : '$base|$serie';
+  final temSerie = serie != null && serie.isNotEmpty;
+  final temChave = chaveMestre != null && chaveMestre.isNotEmpty;
+
+  if (temChave) return '$base|${serie ?? ''}|$chaveMestre';
+  return temSerie ? '$base|$serie' : base;
 }
 
 /// Assinatura HMAC-SHA256 (hex) de uma licença.
@@ -42,6 +58,7 @@ String assinarLicenca({
   required String validade,
   required String? plano,
   String? serie,
+  String? chaveMestre,
 }) {
   final base = baseAssinatura(
     nif: nif,
@@ -49,6 +66,7 @@ String assinarLicenca({
     validade: validade,
     plano: plano,
     serie: serie,
+    chaveMestre: chaveMestre,
   );
   return Hmac(sha256, utf8.encode(_hmacKey)).convert(utf8.encode(base)).toString();
 }

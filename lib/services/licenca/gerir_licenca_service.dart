@@ -9,6 +9,11 @@ class LicencaAtualizada {
   final DateTime validade;
   final Tier tier;
   final String plano;
+
+  /// Chave mestre da empresa depois da acção. `null` nas licenças que ainda
+  /// não a têm (todas as anteriores ao modelo do par).
+  final String? chaveMestre;
+
   final Map<String, bool> preferenciasFeatures;
 
   const LicencaAtualizada({
@@ -16,6 +21,7 @@ class LicencaAtualizada {
     required this.validade,
     required this.tier,
     required this.plano,
+    this.chaveMestre,
     this.preferenciasFeatures = const {},
   });
 
@@ -29,6 +35,7 @@ class LicencaAtualizada {
       validade: DateTime.parse(validade),
       tier: TierInfo.parse(json['tier'] as String?),
       plano: json['plano'] as String? ?? '',
+      chaveMestre: json['chave_mestre'] as String?,
       preferenciasFeatures: {
         for (final e in (json['preferencias_features'] as Map? ?? const {})
             .entries)
@@ -122,6 +129,22 @@ class GerirLicencaService {
     }
     return _acao('mudar_tier', machineId, {'tier': tier.name});
   }
+
+  /// Garante que este terminal tem a **chave mestre da empresa** e devolve-a.
+  ///
+  /// Idempotente e partilhada: a primeira chamada de um NIF cria a chave, todas
+  /// as seguintes — deste terminal ou de qualquer outro da mesma empresa —
+  /// devolvem a mesma. É assim que o segundo terminal entra na empresa que já
+  /// existe em vez de fundar uma nova.
+  ///
+  /// ⚠️ A chave entra na base assinada do `licenca.json`. Chamar isto **sem**
+  /// gerar e instalar o ficheiro novo a seguir deixa a base de dados e o
+  /// terminal a dizer coisas diferentes.
+  Future<LicencaAtualizada> atribuirChaveMestre(String machineId,
+          {String? prefixo}) =>
+      _acao('atribuir_chave_mestre', machineId, {
+        if (prefixo != null && prefixo.isNotEmpty) 'prefixo': prefixo,
+      });
 
   Future<LicencaAtualizada> _acao(
     String acao,

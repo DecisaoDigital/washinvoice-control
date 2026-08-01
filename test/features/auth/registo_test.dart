@@ -14,9 +14,16 @@ void main() {
     );
   });
 
+  // O ecrã de login rola, e na viewport de teste (800x600) o "Criar conta"
+  // fica em y=637 — 37 px abaixo da margem. Sem o trazer ao ecrã, o toque não
+  // acontece (fica só um aviso), o ecrã nunca passa a modo de registo e os
+  // testes seguintes falham a dizer que faltam campos que nunca chegaram a ser
+  // pedidos. Mesmo cuidado que o `tocarPedirAcesso` abaixo.
   Future<void> abrirCriarConta(WidgetTester tester) async {
     await tester.pumpWidget(const MaterialApp(home: LoginScreen()));
     await tester.pump();
+    await tester.ensureVisible(find.text('Criar conta'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Criar conta'));
     await tester.pumpAndSettle();
   }

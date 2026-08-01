@@ -62,6 +62,13 @@ class Licenca {
   /// gerada (após pagamento). `null` enquanto é só um pedido/convite.
   final String? serie;
 
+  /// Chave mestre da empresa (`licencas.chave_mestre`) — metade do par
+  /// `mestre + dispositivo`, sendo o [machineId] a outra metade. Uma por NIF,
+  /// nascida na primeira associação de um dispositivo e partilhada por todos os
+  /// terminais e aparelhos da mesma empresa. `null` nas licenças anteriores ao
+  /// modelo do par, que continuam válidas.
+  final String? chaveMestre;
+
   final DateTime criadoEm;
 
   /// Nível comercial (`licencas.tier`). Só a Edge Function `gerir-licenca` o
@@ -105,6 +112,7 @@ class Licenca {
     required this.activa,
     this.oferta = false,
     this.serie,
+    this.chaveMestre,
     required this.criadoEm,
     this.tier = Tier.legado,
     this.atUsername,
@@ -168,6 +176,7 @@ class Licenca {
         activa: json['activa'] as bool? ?? true,
         oferta: json['oferta'] as bool? ?? false,
         serie: json['serie'] as String?,
+        chaveMestre: json['chave_mestre'] as String?,
         criadoEm: DateTime.parse(json['created_at'] as String),
         tier: TierInfo.parse(json['tier'] as String?),
         atUsername: json['at_username'] as String?,
@@ -200,6 +209,7 @@ class Licenca {
         'activa': activa,
         'oferta': oferta,
         'serie': serie,
+        'chave_mestre': chaveMestre,
         'created_at': criadoEm.toIso8601String(),
         'tier': tier == Tier.legado ? null : tier.name,
         'preferencias_features': preferenciasFeatures,
@@ -263,6 +273,7 @@ class Licenca {
     bool? activa,
     bool? oferta,
     String? serie,
+    String? chaveMestre,
     DateTime? criadoEm,
     Tier? tier,
     String? atUsername,
@@ -282,6 +293,7 @@ class Licenca {
         activa: activa ?? this.activa,
         oferta: oferta ?? this.oferta,
         serie: serie ?? this.serie,
+        chaveMestre: chaveMestre ?? this.chaveMestre,
         criadoEm: criadoEm ?? this.criadoEm,
         tier: tier ?? this.tier,
         atUsername: atUsername ?? this.atUsername,

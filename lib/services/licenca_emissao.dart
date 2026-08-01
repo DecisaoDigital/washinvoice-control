@@ -22,6 +22,15 @@ String ymd(DateTime d) => '${d.year.toString().padLeft(4, '0')}-'
 /// Conteúdo (JSON indentado) do `licenca.json`. [serie] é opcional
 /// (multi-terminal) e retrocompatível — ausente/vazia produz exactamente o
 /// formato antigo.
+///
+/// [chaveMestre] é a metade "empresa" do par `mestre + dispositivo`. O
+/// `machine_id` que já ia no ficheiro **é** a chave do dispositivo; a chave
+/// mestre é o que faltava para o POS poder validar o par **offline**, que é
+/// como ele trabalha. Sem ela, o terminal sabe que é ele mas não sabe de que
+/// empresa é.
+///
+/// Vai dentro do que é assinado — senão edita-se o ficheiro num editor de texto
+/// e o par não vale nada.
 String construirLicencaJson({
   required String nif,
   String? nome,
@@ -29,21 +38,27 @@ String construirLicencaJson({
   required String plano,
   required DateTime validade,
   String? serie,
+  String? chaveMestre,
   String versaoTermos = versaoTermosLicenca,
 }) {
   final validadeStr = ymd(validade);
   final serieLimpa =
       (serie != null && serie.trim().isNotEmpty) ? serie.trim() : null;
+  final chaveLimpa = (chaveMestre != null && chaveMestre.trim().isNotEmpty)
+      ? chaveMestre.trim()
+      : null;
   final assinatura = assinarLicenca(
     nif: nif,
     machineId: machineId,
     validade: validadeStr,
     plano: plano,
     serie: serieLimpa,
+    chaveMestre: chaveLimpa,
   );
   final licenca = <String, dynamic>{
     'nif': nif,
     'nome': nome,
+    if (chaveLimpa != null) 'chave_mestre': chaveLimpa,
     'machine_id': machineId,
     'plano': plano,
     'validade': validadeStr,
@@ -64,6 +79,7 @@ Future<String> gerarLicencaJsonComVerificacao({
   required String serie,
   required Future<Licenca?> Function(String serie, String excetoMachineId)
       verificarColisao,
+  String? chaveMestre,
 }) async {
   final s = serie.trim();
   if (s.isEmpty) {
@@ -83,5 +99,6 @@ Future<String> gerarLicencaJsonComVerificacao({
     plano: licenca.plano,
     validade: licenca.validade,
     serie: s,
+    chaveMestre: chaveMestre ?? licenca.chaveMestre,
   );
 }

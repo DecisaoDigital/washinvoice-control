@@ -387,11 +387,20 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
 
     try {
       final licencasRepo = ref.read(licencasRepoProvider);
+
+      // A chave mestre da empresa tem de existir ANTES de se assinar: entra na
+      // base da assinatura. Se já existe (outro terminal do mesmo NIF já a
+      // criou), é essa que volta — a chamada é idempotente e é o que mantém os
+      // terminais todos na mesma empresa.
+      final actualizada =
+          await ref.read(gerirLicencaProvider).atribuirChaveMestre(l.machineId);
+
       final conteudo = await gerarLicencaJsonComVerificacao(
         licenca: l,
         serie: serie,
         verificarColisao: (s, exceto) =>
             licencasRepo.licencaActivaComSerie(s, excetoMachineId: exceto),
+        chaveMestre: actualizada.chaveMestre,
       );
       await licencasRepo.definirSerie(l.id, serie.trim());
       // A activação passa pela Edge Function como qualquer outra mutação de
@@ -424,6 +433,14 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Machine ID copiado.')),
+    );
+  }
+
+  Future<void> _copiarChaveMestre(String chave) async {
+    await Clipboard.setData(ClipboardData(text: chave));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Chave mestre copiada.')),
     );
   }
 
@@ -507,7 +524,11 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
-              _CardLicenca(data: data, onCopiar: _copiarMachineId),
+              _CardLicenca(
+                data: data,
+                onCopiar: _copiarMachineId,
+                onCopiarChave: _copiarChaveMestre,
+              ),
               const SizedBox(height: AppSpacing.md),
               if (data.ultimoPing != null) ...[
                 _CardUltimoAcesso(data: data),
@@ -609,7 +630,12 @@ class _CardHeader extends StatelessWidget {
 class _CardLicenca extends StatelessWidget {
   final _DetalheData data;
   final void Function(String) onCopiar;
-  const _CardLicenca({required this.data, required this.onCopiar});
+  final void Function(String) onCopiarChave;
+  const _CardLicenca({
+    required this.data,
+    required this.onCopiar,
+    required this.onCopiarChave,
+  });
 
   String _validadeTexto(Licenca l) {
     final base = Dates.data(l.validade);
@@ -648,6 +674,20 @@ class _CardLicenca extends StatelessWidget {
           WiLinhaKV(rotulo: 'Plano', valor: l.planoLabel),
           WiLinhaKV(rotulo: 'Validade', valor: _validadeTexto(l)),
           if (l.serie != null) WiLinhaKV(rotulo: 'Série', valor: l.serie!),
+          // A metade "empresa" do par. Só aparece depois de gerada a primeira
+          // licença com chave mestre — nas instalações antigas ainda é null, e
+          // uma linha a dizer "—" só levantava a pergunta de porquê.
+          if (l.chaveMestre != null)
+            WiLinhaKV(
+              rotulo: 'Chave mestre',
+              valor: l.chaveMestre!,
+              mono: true,
+              trailing: InkWell(
+                onTap: () => onCopiarChave(l.chaveMestre!),
+                child: const Icon(Icons.copy,
+                    size: 18, color: AppColors.textTertiary),
+              ),
+            ),
           WiLinhaKV(
             rotulo: 'Máquina',
             valor: machineCurto,

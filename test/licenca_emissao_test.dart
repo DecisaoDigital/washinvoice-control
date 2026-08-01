@@ -43,8 +43,66 @@ void main() {
     });
   });
 
+  group('chave mestre na assinatura', () {
+    String assinar({String? serie, String? chave}) => assinarLicenca(
+          nif: '500000000',
+          machineId: mid,
+          validade: '2027-06-27',
+          plano: 'anual',
+          serie: serie,
+          chaveMestre: chave,
+        );
+
+    test('sem chave mestre → assinaturas antigas intactas', () {
+      // Retrocompatibilidade: as licenças já instaladas nos terminais não
+      // podem deixar de validar por causa desta mudança.
+      expect(assinar(), refSemSerie);
+      expect(assinar(serie: 'FT-T1'), refComSerie);
+      expect(assinar(chave: ''), refSemSerie);
+    });
+
+    test('com chave mestre → assinatura diferente', () {
+      expect(assinar(chave: 'TRD-ABC123'), isNot(refSemSerie));
+      expect(assinar(serie: 'FT-T1', chave: 'TRD-ABC123'), isNot(refComSerie));
+    });
+
+    test('chaves mestre diferentes → assinaturas diferentes', () {
+      expect(assinar(chave: 'TRD-AAA111'), isNot(assinar(chave: 'TRD-BBB222')));
+    });
+
+    test('série e chave mestre não se confundem uma com a outra', () {
+      // O caso que obriga a série a ter lugar fixo: sem isso, `serie=ABC` sem
+      // chave dava a MESMA base que `chaveMestre=ABC` sem série — duas licenças
+      // diferentes com a mesma assinatura.
+      expect(assinar(serie: 'ABC'), isNot(assinar(chave: 'ABC')));
+    });
+
+    test('a base põe a série num lugar próprio, mesmo vazia', () {
+      expect(
+        baseAssinatura(
+            nif: '500000000',
+            machineId: mid,
+            validade: '2027-06-27',
+            plano: 'anual',
+            chaveMestre: 'TRD-ABC123'),
+        '500000000|$mid|2027-06-27|anual||TRD-ABC123',
+      );
+      expect(
+        baseAssinatura(
+            nif: '500000000',
+            machineId: mid,
+            validade: '2027-06-27',
+            plano: 'anual',
+            serie: 'FT-T1',
+            chaveMestre: 'TRD-ABC123'),
+        '500000000|$mid|2027-06-27|anual|FT-T1|TRD-ABC123',
+      );
+    });
+  });
+
   group('construirLicencaJson', () {
-    Map<String, dynamic> gerar({String? serie}) => jsonDecode(
+    Map<String, dynamic> gerar({String? serie, String? chaveMestre}) =>
+        jsonDecode(
           construirLicencaJson(
             nif: '500000000',
             nome: 'WashExpress',
@@ -52,8 +110,31 @@ void main() {
             plano: 'anual',
             validade: DateTime(2027, 6, 27),
             serie: serie,
+            chaveMestre: chaveMestre,
           ),
         ) as Map<String, dynamic>;
+
+    test('com chave mestre: vai no ficheiro e entra na assinatura', () {
+      final j = gerar(serie: 'FT-T1', chaveMestre: 'TRD-ABC123');
+      expect(j['chave_mestre'], 'TRD-ABC123');
+      expect(j['machine_id'], mid); // o par: empresa + dispositivo
+      expect(
+        j['assinatura'],
+        assinarLicenca(
+            nif: '500000000',
+            machineId: mid,
+            validade: '2027-06-27',
+            plano: 'anual',
+            serie: 'FT-T1',
+            chaveMestre: 'TRD-ABC123'),
+      );
+    });
+
+    test('sem chave mestre: a chave nem aparece no ficheiro', () {
+      expect(gerar(serie: 'FT-T1').containsKey('chave_mestre'), isFalse);
+      expect(gerar(serie: 'FT-T1', chaveMestre: '  ').containsKey('chave_mestre'),
+          isFalse);
+    });
 
     test('com série: campos e assinatura de referência', () {
       final j = gerar(serie: 'FT-T1');
@@ -155,6 +236,21 @@ void main() {
       });
       expect(l.serie, 'FT-T1');
       expect(l.toJson()['serie'], 'FT-T1');
+    });
+
+    test('round-trip do campo chave_mestre', () {
+      final l = Licenca.fromJson({
+        'id': 'i',
+        'machine_id': mid,
+        'nif': '500000000',
+        'plano': 'anual',
+        'validade': '2027-06-27',
+        'activa': true,
+        'chave_mestre': 'TRD-ABC123',
+        'created_at': '2026-01-01T00:00:00.000',
+      });
+      expect(l.chaveMestre, 'TRD-ABC123');
+      expect(l.toJson()['chave_mestre'], 'TRD-ABC123');
     });
 
     test('licença sem serie (antiga) → serie null', () {

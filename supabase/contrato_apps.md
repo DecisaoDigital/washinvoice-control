@@ -69,6 +69,33 @@ Ficheiros analisados: `lib/core/supabase_config.dart`, `lib/features/auth/login_
 
 Feita **inteiramente no cliente** (`licenca_emissao.dart`): assina com HMAC (mesma chave do POS, cópia verbatim), constrói `licenca.json`, verifica colisão de série via SELECT. O UUID `auth.users` do POS **não é criado** — o Control não tem código para provisionar utilizadores.
 
+### 3.4 Chave mestre da empresa (par `mestre + dispositivo`)
+
+Desenho: `docs/design/chaves_empresa_e_dispositivo.md` (repo do Punho). Implementado a 1 ago 2026.
+
+O `machine_id` já dizia **que máquina é**; faltava dizer **de que empresa é**. Essa metade é a **chave mestre**: uma por NIF, partilhada por todos os terminais e aparelhos do cliente — POS e Punho.
+
+| onde | o quê |
+|---|---|
+| `chaves_mestre` (tabela nova) | uma linha por NIF. Escrita só por `service_role`, lida por `is_admin()`. `supabase/chaves_mestre.sql` |
+| `obter_ou_criar_chave_mestre()` | idempotente: cria na primeira associação, devolve a mesma daí em diante. É o que faz o 2º terminal do mesmo NIF entrar na empresa que já existe |
+| `licencas.chave_mestre` | coluna nova, `NULL` nas licenças anteriores |
+| `gerir-licenca`, acção `atribuir_chave_mestre` | único caminho do Control para a obter. Auditada como qualquer outra mutação |
+| `validar-licenca` | passa a devolvê-la — é assim que o Punho, que não tem `licenca.json` assinado, sabe a que empresa pertence |
+| `licenca.json` | campo `chave_mestre`, **dentro do que é assinado** |
+
+Base assinada, com a série a ganhar lugar fixo assim que há chave mestre:
+
+```
+nif|machine_id|validade|plano[|serie][|<serie ou vazio>|chave_mestre]
+```
+
+O lugar fixo não é estética: sem ele, `serie=ABC` sem chave produzia a **mesma base** que `chave=ABC` sem série — duas licenças diferentes com a mesma assinatura.
+
+**Retrocompatível em todos os caminhos.** Sem chave mestre, tudo assina e valida exactamente como antes; as licenças já instaladas não mexem. O POS só recusa quando **as duas** chaves existem e divergem.
+
+⚠️ `atribuir_chave_mestre` escreve um campo que entra na assinatura — correr a acção **sem** gerar e instalar o `licenca.json` novo deixa a base de dados e o terminal a dizer coisas diferentes. O Control faz as duas coisas no mesmo gesto.
+
 ---
 
 ## 4. Contrato actual, esquematizado
