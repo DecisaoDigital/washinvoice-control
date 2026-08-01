@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/actualizacao_info.dart';
 import '../services/actualizacao/actualizacao_service.dart';
 import '../services/licenca/comunicar_serie_service.dart';
+import '../services/licenca/assinar_licenca_service.dart';
 import '../services/licenca/gerir_licenca_service.dart';
 import 'aceites_repository.dart';
 import 'acessos_repository.dart';
@@ -35,6 +36,13 @@ final punhoAdminRepoProvider = Provider((_) => PunhoAdminRepository());
 /// Acções remotas sobre licenças (via Edge Function `gerir-licenca`).
 final gerirLicencaProvider =
     Provider((_) => GerirLicencaService(Supabase.instance.client));
+
+/// Assinatura de licenças (via Edge Function `assinar-licenca`).
+///
+/// O Control **não assina**: a chave privada Ed25519 vive num secret do
+/// Supabase e nunca esteve neste binário. Ver `assinar_licenca_service.dart`.
+final assinarLicencaProvider =
+    Provider((_) => AssinarLicencaService(Supabase.instance.client));
 
 /// Comunicação de séries à AT (via Edge Function `comunicar-serie`).
 final comunicarSerieProvider =

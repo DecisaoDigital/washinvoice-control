@@ -392,15 +392,18 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
       // base da assinatura. Se já existe (outro terminal do mesmo NIF já a
       // criou), é essa que volta — a chamada é idempotente e é o que mantém os
       // terminais todos na mesma empresa.
-      final actualizada =
-          await ref.read(gerirLicencaProvider).atribuirChaveMestre(l.machineId);
+      await ref.read(gerirLicencaProvider).atribuirChaveMestre(l.machineId);
 
+      // Quem assina é o servidor. O Control não tem — nem volta a ter — chave
+      // de assinatura nenhuma: manda o terminal e a série, e recebe de volta a
+      // licença assinada com os campos exactos que entraram na assinatura.
       final conteudo = await gerarLicencaJsonComVerificacao(
-        licenca: l,
+        machineId: l.machineId,
         serie: serie,
         verificarColisao: (s, exceto) =>
             licencasRepo.licencaActivaComSerie(s, excetoMachineId: exceto),
-        chaveMestre: actualizada.chaveMestre,
+        assinar: (machineId, s) =>
+            ref.read(assinarLicencaProvider).assinar(machineId, serie: s),
       );
       await licencasRepo.definirSerie(l.id, serie.trim());
       // A activação passa pela Edge Function como qualquer outra mutação de

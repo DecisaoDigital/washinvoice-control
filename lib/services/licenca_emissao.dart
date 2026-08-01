@@ -1,17 +1,23 @@
 import 'dart:convert';
 
 import '../models/licenca.dart';
-import 'licenca_assinatura.dart';
+import 'licenca/assinar_licenca_service.dart';
 
-/// Emissão do **licenca.json** assinado — **idêntico byte-a-byte** ao que a CLI
-/// `tool/emitir_licenca.dart` do WashFactura produz para os mesmos inputs:
-/// mesma ordem de campos, mesmo formato de `validade` (`AAAA-MM-DD`), mesma base
-/// assinada e mesma chave HMAC (`licenca_assinatura.dart`, cópia verbatim do
-/// WashFactura), mesma indentação (2 espaços).
+/// Escrita do **licenca.json** a partir do que o servidor assinou.
 ///
-/// ⚠️ Manter em sincronia com a CLI: se uma mudar o formato, a outra tem de
-/// mudar igual — senão uma licença gerada por uma fica inválida na outra sem
-/// aviso. O teste `licenca_emissao_test.dart` fixa a assinatura esperada.
+/// ## O Control já não assina
+///
+/// Até à v1.8.5 o ficheiro era assinado aqui, com uma chave HMAC **simétrica**
+/// que vivia no binário — a mesma que estava no POS. Quem extraísse qualquer um
+/// dos dois passava a emitir licenças válidas.
+///
+/// Agora quem assina é a Edge Function `assinar-licenca`, com Ed25519 e a chave
+/// privada num secret do Supabase. **Este ficheiro deixou de ter chave
+/// nenhuma** — e o APK do Control também não, que era metade do problema.
+///
+/// O que aqui ficou é só a montagem do JSON, a partir dos campos que voltaram
+/// assinados. Nada é recalculado localmente: se um valor diferisse do que foi
+/// assinado, a assinatura não batia no terminal e a licença era recusada.
 const String versaoTermosLicenca = '1.0';
 
 /// Validade como `AAAA-MM-DD` (o formato que a CLI assina e grava).
@@ -19,52 +25,31 @@ String ymd(DateTime d) => '${d.year.toString().padLeft(4, '0')}-'
     '${d.month.toString().padLeft(2, '0')}-'
     '${d.day.toString().padLeft(2, '0')}';
 
-/// Conteúdo (JSON indentado) do `licenca.json`. [serie] é opcional
-/// (multi-terminal) e retrocompatível — ausente/vazia produz exactamente o
-/// formato antigo.
+/// Monta o `licenca.json` (JSON indentado) a partir da [LicencaAssinada] que o
+/// servidor devolveu.
 ///
-/// [chaveMestre] é a metade "empresa" do par `mestre + dispositivo`. O
-/// `machine_id` que já ia no ficheiro **é** a chave do dispositivo; a chave
-/// mestre é o que faltava para o POS poder validar o par **offline**, que é
-/// como ele trabalha. Sem ela, o terminal sabe que é ele mas não sabe de que
-/// empresa é.
+/// **Não recalcula nada.** Cada campo sai tal e qual como foi assinado; a única
+/// coisa acrescentada é `versao_termos`, que fica de fora da base assinada e
+/// sempre esteve.
 ///
-/// Vai dentro do que é assinado — senão edita-se o ficheiro num editor de texto
-/// e o par não vale nada.
-String construirLicencaJson({
-  required String nif,
-  String? nome,
-  required String machineId,
-  required String plano,
-  required DateTime validade,
-  String? serie,
-  String? chaveMestre,
+/// `versao_assinatura` é o que diz ao POS com que algoritmo verificar: ausente
+/// ou `1` = HMAC antigo, `2` = Ed25519. As licenças que este código escreve são
+/// todas v2.
+String construirLicencaJson(
+  LicencaAssinada assinada, {
   String versaoTermos = versaoTermosLicenca,
 }) {
-  final validadeStr = ymd(validade);
-  final serieLimpa =
-      (serie != null && serie.trim().isNotEmpty) ? serie.trim() : null;
-  final chaveLimpa = (chaveMestre != null && chaveMestre.trim().isNotEmpty)
-      ? chaveMestre.trim()
-      : null;
-  final assinatura = assinarLicenca(
-    nif: nif,
-    machineId: machineId,
-    validade: validadeStr,
-    plano: plano,
-    serie: serieLimpa,
-    chaveMestre: chaveLimpa,
-  );
   final licenca = <String, dynamic>{
-    'nif': nif,
-    'nome': nome,
-    if (chaveLimpa != null) 'chave_mestre': chaveLimpa,
-    'machine_id': machineId,
-    'plano': plano,
-    'validade': validadeStr,
-    if (serieLimpa != null) 'serie': serieLimpa,
+    'nif': assinada.nif,
+    'nome': assinada.nome,
+    if (assinada.chaveMestre != null) 'chave_mestre': assinada.chaveMestre,
+    'machine_id': assinada.machineId,
+    'plano': assinada.plano,
+    'validade': assinada.validade,
+    if (assinada.serie != null) 'serie': assinada.serie,
     'versao_termos': versaoTermos,
-    'assinatura': assinatura,
+    'versao_assinatura': assinada.versaoAssinatura,
+    'assinatura': assinada.assinatura,
   };
   return const JsonEncoder.withIndent('  ').convert(licenca);
 }
@@ -75,30 +60,26 @@ String construirLicencaJson({
 /// **bloqueando** a geração, se a série for vazia ou houver colisão (nunca deixa
 /// passar em silêncio).
 Future<String> gerarLicencaJsonComVerificacao({
-  required Licenca licenca,
+  required String machineId,
   required String serie,
   required Future<Licenca?> Function(String serie, String excetoMachineId)
       verificarColisao,
-  String? chaveMestre,
+  required Future<LicencaAssinada> Function(String machineId, String serie)
+      assinar,
 }) async {
   final s = serie.trim();
   if (s.isEmpty) {
     throw StateError('Indica a série do terminal (ex.: FT-T1).');
   }
-  final conflito = await verificarColisao(s, licenca.machineId);
+  final conflito = await verificarColisao(s, machineId);
   if (conflito != null) {
     throw StateError(
         'Já existe uma licença activa com a série "$s" noutro terminal '
         '(machine_id ${conflito.machineId}). Usa uma série diferente antes de '
         'gerar a licença.');
   }
-  return construirLicencaJson(
-    nif: licenca.nif,
-    nome: licenca.nome,
-    machineId: licenca.machineId,
-    plano: licenca.plano,
-    validade: licenca.validade,
-    serie: s,
-    chaveMestre: chaveMestre ?? licenca.chaveMestre,
-  );
+  // A colisão de série é verificada ANTES de assinar, de propósito: assinar
+  // grava a série na linha, e gravar uma série que colide com outro terminal
+  // era o que esta verificação existe para impedir.
+  return construirLicencaJson(await assinar(machineId, s));
 }
