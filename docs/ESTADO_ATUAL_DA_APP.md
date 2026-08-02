@@ -1,6 +1,6 @@
 # Estado actual — WashInvoice Control
 
-Actualizado: 2026-07-29
+Actualizado: 2026-08-02
 Versão pubspec (branch `master`): **1.8.4+29**
 Último release publicado (tag GitHub): **v1.8.4** (2026-07-29)
 
@@ -71,6 +71,7 @@ Marca comercial: **WashInvoice** — "WashControl" continua nome interno para di
 - Foreground: SnackBar com vibração; título prefixado com app (`[PUNHO] Novo terminal`) a partir de `data['app']`.
 - Background: notificação nativa desenhada pelo SO a partir de payload `notification` — prefixo tem de vir da Edge Function `enviar-push`.
 - Triggers no Postgres: `notificar_inicio_actividade` (1º ping sem licença, dedup), `notificar_pedido_ajuda`, `punho_criar_pedido_ao_registar` (via `enviar-push`).
+- **Notificação de empresa nova confirmada ponta-a-ponta (02/08/2026)**: trigger `trg_notificar_novo_pedido_punho` (AFTER INSERT em `punho_pedidos_acesso`) → `enviar-push` devolveu 200 3s depois do pedido; Cesar aprovou no Control ~1min depois. Fluxo app→pedido→push→aprovação→`punho_membros` activo, verificado sem intercorrências.
 
 ### Auto-update do Control (#100 / v1.7.0)
 - Tabela `versoes_apps` (`build_number`, `url_download`, `obrigatoria`).
@@ -93,6 +94,8 @@ Marca comercial: **WashInvoice** — "WashControl" continua nome interno para di
 - **Parte B de `acessos_organizacoes`** (task **#190**) — coluna `organizacao_id` nas 5 tabelas de negócio + substituir policies. O SQL original assumia `licencas.user_id` que nunca existiu em prod. Reescrever contra modelo real **antes** de aprovar primeiro não-admin no separador Acessos.
 - Merge `feat/aprovar-pedidos-punho` → `main` — branch existe localmente (3 commits à frente de `feature/multi-app-e-badge-pro`); no `master` já está a v1.8.2 mas há branch órfãs por arrumar.
 - Line endings CRLF/LF a poluir `git status` — dezenas de ficheiros "modified" sem conteúdo real diff. Arrumação futura.
+- **`supabase/punho_campainha_tempo_real.sql` por commitar** (untracked desde 02/08/2026) — contém o trigger de campainha que **não** está em uso: o Punho usa broadcast por canal público porque `realtime.messages` deste projecto não tem partições (Realtime recusa com `MissingPartition`; criar partições exige permissões de schema `realtime` que não temos).
+- **Limite de colaboradores do Punho não é respeitado pela app** — `punho_subscricoes.limite_colaboradores_ativos` é atribuído pelo Control, mas a app usa o número declarado pelo gestor no onboarding. Por decidir se a app passa a obedecer ao servidor.
 
 ---
 
@@ -115,11 +118,12 @@ Marca comercial: **WashInvoice** — "WashControl" continua nome interno para di
 
 ## Próximos passos priorizados
 
-1. **Task #190 — parte B de `acessos_organizacoes`** reescrita contra modelo real; bloqueia aprovar não-admins.
-2. Actualizar `supabase/contrato_apps.md` e `README.md` (menor risco de Claude Code partir RLS por seguir contrato antigo).
-3. Merge `feat/aprovar-pedidos-punho` no `main` + compilar APK 1.8.2 + testar no Redmi.
-4. Aplicar Opção D de RLS (fechar anon writes) — depende de decisão pós-AT do POS.
-5. Testes E2E do fluxo aprovar/recusar Punho ligado ao Punho real.
+1. **Decidir o limite de colaboradores do Punho** — a app ignora hoje o valor atribuído pelo Control (02/08/2026).
+2. **Task #190 — parte B de `acessos_organizacoes`** reescrita contra modelo real; bloqueia aprovar não-admins.
+3. Actualizar `supabase/contrato_apps.md` e `README.md` (menor risco de Claude Code partir RLS por seguir contrato antigo).
+4. Merge `feat/aprovar-pedidos-punho` no `main` + compilar APK 1.8.2 + testar no Redmi.
+5. Aplicar Opção D de RLS (fechar anon writes) — depende de decisão pós-AT do POS.
+6. Testes E2E do fluxo aprovar/recusar Punho ligado ao Punho real.
 
 ---
 
