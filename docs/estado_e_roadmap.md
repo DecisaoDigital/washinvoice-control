@@ -1,7 +1,18 @@
 # WashInvoice Control — Estado e Roadmap
 
 > Documento vivo. Actualizar sempre que uma ronda fechar ou uma decisão de arquitectura mudar.
-> Última actualização: 2026-07-26 (Punho schema em produção + Control aprova pedidos Punho — v1.8.1, tasks #188-190).
+> Última actualização: 2026-08-02 (notificação Punho ponta-a-ponta confirmada + campainha tempo real por broadcast + limite de colaboradores por decidir).
+
+---
+
+## 0.0 Sessão 02/08/2026 — notificação Punho confirmada + campainha por broadcast + limite de colaboradores por decidir
+
+Apurado do lado do Control e do servidor partilhado (Supabase `oefqbkhioncakojipqyx`, mesmo projecto do POS e do Punho). Tudo verificado, nada por suposição.
+
+1. **Notificação de empresa nova confirmada ponta-a-ponta em produção.** O trigger `trg_notificar_novo_pedido_punho` (AFTER INSERT em `punho_pedidos_acesso`) chamou a Edge Function `enviar-push`, que devolveu **200 às 00:59:06 UTC** — o pedido tinha entrado às 00:59:03 UTC. Cesar aprovou no Control às 01:00:10 UTC. Cadeia completa sem intercorrências: app Punho → pedido de acesso → push → aprovação no Control → `punho_membros` activo.
+2. **Campainha em tempo real do Punho já funciona — mas não pelo caminho do trigger DB.** O `realtime.messages` deste projecto Supabase não tem partições; sem elas o Realtime recusa a subscrição com `MissingPartition`, e criar partições exige permissões no schema `realtime` que não temos. A app resolve isto com broadcast directo entre aparelhos num canal público (detalhe em `lib/features/sync/sync_providers.dart` do repo Punho), não com o trigger. O ficheiro `supabase/punho_campainha_tempo_real.sql` **deste repo continua por commitar** (untracked) — contém o trigger da via que não está em uso. Registar para não se voltar a tentar esse caminho sem primeiro resolver as partições.
+3. **Limite de colaboradores não é respeitado pela app.** `punho_subscricoes.limite_colaboradores_ativos = 1` na empresa de teste, mas a app Punho usa o número que o gestor declara no onboarding (3) e ignora o valor do servidor. Por decidir: passar a app a obedecer ao limite do Control. É matéria de roadmap deste repo — é o Control que atribui as vagas (ver §7, "Curto prazo").
+4. Confirmado por SQL: aprovação de acessos e confirmação de email de contas de teste resolvem-se pelo Control ou pelo Supabase, sem depender de acção do Cesar fora desses dois sítios.
 
 ---
 
@@ -417,6 +428,8 @@ séries, ainda por fazer merge). Bug apanhado no teste do POS 2.0.6 + APK 1.6.2.
 
 ### Curto prazo (esta semana ou próxima)
 
+- **Decidir o limite de colaboradores do Punho (02/08/2026)** — hoje o Control atribui `punho_subscricoes.limite_colaboradores_ativos`, mas a app Punho ignora-o e usa o número declarado pelo gestor no onboarding. Decidir se a app passa a obedecer ao valor do servidor (ver §0.0).
+- **Commitar `supabase/punho_campainha_tempo_real.sql`** — fica por commitar desde 02/08/2026; documenta o trigger da via de campainha que não está em uso (o Punho usa broadcast por canal público em vez do trigger, por falta de partições em `realtime.messages`). Commitar como registo, não como caminho a reactivar sem resolver as partições primeiro.
 - **Verificação UI real da ronda 1.4.0** — Cesar corre `docs/verificacao_apk_r1_4.md`
   no telemóvel (APK release da `feature/redesign-visual`). Sem isto o merge fica suspenso.
 - **Fechar a Fase 4 de verificação UI do R1** — Cesar corre `docs/verificacao_apk_r1.md` no telemóvel. Sem isto o merge de `feature/melhorias-r1-r2` para `master` fica em suspenso.
