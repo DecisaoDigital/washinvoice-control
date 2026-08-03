@@ -9,6 +9,7 @@ import '../../../core/widgets/widgets.dart';
 import '../../../repositories/providers.dart';
 import '../../../repositories/punho_admin_repository.dart';
 import 'punho_decidir_modal.dart';
+import 'punho_empresas_screen.dart';
 
 /// Ticker que pede ao [PunhoPedidosScreen] para ir buscar os dados outra vez.
 ///
@@ -140,6 +141,13 @@ class _PunhoPedidosScreenState extends ConsumerState<PunhoPedidosScreen>
       appBar: AppBar(
         title: const Text('Pedidos Punho'),
         actions: [
+          IconButton(
+            tooltip: 'Empresas',
+            icon: const Icon(Icons.apartment),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PunhoEmpresasScreen()),
+            ),
+          ),
           IconButton(
             tooltip: 'Recarregar',
             icon: const Icon(Icons.refresh),

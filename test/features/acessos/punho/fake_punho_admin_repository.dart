@@ -56,6 +56,7 @@ class FakePunhoAdmin extends PunhoAdminRepository {
   final Object? erro;
 
   final decisoes = <Map<String, Object?>>[];
+  final limitesDefinidos = <Map<String, Object?>>[];
 
   /// Quantas vezes o ecrã foi à base buscar a lista — é assim que se vê se um
   /// refresh aconteceu mesmo, e não só se o conteúdo mudou.
@@ -95,6 +96,20 @@ class FakePunhoAdmin extends PunhoAdminRepository {
       },
       'empresa_id': empresaId,
       'membro_id': 'm-1',
+    };
+  }
+
+  @override
+  Future<Map<String, dynamic>> definirLimite(
+    String empresaId,
+    int novoLimite,
+  ) async {
+    if (erro != null) throw erro!;
+    limitesDefinidos.add({'empresa': empresaId, 'limite': novoLimite});
+    return {
+      'empresa_id': empresaId,
+      'limite_novo': novoLimite,
+      'subscricao_id': 's-1',
     };
   }
 }

@@ -119,4 +119,17 @@ class PunhoAdminRepository {
     );
     return (resposta as Map).cast<String, dynamic>();
   }
+
+  /// Muda o limite de colaboradores activos de uma empresa já existente,
+  /// fora do fluxo de aprovação de um pedido (que só o define na criação).
+  Future<Map<String, dynamic>> definirLimite(
+    String empresaId,
+    int novoLimite,
+  ) async {
+    final resposta = await _db.rpc(
+      'punho_definir_limite',
+      params: {'p_empresa_id': empresaId, 'p_novo_limite': novoLimite},
+    );
+    return (resposta as Map).cast<String, dynamic>();
+  }
 }
