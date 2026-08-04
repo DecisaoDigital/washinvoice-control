@@ -87,62 +87,63 @@ void main() {
     timeago.setLocaleMessages('pt', timeago.PtBrMessages());
   });
 
-  testWidgets('telemóvel em retrato (411 dp): só o logo, ícones à direita e '
-      'sem sobreposição', (tester) async {
+  /// A AppBar já não muda de forma com a largura — a linha 1 (marca) tem
+  /// sempre o mesmo conteúdo, ao contrário do wordmark antigo que desaparecia
+  /// abaixo dos 600 dp. Corre o mesmo teste em telemóvel estreito e em tablet
+  /// para confirmar que não há regressão de layout em nenhum dos extremos.
+  for (final caso in [('telemóvel estreito (360 dp)', 360.0), ('tablet (768 dp)', 768.0)]) {
+    testWidgets(
+      '${caso.$1}: linha 1 = ícone + CONTROL, linha 2 = selector e ícones, sem sobreposição',
+      (tester) async {
+        _ecra(tester, Size(caso.$2, 900));
+
+        await tester.pumpWidget(_app());
+        expect(tester.takeException(), isNull);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+
+        // Linha 1: marca sempre por extenso, "i" deixou de ser um ícone à
+        // parte — é a linha toda.
+        expect(find.byIcon(Icons.local_laundry_service), findsOneWidget);
+        expect(find.text('CONTROL'), findsOneWidget);
+        expect(find.byIcon(Icons.info_outline), findsNothing);
+        expect(find.byIcon(Icons.logout), findsNothing);
+
+        // Linha 2: selector à esquerda, pesquisa e recarregar à direita.
+        expect(find.byType(WiAppSelector), findsOneWidget);
+        expect(find.byIcon(Icons.search), findsOneWidget);
+        expect(find.byIcon(Icons.refresh), findsOneWidget);
+
+        final logo = tester.getRect(find.byIcon(Icons.local_laundry_service));
+        final selector = tester.getRect(find.byType(WiAppSelector));
+        final lupa = tester.getRect(find.byIcon(Icons.search));
+
+        // O selector fica na segunda linha, abaixo da marca — não ao lado.
+        expect(selector.top, greaterThanOrEqualTo(logo.bottom));
+        // A lupa fica à direita do selector, na mesma linha.
+        expect(lupa.left, greaterThan(selector.right));
+      },
+    );
+  }
+
+  testWidgets('linha 1 é um InkWell tocável (abre o ecrã Sobre)',
+      (tester) async {
+    // Não navega de facto: SobreScreen acede a Supabase.instance
+    // directamente no build (sobre_screen.dart:170), sem proteção para
+    // ambiente de teste — pré-existente, alheio a esta alteração. Este
+    // teste só tranca que a linha 1 continua a ser um alvo de toque válido,
+    // sem chegar a montar o ecrã de destino.
     _ecra(tester, const Size(411, 900));
 
     await tester.pumpWidget(_app());
-    // Nenhum RenderFlex overflow nem outra excepção de layout.
-    expect(tester.takeException(), isNull);
     await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
 
-    // O logo fica; o wordmark por extenso desaparece nesta largura.
-    expect(find.byIcon(Icons.local_laundry_service), findsOneWidget);
-    expect(find.text('WashInvoice'), findsNothing);
-    expect(find.text('CONTROL'), findsNothing);
-
-    // Os quatro ícones continuam todos visíveis — nada foi escondido atrás de
-    // um menu "...".
-    for (final icone in [
-      Icons.search,
-      Icons.refresh,
-      Icons.info_outline,
-      Icons.logout,
-    ]) {
-      expect(find.byIcon(icone), findsOneWidget, reason: 'falta $icone');
-    }
-
-    // A lupa é o primeiro dos quatro: tem de estar já na metade direita, e não
-    // encostada ao centro por o título ter comido o espaço.
-    final lupa = tester.getRect(find.byIcon(Icons.search));
-    expect(lupa.left, greaterThan(411 / 2));
-
-    // O selector de app não se sobrepõe ao título.
-    final logo = tester.getRect(find.byIcon(Icons.local_laundry_service));
-    final selector = tester.getRect(find.byType(WiAppSelector));
-    expect(selector.left, greaterThanOrEqualTo(logo.right));
-  });
-
-  testWidgets('tablet (768 dp): wordmark completo', (tester) async {
-    _ecra(tester, const Size(768, 1024));
-
-    await tester.pumpWidget(_app());
-    expect(tester.takeException(), isNull);
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
-
-    expect(find.byIcon(Icons.local_laundry_service), findsOneWidget);
-    expect(find.text('WashInvoice'), findsOneWidget);
-    expect(find.text('CONTROL'), findsOneWidget);
-
-    for (final icone in [
-      Icons.search,
-      Icons.refresh,
-      Icons.info_outline,
-      Icons.logout,
-    ]) {
-      expect(find.byIcon(icone), findsOneWidget, reason: 'falta $icone');
-    }
+    final area = find.ancestor(
+      of: find.text('CONTROL'),
+      matching: find.byType(InkWell),
+    );
+    expect(area, findsOneWidget);
+    final inkWell = tester.widget<InkWell>(area);
+    expect(inkWell.onTap, isNotNull);
   });
 }

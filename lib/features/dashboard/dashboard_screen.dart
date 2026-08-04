@@ -4,7 +4,6 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../core/acoes.dart';
@@ -28,7 +27,6 @@ import '../../models/pedido_renovacao.dart';
 import '../../models/ping.dart';
 import '../../repositories/providers.dart';
 import '../ativacao/ativar_instalacao_screen.dart';
-import '../auth/login_screen.dart';
 import '../instalacoes/detalhe_cliente_screen.dart';
 import '../instalacoes/instalacoes_por_estado_screen.dart';
 import '../pedidos_ajuda/detalhe_pedido_ajuda_screen.dart';
@@ -184,15 +182,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     await _future;
   }
 
-  Future<void> _logout() async {
-    await Supabase.instance.client.auth.signOut();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (_) => false,
-    );
-  }
-
   void _abrirDetalhe(String machineId) {
     Navigator.of(context)
         .push(
@@ -245,48 +234,82 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     // no servidor, não há como reaproveitar o que já está em memória.
     ref.listen(appFilterProvider, (_, __) => _recarregar());
 
-    // Telemóvel em retrato não tem largura para o wordmark completo mais o
-    // selector de app mais quatro ícones. 600 dp é a fronteira habitual do
-    // Material entre telemóvel e tablet; inline de propósito — não vale a pena
-    // um sistema de breakpoints para um ecrã só.
-    final compacto = MediaQuery.sizeOf(context).width < 600;
-
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: 56,
-        titleSpacing: AppSpacing.lg,
-        title: _Wordmark(compacto: compacto),
-        actions: [
-          const WiAppSelector(),
-          const SizedBox(width: AppSpacing.xs),
-          IconButton(
-            iconSize: 20,
-            icon: const Icon(Icons.search),
-            tooltip: 'Pesquisa global',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const PesquisaGlobalScreen()),
+        toolbarHeight: 44,
+        centerTitle: true,
+        titleSpacing: 0,
+        // A linha 1 inteira é o botão de "Sobre" — não só um ícone de "i":
+        // é o alvo de toque mais fácil de acertar (a largura toda do ecrã) e
+        // fica sempre legível, ao contrário do wordmark antigo que desaparecia
+        // em telemóvel (< 600 dp só mostrava o ícone, sem "CONTROL" nenhum).
+        title: InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          onTap: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const SobreScreen())),
+          child: const Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.xs,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.local_laundry_service,
+                  size: 20,
+                  color: Colors.white,
+                ),
+                SizedBox(width: AppSpacing.xs),
+                Text(
+                  'CONTROL',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.6,
+                  ),
+                ),
+              ],
             ),
           ),
-          IconButton(
-            iconSize: 20,
-            icon: const Icon(Icons.refresh),
-            onPressed: _recarregar,
+        ),
+        // Linha 2: selector de app à esquerda, pesquisa + recarregar à
+        // direita. O logout saiu daqui — já vive em "Sobre", que a linha 1
+        // abre num toque.
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.sm,
+              0,
+              AppSpacing.sm,
+              AppSpacing.sm,
+            ),
+            child: Row(
+              children: [
+                const WiAppSelector(),
+                const Spacer(),
+                IconButton(
+                  iconSize: 20,
+                  icon: const Icon(Icons.search),
+                  tooltip: 'Pesquisa global',
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const PesquisaGlobalScreen(),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  iconSize: 20,
+                  icon: const Icon(Icons.refresh),
+                  onPressed: _recarregar,
+                ),
+              ],
+            ),
           ),
-          IconButton(
-            iconSize: 20,
-            icon: const Icon(Icons.info_outline),
-            tooltip: 'Sobre / Sistema',
-            onPressed: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const SobreScreen())),
-          ),
-          IconButton(
-            iconSize: 20,
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-        ],
+        ),
       ),
       body: FutureBuilder<_DashboardData>(
         future: _future,
@@ -463,45 +486,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           );
         },
       ),
-    );
-  }
-}
-
-/// Marca na AppBar do Dashboard.
-///
-/// Em [compacto] fica só o logo: o wordmark completo ocupa ~190 dp e, somado
-/// ao selector de app e aos quatro ícones, não cabe nos ~411 dp de um telemóvel
-/// em retrato — o Material AppBar não rebenta, sobrepõe em silêncio. O nome da
-/// app continua no rodapé do Dashboard ("WashInvoice Control · vX.Y.Z"), por
-/// isso não se perde informação.
-class _Wordmark extends StatelessWidget {
-  final bool compacto;
-  const _Wordmark({required this.compacto});
-
-  @override
-  Widget build(BuildContext context) {
-    const logo = Icon(Icons.local_laundry_service, size: 22, color: Colors.white);
-    if (compacto) return logo;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        logo,
-        const SizedBox(width: AppSpacing.sm),
-        const Text(
-          'WashInvoice',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          'CONTROL',
-          style: TextStyle(
-            fontSize: 12,
-            letterSpacing: 2,
-            color: Colors.white.withValues(alpha: 0.7),
-          ),
-        ),
-      ],
     );
   }
 }
