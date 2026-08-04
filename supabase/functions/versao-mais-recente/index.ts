@@ -66,13 +66,18 @@ Deno.serve(async (req) => {
     return json(400, { erro: 'build_number_local tem de ser um número' });
   }
 
-  // Os APKs Android do Punho são publicados com --split-per-abi. O Flutter
-  // prefixa o versionCode com 1000/2000/4000 conforme a arquitectura, embora
-  // todos pertençam ao mesmo build lógico (por exemplo, 1009/2009/4009 = 9).
-  // O catálogo guarda esse build lógico para que uma única versão Android
-  // funcione em todas as arquitecturas.
+  // Um --split-per-abi (deliberado no Punho; aconteceu por engano pelo menos
+  // uma vez no Control, na 1.8.5) faz o Flutter prefixar o versionCode com
+  // 1000/2000/4000 conforme a arquitectura, embora todos pertençam ao mesmo
+  // build lógico (por exemplo, 1009/2009/4009 = 9). Isto não é específico de
+  // nenhuma app: é como o Flutter numera versionCodes em qualquer split
+  // Android. Sem normalizar aqui, uma instalação já com split-per-abi fica
+  // presa para sempre — o inteiro instalado nunca mais volta a descer abaixo
+  // do prefixo, e nenhuma versão futura (com build lógico menor que 1000)
+  // pareceria mais recente. O catálogo guarda o build lógico para que uma
+  // única versão Android funcione em todas as arquitecturas.
   const buildComparavel =
-    app === 'punho' && plataforma === 'android' && buildLocal >= 1000
+    plataforma === 'android' && buildLocal >= 1000
       ? buildLocal % 1000
       : buildLocal;
 
