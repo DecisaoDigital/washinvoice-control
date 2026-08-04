@@ -82,7 +82,9 @@ Deno.serve(async (req) => {
 
   const { data: v, error } = await supabase
     .from('versoes_apps')
-    .select('versao, build_number, url_download, obrigatoria, notas_lancamento')
+    .select(
+      'versao, build_number, url_download, obrigatoria, notas_lancamento, sha256',
+    )
     .eq('app', app)
     .eq('activa', true)
     .in('plataforma', [plataforma, 'all'])
@@ -107,5 +109,6 @@ Deno.serve(async (req) => {
     url_download: v.url_download,
     obrigatoria: v.obrigatoria,
     notas_lancamento: v.notas_lancamento,
+    sha256: v.sha256,
   });
 });

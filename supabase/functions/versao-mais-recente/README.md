@@ -1,8 +1,8 @@
 # versao-mais-recente
 
 Diz a uma instalação se há build novo disponível. Usada pelo auto-update do
-Control (e, no futuro, do POS — reutiliza esta mesma function e a tabela
-`versoes_apps`).
+Control e do Punho (e, no futuro, do POS — reutiliza esta mesma function e a
+tabela `versoes_apps`).
 
 - **Método:** `POST /functions/v1/versao-mais-recente`
 - **Auth:** `verify_jwt: true`. Precisa de um JWT válido no header `Authorization`
@@ -19,8 +19,8 @@ Control (e, no futuro, do POS — reutiliza esta mesma function e a tabela
 }
 ```
 
-`app` ∈ `{ "control", "pos" }`. `build_number_local` é o `buildNumber` do
-`PackageInfo` (o número depois do `+` no `pubspec.yaml`).
+`app` ∈ `{ "control", "pos", "punho" }`. `build_number_local` é o `buildNumber`
+do `PackageInfo` (o número depois do `+` no `pubspec.yaml`).
 
 ## Resposta — há actualização
 
@@ -31,9 +31,15 @@ Control (e, no futuro, do POS — reutiliza esta mesma function e a tabela
   "build_number": 24,
   "url_download": "https://github.com/CesarM78/washinvoice-releases/releases/download/control-1.7.0/WashInvoiceControl_v1.7.0.apk",
   "obrigatoria": false,
-  "notas_lancamento": "..."
+  "notas_lancamento": "...",
+  "sha256": "fb95759c1937fb0adeb7b16bb89a8d355be1691a9abfa9377f391560b98de987"
 }
 ```
+
+`sha256` vem directo da coluna `versoes_apps.sha256` e pode ser `null` — uma
+versão catalogada sem hash publicado. É o que o instalador automático (Control
+e Punho) usa para confirmar o APK descarregado antes de o instalar; sem ele o
+cliente cai sempre para o browser.
 
 ## Resposta — já actualizado
 

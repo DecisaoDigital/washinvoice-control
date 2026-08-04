@@ -10,12 +10,21 @@ class ActualizacaoInfo {
   final bool obrigatoria;
   final String? notasLancamento;
 
+  /// Impressão digital do APK publicado.
+  ///
+  /// Sem ela a app não instala automaticamente — só oferece o caminho antigo,
+  /// pelo browser. O `urlDownload` vem de uma coluna editável em
+  /// `versoes_apps`, e uma app que se instala a si própria tem de confirmar o
+  /// que está a abrir.
+  final String? sha256;
+
   const ActualizacaoInfo({
     required this.versaoActual,
     required this.buildNumber,
     required this.urlDownload,
     required this.obrigatoria,
     this.notasLancamento,
+    this.sha256,
   });
 
   factory ActualizacaoInfo.fromJson(Map<String, dynamic> json) =>
@@ -25,5 +34,6 @@ class ActualizacaoInfo {
         urlDownload: json['url_download'] as String,
         obrigatoria: json['obrigatoria'] as bool? ?? false,
         notasLancamento: json['notas_lancamento'] as String?,
+        sha256: json['sha256'] as String?,
       );
 }

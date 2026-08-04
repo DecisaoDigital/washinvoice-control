@@ -30,5 +30,28 @@ void main() {
       expect(info.notasLancamento, isNull);
       expect(info.obrigatoria, isFalse);
     });
+
+    test('lê o sha256 quando o catálogo o publica', () {
+      final info = ActualizacaoInfo.fromJson({
+        'versao_actual': '1.8.6',
+        'build_number': 31,
+        'url_download': 'https://exemplo/apk',
+        'sha256': 'abc123',
+      });
+
+      expect(info.sha256, 'abc123');
+    });
+
+    test('uma resposta antiga sem sha256 não rebenta a leitura', () {
+      // O servidor pode ser mais antigo do que a app. Falta de campo é
+      // ausência de instalação automática, não erro.
+      final info = ActualizacaoInfo.fromJson({
+        'versao_actual': '1.7.0',
+        'build_number': 24,
+        'url_download': 'https://exemplo/apk',
+      });
+
+      expect(info.sha256, isNull);
+    });
   });
 }

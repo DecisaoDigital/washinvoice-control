@@ -99,21 +99,32 @@ final _fcmSincSessaoProvider = Provider<void>((ref) {
   }, fireImmediately: true);
 });
 
-/// Verifica se há build novo do Control: uma vez ao ganhar sessão e depois
-/// como safety net diário (24h). Alinhado com o POS (#103, #119) — 6h era
-/// excessivo para o cadence real de releases do Control. "Side-effect only",
-/// tal como o [_fcmSincSessaoProvider]:
-/// observa `sessaoProvider` e preenche `actualizacaoDisponivelProvider`, que o
-/// banner e o modal em [HomeShell] mostram.
+/// Verifica se há build novo do Control: ao ganhar sessão, ao regressar do
+/// segundo plano, e como safety net diário (24h). Alinhado com o POS (#103,
+/// #119) — 6h era excessivo para o cadence real de releases do Control.
+/// "Side-effect only", tal como o [_fcmSincSessaoProvider]: observa
+/// `sessaoProvider` e preenche `actualizacaoDisponivelProvider`, que o banner
+/// e o modal em [HomeShell] mostram.
 ///
 /// Reage à troca de *utilizador*, não a cada refresh de token (senão o timer
 /// reiniciava de hora a hora). Falha de rede é engolida em silêncio — uma
 /// verificação falhada nunca deve interromper o admin.
+///
+/// **O regresso do background conta como momento de verificar.** Sem isto há
+/// só dois momentos: o arranque de raiz e o temporizador de 24 horas. Quem
+/// deixa a app em segundo plano e alterna para ela nunca apanha uma versão
+/// publicada entretanto — foi exactamente esta lacuna que, no Punho, deixou
+/// duas versões seguidas por avisar a quem já tinha a app aberta.
 final _verificadorActualizacaoProvider = Provider<void>((ref) {
   Timer? timer;
   String? ultimoUser;
+  _ObservadorDeRegresso? observador;
 
-  ref.onDispose(() => timer?.cancel());
+  ref.onDispose(() {
+    timer?.cancel();
+    final obs = observador;
+    if (obs != null) WidgetsBinding.instance.removeObserver(obs);
+  });
 
   Future<void> verificar() async {
     try {
@@ -125,6 +136,12 @@ final _verificadorActualizacaoProvider = Provider<void>((ref) {
       // Rede off / servidor em baixo: silencioso de propósito.
     }
   }
+
+  final obs = _ObservadorDeRegresso(() {
+    if (ultimoUser != null) unawaited(verificar());
+  });
+  observador = obs;
+  WidgetsBinding.instance.addObserver(obs);
 
   ref.listen<AsyncValue<Session?>>(sessaoProvider, (anterior, actual) {
     final userId = actual.value?.user.id;
@@ -141,6 +158,19 @@ final _verificadorActualizacaoProvider = Provider<void>((ref) {
     }
   }, fireImmediately: true);
 });
+
+/// Observador mínimo do ciclo de vida. Existe como classe própria porque um
+/// `Provider` não pode ele próprio ser um `WidgetsBindingObserver` sem
+/// arrastar o mixin e o `dispose` para dentro do provider.
+class _ObservadorDeRegresso extends WidgetsBindingObserver {
+  _ObservadorDeRegresso(this.aoRegressar);
+  final VoidCallback aoRegressar;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState estado) {
+    if (estado == AppLifecycleState.resumed) aoRegressar();
+  }
+}
 
 class WashInvoiceControlApp extends ConsumerWidget {
   const WashInvoiceControlApp({super.key});
