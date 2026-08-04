@@ -31,9 +31,41 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- Quem trata o link de recuperação é o `app_links` (por dentro do
+                 supabase_flutter), não o Navigator.
+
+                 Sem isto o motor do Flutter entrega o link *também* como rota e
+                 tenta `pushNamed('/auth/callback')`. Este MaterialApp só tem
+                 `home:` — sem `routes`, sem `onGenerateRoute` — por isso a rota
+                 não existe e o `_onUnknownRoute` rebenta com "Null check
+                 operator used on a null value" a cada link. Não mata a app, mas
+                 suja o arranque e esconde erros a sério no meio do ruído.
+                 Apanhado no Redmi a 4 de Agosto de 2026. -->
+            <meta-data
+              android:name="flutter_deeplinking_enabled"
+              android:value="false"
+              />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <!-- O link do email de recuperação volta por aqui.
+
+                 Filtro à parte do LAUNCHER de propósito: os filtros são
+                 alternativas, não uma lista de requisitos. Juntar MAIN/LAUNCHER
+                 e VIEW/BROWSABLE no mesmo bloco fá-los-ia combinar-se entre si
+                 e o ícone deixaria de aparecer na gaveta.
+
+                 O esquema é `washinvoicecontrol`, e não o `washinvoice` do POS:
+                 são apps diferentes na mesma conta Supabase, e sem esquema
+                 próprio o link caía no `site_url` global — abria o POS, não
+                 esta app. Ver `washinvoicecontrol://auth/callback` na allowlist
+                 do projecto. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="washinvoicecontrol" android:host="auth"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

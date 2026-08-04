@@ -134,7 +134,13 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     setState(() { _aEntrar = true; _erro = null; });
     try {
-      await Supabase.instance.client.auth.resetPasswordForEmail(email);
+      // `washinvoicecontrol://` e nao o esquema por omissao: o `site_url` do
+      // projecto e o do POS (`washinvoice://`), e sem isto o link do email
+      // abria a outra app. Ver o intent-filter no AndroidManifest.
+      await Supabase.instance.client.auth.resetPasswordForEmail(
+        email,
+        redirectTo: 'washinvoicecontrol://auth/callback',
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

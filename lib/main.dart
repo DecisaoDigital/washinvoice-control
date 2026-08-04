@@ -13,6 +13,8 @@ import 'core/erros.dart';
 import 'core/supabase_config.dart';
 import 'features/auth/login_screen.dart';
 import 'features/auth/acesso_pendente_screen.dart';
+import 'features/auth/modo_de_recuperacao.dart';
+import 'features/auth/nova_palavra_passe_screen.dart';
 import 'features/nav/home_shell.dart';
 import 'repositories/providers.dart';
 import 'services/fcm_background_handler.dart';
@@ -30,13 +32,47 @@ import 'services/push_titulo.dart';
 /// replay: o evento `initialSession` é disparado durante `Supabase.initialize()`,
 /// antes deste provider subscrever, pelo que um subscritor tardio nunca o
 /// receberia e ficaria preso no splash.
+/// **Um erro neste canal não é uma sessão fechada.** O `getSessionFromUrl` a
+/// falhar — um link de email caducado, por exemplo — é publicado como erro em
+/// `onAuthStateChange`. Sem o [_semRebentar], o `await for` lançava, o gerador
+/// morria com ele, e o provider ficava em erro *para sempre*: o ecrã caía no
+/// Login e nunca mais recebia um evento de sessão, mesmo com a sessão viva por
+/// baixo. Só um reinício da app o resolvia.
 final sessaoProvider = StreamProvider<Session?>((ref) async* {
   final auth = Supabase.instance.client.auth;
   yield auth.currentSession;
-  await for (final estado in auth.onAuthStateChange) {
+  await for (final estado in _semRebentar(auth.onAuthStateChange)) {
     yield estado.session;
   }
 });
+
+/// A pessoa chegou por um link de recuperação e ainda não escolheu palavra-passe
+/// nenhuma. Ver [modoDeRecuperacao] — é um trinco, e é ele que impede o link do
+/// email de dar entrada silenciosa.
+final modoRecuperacaoProvider = StreamProvider<bool>((ref) async* {
+  var actual = false;
+  yield actual;
+  await for (final estado in _semRebentar(
+    Supabase.instance.client.auth.onAuthStateChange,
+  )) {
+    actual = modoDeRecuperacao(estado.event, actual: actual);
+    yield actual;
+  }
+});
+
+/// Deixa passar os eventos e trata os erros à parte, em vez de os deixar matar
+/// quem está a escutar. Diz-se ao utilizador o que aconteceu: quem carrega num
+/// link de recuperação e vê a app abrir na mesma como estava conclui que
+/// carregou mal, e tenta outra vez — e o link seguinte também já expirou.
+Stream<AuthState> _semRebentar(Stream<AuthState> origem) =>
+    origem.handleError((Object erro) {
+      final mensagem = erro is AuthException
+          ? 'Esse link já não serve. Pede outro em "Esqueci a palavra-passe".'
+          : descreverErro(erro);
+      messengerKey.currentState?.showSnackBar(
+        SnackBar(content: Text(mensagem)),
+      );
+    });
 
 /// Estado do pedido de acesso da sessão actual: `aprovado`, `pendente`,
 /// `recusado` ou `revogado`.
@@ -183,6 +219,12 @@ class WashInvoiceControlApp extends ConsumerWidget {
     ref.watch(_verificadorActualizacaoProvider);
 
     final sessao = ref.watch(sessaoProvider);
+    // **Aqui em cima, e não lá dentro do `data:`.** O `passwordRecovery` passa
+    // uma vez só e não fica guardado: quem não estiver a escutar quando ele
+    // passa nunca sabe que houve recuperação. Dentro do `data:` este provider
+    // só era subscrito depois de a sessão resolver — e o primeiro fotograma da
+    // app é sempre `loading`. Aqui subscreve ao mesmo tempo que a sessão.
+    final aRecuperar = ref.watch(modoRecuperacaoProvider).value ?? false;
     return MaterialApp(
       title: 'WashInvoice Control',
       debugShowCheckedModeBanner: false,
@@ -195,7 +237,17 @@ class WashInvoiceControlApp extends ConsumerWidget {
         // Falha a ler o estado de autenticação: cai no Login por segurança.
         error: (_, __) => const LoginScreen(),
         // Sessão presente → HomeShell. Ausente (confirmado) → LoginScreen.
-        data: (session) => session != null ? const _AcessoInicial() : const LoginScreen(),
+        // Antes do acesso: quem entrou por um link de recuperação ainda não
+        // escolheu palavra-passe nenhuma, e o link só autenticou.
+        data: (session) => session == null
+            ? const LoginScreen()
+            : aRecuperar
+            ? NovaPalavraPasseScreen(
+                // Desistir tem de fechar a sessão que o link abriu. Deixá-la
+                // aberta era dar entrada a quem só clicou num email.
+                aoDesistir: () => Supabase.instance.client.auth.signOut(),
+              )
+            : const _AcessoInicial(),
       ),
     );
   }
