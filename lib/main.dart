@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:app_links/app_links.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,6 +14,7 @@ import 'core/erros.dart';
 import 'core/supabase_config.dart';
 import 'features/auth/login_screen.dart';
 import 'features/auth/acesso_pendente_screen.dart';
+import 'features/auth/links_de_autenticacao.dart';
 import 'features/auth/modo_de_recuperacao.dart';
 import 'features/auth/nova_palavra_passe_screen.dart';
 import 'features/nav/home_shell.dart';
@@ -108,6 +110,28 @@ Future<void> main() async {
     await Supabase.initialize(
       url: SupabaseConfig.url,
       anonKey: SupabaseConfig.anonKey,
+      // O observador de deep links de origem fica desligado: neste projecto
+      // nunca entregou nada (a história está em [LinksDeAutenticacao]), e
+      // deixá-lo ligado só abriria a hipótese de dois observadores a trocarem
+      // o mesmo código de uso único.
+      authOptions: const FlutterAuthClientOptions(detectSessionInUri: false),
+    );
+
+    final links = AppLinks();
+    unawaited(
+      LinksDeAutenticacao(
+        links: links.uriLinkStream,
+        linkInicial: links.getInitialLink,
+        // A frio, esta falha acontece antes de haver ecrã — por isso a
+        // mensagem espera pela interface, ver [mostrarMensagem].
+        aoFalhar: (erro) => mostrarMensagem(
+          erro is AuthException
+              ? 'Esse link já não serve. Pede outro em '
+                    '"Esqueci a palavra-passe".'
+              : descreverErro(erro),
+          grave: true,
+        ),
+      ).escutar(),
     );
 
     // Firebase + FCM. Não bloqueia — em falha (ex: google-services.json em

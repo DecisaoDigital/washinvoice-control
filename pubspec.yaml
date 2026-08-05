@@ -36,6 +36,9 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   supabase_flutter: ^2.0.0
+  # Directa e não emprestada pelo `supabase_flutter`: é esta app que escuta os
+  # deep links de autenticação, ver `links_de_autenticacao.dart`.
+  app_links: ^6.4.1
   flutter_riverpod: ^2.0.0
   google_maps_flutter: ^2.5.0
   timeago: ^3.6.0

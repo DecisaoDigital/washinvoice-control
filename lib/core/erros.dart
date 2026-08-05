@@ -54,23 +54,54 @@ void mostrarErro(Object erro, {StackTrace? stack}) {
   debugPrint('ERRO: $erro');
   if (stack != null) debugPrint(stack.toString());
 
+  mostrarMensagem(descreverErro(erro), grave: true);
+}
+
+/// Mostra uma mensagem — **e espera pela interface se ela ainda não existir**.
+///
+/// Um erro que acontece antes de haver ecrã não tinha a quem se queixar: o
+/// `messengerKey.currentState` é nulo e a mensagem desaparecia sem deixar
+/// rasto. Não é um caso raro — o link de recuperação vindo do email arranca a
+/// app e falha durante o arranque, que é precisamente quando ainda não há
+/// `ScaffoldMessenger` montado. A 5 de Agosto de 2026 isso deu uma app que
+/// abria calada no ecrã de entrada e uma pessoa a concluir que tinha carregado
+/// mal no link.
+///
+/// Por isso tenta-se outra vez, de [_intervalo] em [_intervalo], até
+/// [tentativas] chegarem ao fim — cerca de três segundos, que chega de sobra
+/// para o arranque e não fica a tentar para sempre numa app que nunca montou.
+void mostrarMensagem(String mensagem, {bool grave = false, int tentativas = 30}) {
   final messenger = messengerKey.currentState;
+  if (messenger == null) {
+    if (tentativas <= 0) return;
+    Timer(
+      _intervalo,
+      () => mostrarMensagem(
+        mensagem,
+        grave: grave,
+        tentativas: tentativas - 1,
+      ),
+    );
+    return;
+  }
   messenger
-    ?..clearSnackBars()
+    ..clearSnackBars()
     ..showSnackBar(
       SnackBar(
-        backgroundColor: AppColors.vermelho,
+        backgroundColor: grave ? AppColors.vermelho : null,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 5),
-        content: Text(descreverErro(erro)),
+        content: Text(mensagem),
         action: SnackBarAction(
           label: 'OK',
           textColor: Colors.white,
-          onPressed: () => messenger.hideCurrentSnackBar(),
+          onPressed: messenger.hideCurrentSnackBar,
         ),
       ),
     );
 }
+
+const _intervalo = Duration(milliseconds: 100);
 
 /// Instala os handlers globais para que nenhum erro fique silencioso.
 /// Chamar dentro de [runZonedGuarded] em main().
