@@ -38,7 +38,10 @@ class WiAppSelector extends ConsumerWidget {
       borderRadius: BorderRadius.circular(12),
       clipBehavior: Clip.antiAlias,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
+        constraints: const BoxConstraints(
+          minHeight: 48,
+          minWidth: _larguraMinima,
+        ),
         child: DropdownButtonHideUnderline(
           child: DropdownButton<AppFiltro>(
             value: filtro,
@@ -106,6 +109,19 @@ class WiAppSelector extends ConsumerWidget {
       ),
     );
   }
+
+  /// Largura mínima da pastilha, com a conta à vista.
+  ///
+  /// O que lá estava eram 48 — o alvo de toque mínimo, não uma largura. A
+  /// pastilha ficava do tamanho do texto: `sm` à esquerda (8) + ícone (18) +
+  /// `xs` (4) + rótulo + seta (24). Com "POS" isso dava uns 80, com "Punho"
+  /// uns 92, e a pastilha mudava de largura conforme a app escolhida — a
+  /// AppBar mexia sozinha a cada troca, sem nada ter mudado à volta.
+  ///
+  /// 132 é o maior desses valores mais 40 de ar. Igual para as três escolhas,
+  /// por isso deixa de haver salto, e sobra espaço para um rótulo mais longo
+  /// no dia em que houver uma terceira app.
+  static const _larguraMinima = 132.0;
 
   static IconData _icone(AppFiltro f) =>
       f.valorApp == null ? Icons.apps : AppsUi.icone(f.valorApp!);

@@ -167,8 +167,22 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Padding(
                   padding: const EdgeInsets.all(AppSpacing.xxl),
                   child: Column(
+                    // **Centrado no espaço que houver — não a 12% do topo.**
+                    //
+                    // A margem era `maxHeight * 0.12`, e uma percentagem de um
+                    // ecrã inteiro não é a mesma coisa que uma percentagem do
+                    // que sobra. Com o teclado aberto o `Scaffold` encolhe o
+                    // corpo, os 12% encolhem com ele, e o conteúdo — que não
+                    // encolheu nada — subia e ficava colado ao topo, com todo
+                    // o ar a sobrar por baixo.
+                    //
+                    // Aqui o espaço livre é repartido em partes iguais acima e
+                    // abaixo, seja qual for a altura disponível. Quando já não
+                    // chega para tudo, o `SingleChildScrollView` à volta
+                    // assume: mais vale poder rolar até ao botão do que ter um
+                    // conteúdo bem centrado de que só se vê metade.
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      SizedBox(height: constraints.maxHeight * 0.12),
                       const _Identidade(),
                       const SizedBox(height: AppSpacing.xxxl),
                       _cartao(),
