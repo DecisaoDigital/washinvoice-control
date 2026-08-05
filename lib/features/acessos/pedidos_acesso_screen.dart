@@ -113,7 +113,8 @@ class _PedidosAcessoScreenState extends ConsumerState<PedidosAcessoScreen> {
             const Padding(padding: EdgeInsets.symmetric(vertical: 8),
               child: Text('Ainda não há contas aprovadas.')),
           ...v.aprovados.map((p) => _AprovadoCard(
-            pedido: p, ocupacao: v.ocupacaoTexto(p.organizacaoId), onRevogar: _revogar)),
+            pedido: p, ocupacao: v.ocupacaoTexto(p.organizacaoId), onRevogar: _revogar,
+            onApagar: _apagar)),
         ]),
       );
     }),
@@ -250,7 +251,8 @@ class _AprovadoCard extends StatelessWidget {
   final PedidoAcesso pedido;
   final String? ocupacao;
   final Future<void> Function(PedidoAcesso) onRevogar;
-  const _AprovadoCard({required this.pedido, required this.ocupacao, required this.onRevogar});
+  final Future<void> Function(PedidoAcesso) onApagar;
+  const _AprovadoCard({required this.pedido, required this.ocupacao, required this.onRevogar, required this.onApagar});
 
   @override
   Widget build(BuildContext context) {
@@ -265,10 +267,22 @@ class _AprovadoCard extends StatelessWidget {
             ' · Entrada: ${p.origem == 'convite' ? 'Por convite' : 'Pedido livre'}'),
         if (ocupacao != null) Text('Ocupação: $ocupacao'),
         const SizedBox(height: 10),
-        OutlinedButton(
-          onPressed: () => onRevogar(p),
-          style: OutlinedButton.styleFrom(foregroundColor: AppColors.vermelho),
-          child: const Text('Revogar')),
+        // Uma conta aprovada também se apaga. Revogar tira o acesso e deixa a
+        // linha; apagar tira as duas coisas — e é aqui, nas contas aprovadas,
+        // que mora a maior parte da lista. Sem isto o botão existia só nos
+        // pendentes, e quem não tivesse pendentes não via botão nenhum.
+        Row(children: [
+          OutlinedButton(
+            onPressed: () => onRevogar(p),
+            style: OutlinedButton.styleFrom(foregroundColor: AppColors.vermelho),
+            child: const Text('Revogar')),
+          const Spacer(),
+          IconButton(
+            tooltip: 'Apagar pedido',
+            onPressed: () => onApagar(p),
+            icon: const Icon(Icons.delete_outline),
+            color: AppColors.textSecondary),
+        ]),
       ])));
   }
 }
