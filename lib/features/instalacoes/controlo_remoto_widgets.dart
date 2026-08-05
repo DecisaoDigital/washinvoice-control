@@ -39,7 +39,10 @@ class _Header extends StatelessWidget {
 class CardControloRemoto extends StatelessWidget {
   final Licenca licenca;
   final bool ocupado;
-  final void Function(int dias) onProlongar;
+  /// Dar tempo à licença. Chamava-se `onProlongar` enquanto dar tempo era
+  /// sempre somar; num trial passou a ser uma janela a contar de hoje, e o
+  /// nome antigo mentia. Ver [GerirLicencaService.darDias].
+  final void Function(int dias) onDarDias;
   final VoidCallback onSuspender;
   final VoidCallback onReactivar;
   final VoidCallback onCancelar;
@@ -50,7 +53,7 @@ class CardControloRemoto extends StatelessWidget {
     super.key,
     required this.licenca,
     required this.ocupado,
-    required this.onProlongar,
+    required this.onDarDias,
     required this.onSuspender,
     required this.onReactivar,
     required this.onCancelar,
@@ -79,10 +82,13 @@ class CardControloRemoto extends StatelessWidget {
             children: [
               for (final dias in GerirLicencaService.diasPermitidos)
                 OutlinedButton(
-                  onPressed: ocupado ? null : () => onProlongar(dias),
+                  onPressed: ocupado ? null : () => onDarDias(dias),
                   style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.azul700),
-                  child: Text('+$dias dias'),
+                  // Sem `+` no trial: ali o número é a janela toda, a contar
+                  // de hoje, e o sinal de mais prometia uma soma que não
+                  // acontece. Numa licença paga é mesmo uma soma.
+                  child: Text(l.diasContamDeHoje ? '$dias dias' : '+$dias dias'),
                 ),
               if (l.activa)
                 OutlinedButton.icon(

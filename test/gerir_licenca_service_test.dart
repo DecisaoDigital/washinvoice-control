@@ -152,4 +152,83 @@ void main() {
   test('dias permitidos são os que a function aceita', () {
     expect(GerirLicencaService.diasPermitidos, [5, 15, 30]);
   });
+
+  /// **O que "dar 5 dias" quer dizer depende do que a licença é.**
+  ///
+  /// Regra do César, 5/8/2026: «se eu não dou tempo, o trial é dos 40 dias;
+  /// mas se eu falo em 5 dias ou 10, é sempre a contar de hoje». O botão fazia
+  /// o contrário — somava 5 aos 40 que o auto-onboarding já tinha dado e
+  /// devolvia 45 dias. Numa licença paga somar continua a ser o certo: quem
+  /// pagou até Dezembro não pode ficar a caducar daqui a cinco dias.
+  ///
+  /// Os testes olham para o **pedido que sai**, não para a resposta: é o corpo
+  /// enviado que decide o que o servidor faz.
+  group('darDias', () {
+    final hoje = DateTime.now();
+    final daquiAUmAno = DateTime(hoje.year + 1, hoje.month, hoje.day);
+
+    Licenca lic(String plano, {String app = 'punho'}) => Licenca(
+          id: 'lic-1',
+          app: app,
+          machineId: 'abc123',
+          nif: '500000001',
+          nome: 'Lavandaria Sol',
+          plano: plano,
+          // Bem longe: um trial só encurta se houver o que encurtar.
+          validade: daquiAUmAno,
+          activa: true,
+          criadoEm: DateTime(2026, 1, 1),
+        );
+
+    test('num trial do Punho é uma janela a contar de hoje — e encurta',
+        () async {
+      final s = servicoCom(_resposta(acao: 'definir_validade'));
+      await s.darDias(lic('trial'), 5);
+
+      final esperada = DateTime(hoje.year, hoje.month, hoje.day + 5);
+      expect(corpos.single['acao'], 'definir_validade');
+      expect(corpos.single['parametros'], {
+        'validade': esperada.toIso8601String().substring(0, 10),
+      });
+      expect(esperada.isBefore(daquiAUmAno), isTrue,
+          reason: 'o pedido que sai tem de encurtar a validade, não somar-lhe');
+    });
+
+    test('numa licença paga é uma soma, feita pelo servidor', () async {
+      final s = servicoCom(_resposta());
+      await s.darDias(lic('anual'), 15);
+
+      expect(corpos.single, {
+        'acao': 'prolongar',
+        'machine_id': 'abc123',
+        'parametros': {'dias': 15},
+      });
+    });
+
+    test('o POS fica de fora, trials incluídos', () async {
+      // «só para o punho, não quero mexer no pos» — 5/8/2026. O POS também tem
+      // trials auto-criados; o pedido que sai para eles não pode mudar.
+      final s = servicoCom(_resposta());
+      await s.darDias(lic('trial', app: 'pos'), 5);
+
+      expect(corpos.single, {
+        'acao': 'prolongar',
+        'machine_id': 'abc123',
+        'parametros': {'dias': 5},
+      });
+    });
+
+    test('o dia rola o mês em condições', () async {
+      // Se isto fosse `Duration(days: 30)` somado a um `DateTime` local, a
+      // mudança da hora dava um dia a menos. Construído por componentes, não.
+      final s = servicoCom(_resposta(acao: 'definir_validade'));
+      await s.darDias(lic('trial'), 30);
+
+      final esperada = DateTime(hoje.year, hoje.month, hoje.day + 30);
+      expect(
+        (corpos.single['parametros'] as Map)['validade'],
+        esperada.toIso8601String().substring(0, 10),
+      );
+    });
+  });
 }

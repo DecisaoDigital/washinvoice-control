@@ -16,14 +16,6 @@ import '../pedidos_ajuda/pedidos_ajuda_screen.dart';
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
 
-  @override
-  ConsumerState<HomeShell> createState() => _HomeShellState();
-}
-
-class _HomeShellState extends ConsumerState<HomeShell> {
-  int _index = 0;
-  bool _modalObrigatorioAberto = false;
-
   static const _paginas = [
     DashboardScreen(),
     InstalacoesScreen(),
@@ -35,6 +27,56 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   /// recusam qualquer outra conta. Um gerente de organização não vê o
   /// separador, em vez de lhe bater com um erro.
   static const _paginaPunho = PunhoPedidosScreen();
+
+  /// As páginas da barra, na ordem dos separadores.
+  ///
+  /// Anda **sempre** a par de [itensDe]: mesma ordem, mesmo comprimento, para
+  /// o mesmo [admin]. Ver [itensDe] para o que acontece quando não anda.
+  static List<Widget> paginasDe(bool admin) => [
+    ..._paginas,
+    if (admin) _paginaPunho,
+  ];
+
+  /// Os separadores da barra de baixo.
+  ///
+  /// O item do Punho faltava aqui, e as duas listas ficaram com comprimentos
+  /// diferentes: cinco páginas, quatro botões. Ao entrar no Punho,
+  /// `currentIndex` valia 4 numa barra de 0..3 e o `BottomNavigationBar`
+  /// rebentava com `RangeError` dentro do `didUpdateWidget` — a cada frame. O
+  /// ecrã ficava pintado mas morto: nenhum toque chegava a lado nenhum e o
+  /// botão "Decidir" parecia não fazer nada. Visto no Redmi a 5/8/2026.
+  ///
+  /// O ícone é deliberadamente diferente do de "Acessos": são coisas distintas
+  /// — equipa do escritório vs. clientes da app Punho.
+  static List<BottomNavigationBarItem> itensDe(bool admin) => [
+    const BottomNavigationBarItem(
+      icon: Icon(Icons.dashboard),
+      label: 'Dashboard',
+    ),
+    const BottomNavigationBarItem(
+      icon: Icon(Icons.devices),
+      label: 'Instalações',
+    ),
+    const BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Mapa'),
+    const BottomNavigationBarItem(
+      icon: Icon(Icons.manage_accounts_outlined),
+      label: 'Acessos',
+    ),
+    if (admin)
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.how_to_reg_outlined),
+        label: 'Pedidos Punho',
+      ),
+  ];
+
+  @override
+  ConsumerState<HomeShell> createState() => _HomeShellState();
+}
+
+class _HomeShellState extends ConsumerState<HomeShell> {
+  int _index = 0;
+  bool _modalObrigatorioAberto = false;
+
 
   @override
   void initState() {
@@ -53,7 +95,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
   /// Índice do separador "Punho", ou `null` se não for admin global (nesse caso
   /// o separador não existe).
-  int? get _indicePunho => _admin ? _paginas.length : null;
+  int? get _indicePunho => _admin ? HomeShell._paginas.length : null;
   bool _admin = false;
 
   /// Executa o destino trazido por um push e limpa-o, para o mesmo toque não
@@ -116,7 +158,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     // O destino de um push pode chegar fora do build, quando já não há `admin`
     // à mão — daí ficar guardado.
     _admin = admin;
-    final paginas = [..._paginas, if (admin) _paginaPunho];
+    final paginas = HomeShell.paginasDe(admin);
     // Se o separador desaparecer (perfil resolvido depois do primeiro build),
     // o índice actual pode ficar fora do intervalo.
     final indice = _index.clamp(0, paginas.length - 1);
@@ -135,26 +177,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         onTap: _seleccionar,
         selectedItemColor: AppColors.azul,
         unselectedItemColor: AppColors.textTertiary,
-        items: [
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
-            label: 'Dashboard',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.devices),
-            label: 'Instalações',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.map),
-            label: 'Mapa',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.manage_accounts_outlined),
-            label: 'Acessos',
-          ),
-          // Ícone deliberadamente diferente do de "Acessos": são coisas
-          // distintas — equipa do escritório vs. clientes da app Punho.
-        ],
+        // A partir de cinco itens o `BottomNavigationBar` muda sozinho para o
+        // modo `shifting`, onde só o seleccionado mostra rótulo. Fixo mantém
+        // os cinco legendados, como os quatro sempre estiveram.
+        type: BottomNavigationBarType.fixed,
+        items: HomeShell.itensDe(admin),
       ),
       floatingActionButton: admin && indice != _indicePunho
           ? FloatingActionButton.small(

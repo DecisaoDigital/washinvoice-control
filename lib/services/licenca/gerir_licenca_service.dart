@@ -105,6 +105,29 @@ class GerirLicencaService {
   Future<LicencaAtualizada> prolongar(String machineId, int dias) =>
       _acao('prolongar', machineId, {'dias': dias});
 
+  /// Dar tempo a uma licença — e o que "dar 5 dias" quer dizer depende de que
+  /// licença é.
+  ///
+  /// **Trial do Punho**: o número é uma *janela a contar de hoje*. "5 dias"
+  /// quer dizer que caduca daqui a cinco, mesmo que encurte o que lá estava.
+  /// É a regra do César, 5/8/2026 — ver [Licenca.diasContamDeHoje].
+  ///
+  /// **Tudo o resto** — POS inteiro, trials incluídos, e qualquer licença paga
+  /// em qualquer app: o número é um *acréscimo*. Soma-se à validade actual e
+  /// nunca encurta.
+  ///
+  /// Nota: no caso do trial isto passa por `definir_validade`, que também
+  /// reactiva. Dar dias a um trial suspenso volta a pô-lo a andar — que é o
+  /// que se quer de quem lhe está a dar tempo, mas convém estar escrito.
+  Future<LicencaAtualizada> darDias(Licenca licenca, int dias) {
+    if (!licenca.diasContamDeHoje) return prolongar(licenca.machineId, dias);
+    final agora = DateTime.now();
+    // Construída por componentes para o dia rolar mês/ano em condições; somar
+    // `Duration(days:)` a um `DateTime` local erra na mudança da hora.
+    final ate = DateTime(agora.year, agora.month, agora.day + dias);
+    return definirValidade(licenca.machineId, ate);
+  }
+
   /// Define uma validade escolhida à mão (renovação após pagamento) e reactiva
   /// a licença. Use-se [prolongar] para os incrementos rápidos de 5/15/30 dias.
   Future<LicencaAtualizada> definirValidade(String machineId, DateTime data) =>

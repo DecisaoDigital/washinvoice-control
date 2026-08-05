@@ -26,6 +26,7 @@ import '../../models/pedido_ajuda.dart';
 import '../../models/pedido_renovacao.dart';
 import '../../models/ping.dart';
 import '../../repositories/providers.dart';
+import '../../repositories/punho_admin_repository.dart';
 import '../ativacao/ativar_instalacao_screen.dart';
 import '../instalacoes/detalhe_cliente_screen.dart';
 import '../instalacoes/instalacoes_por_estado_screen.dart';
@@ -134,8 +135,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final actividade = pingsRepo.ultimosPorInstalacao(app: app);
     final comLicenca = licencasRepo.machineIdsComLicenca(app: app);
     final clientes = clientesRepo.listar();
+    // Os nomes que o Punho já sabe dos seus terminais. Falha em silêncio: sem
+    // eles a cascata resolve-se como sempre, e o painel não deixa de abrir.
+    final nomesPunho = ref
+        .read(punhoAdminRepoProvider)
+        .nomesPorTerminal()
+        .catchError((_) => <String, NomeDoTerminalPunho>{});
     final info = PackageInfo.fromPlatform();
     await Future.wait([
+      nomesPunho,
       licencas,
       aExpirar,
       pendentes,
@@ -172,6 +180,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         clientes: await clientes,
         licencas: await licencas,
         pings: acts,
+        // Para a Actividade recente deixar de chamar `M2101K6G` a um terminal
+        // cuja empresa já se sabe qual é.
+        nomesPunho: await nomesPunho,
       ),
       versaoApp: pkg.version,
     );

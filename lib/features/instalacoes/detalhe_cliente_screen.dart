@@ -308,12 +308,16 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
     }
   }
 
-  Future<void> _prolongar(Licenca l, int dias) => _accaoRemota(
+  Future<void> _darDias(Licenca l, int dias) => _accaoRemota(
         machineId: l.machineId,
-        accao: (s) => s.prolongar(l.machineId, dias),
-        sucesso: (r) =>
-            'Prolongada $dias dias — validade ${Dates.data(r.validade)}. '
-            'O POS actualiza em ≤5 min.',
+        accao: (s) => s.darDias(l, dias),
+        // A frase diz o que aconteceu, não o que o botão se chama: num trial
+        // a validade pode ter **encurtado**, e dizer "prolongada" seria mentir.
+        sucesso: (r) => l.diasContamDeHoje
+            ? '$dias dias a contar de hoje — validade ${Dates.data(r.validade)}. '
+                'O terminal actualiza em ≤5 min.'
+            : 'Prolongada $dias dias — validade ${Dates.data(r.validade)}. '
+                'O POS actualiza em ≤5 min.',
       );
 
   Future<void> _suspender(Licenca l) => _accaoRemota(
@@ -609,7 +613,7 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
               CardControloRemoto(
                 licenca: l,
                 ocupado: _aExecutar,
-                onProlongar: (dias) => _prolongar(l, dias),
+                onDarDias: (dias) => _darDias(l, dias),
                 onSuspender: () => _suspender(l),
                 onReactivar: () => _reactivar(l),
                 onCancelar: () => _cancelar(l),

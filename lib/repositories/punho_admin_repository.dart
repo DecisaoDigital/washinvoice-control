@@ -18,6 +18,39 @@ class PunhoPedido {
   /// Empresa já associada ao pedido (preenchida na aprovação).
   final String? empresaId, empresaNome;
 
+  /// O terminal de onde partiu o pedido.
+  ///
+  /// `machineId` + [app] é o mesmo par que identifica um terminal em
+  /// `licencas` — a chave que o WashInvoice sempre usou. O Punho não a
+  /// levava (o pedido nascia num trigger sobre `auth.users`, que não sabe
+  /// nada do aparelho), e por isso não havia como dizer de onde veio um
+  /// pedido nem cruzá-lo com a instalação. Corrigido a 5/8/2026.
+  ///
+  /// Nulo só quando o aparelho não conseguiu ler o próprio identificador —
+  /// não há pedidos anteriores a esta chave, o Punho recomeçou do zero.
+  final String? machineId;
+  final String app;
+
+  /// Nome legível da máquina (`M2101K6G`), do `info_host['hostname']` da
+  /// licença — a mesma chave que o WashInvoice sempre gravou —, e a versão do
+  /// último ping.
+  ///
+  /// Nulos até o terminal se registar: um pedido pode chegar antes disso, e
+  /// chega mesmo, porque o registo é assíncrono e falha em silêncio.
+  final String? maquinaNome, maquinaVersao;
+
+  /// O que se mostra a identificar o terminal, ou `null` se nada se sabe.
+  ///
+  /// Preferência ao nome legível; sem ele, o princípio do hash, que ainda
+  /// serve para distinguir dois pedidos vindos de aparelhos diferentes.
+  String? get maquinaApresentavel {
+    final nome = maquinaNome?.trim();
+    if (nome != null && nome.isNotEmpty) return nome;
+    final id = machineId?.trim();
+    if (id == null || id.isEmpty) return null;
+    return id.length > 12 ? '${id.substring(0, 12)}…' : id;
+  }
+
   PunhoPedido.fromJson(Map<String, dynamic> json)
     : id = json['id'] as String,
       userId = json['user_id'] as String,
@@ -37,7 +70,14 @@ class PunhoPedido {
           ? null
           : DateTime.parse(json['convite_criado_em'] as String),
       empresaId = json['empresa_id'] as String?,
-      empresaNome = json['empresa_nome'] as String?;
+      empresaNome = json['empresa_nome'] as String?,
+      machineId = json['machine_id'] as String?,
+      // Por omissão `punho` — é a única app que hoje escreve nesta tabela. A
+      // coluna é NOT NULL no servidor; o valor por omissão é só para o
+      // modelo não depender disso.
+      app = (json['app'] as String?) ?? 'punho',
+      maquinaNome = json['maquina_nome'] as String?,
+      maquinaVersao = json['maquina_versao'] as String?;
 
   bool get porConvite => origem == 'convite';
   String get nomeApresentavel =>
@@ -46,6 +86,38 @@ class PunhoPedido {
 
   /// Empresa a que o acesso vai ficar ligado, quando já se sabe qual é.
   String? get empresaDestinoNome => conviteEmpresaNome ?? empresaNome;
+}
+
+/// Como se chama um terminal do Punho, segundo quem pediu acesso a partir dele.
+///
+/// Existe porque o modelo do aparelho (`M2101K6G`) é um substituto para quando
+/// não se sabe nada, e deixa de o ser assim que alguém escreve o nome da
+/// empresa no pedido — o que acontece muito antes de haver NIF, ficha ou
+/// aprovação. O ecrã de pedir acesso não pede NIF nenhum.
+class NomeDoTerminalPunho {
+  /// O nome da empresa: de `punho_empresas` quando [aprovado], do que o
+  /// requerente declarou enquanto não estiver.
+  final String nome;
+
+  /// Falso enquanto o pedido está pendente. Serve para **escolher** o nome — a
+  /// ficha da empresa ganha à declaração do requerente —, não para o decorar.
+  ///
+  /// Já decorou: [paraMostrar] devolvia `DepilConcept (por aprovar)`. Está
+  /// errado por duas razões. A primeira é que o adjectivo estava pregado ao
+  /// substantivo errado: o que está por aprovar é o **pedido de acesso**, não o
+  /// nome do terminal. A segunda é que mentia sobre o estado do terminal —
+  /// quando o César já lhe tinha atribuído um trial no Control, a etiqueta
+  /// continuava a dizer-lhe que nada tinha sido feito.
+  ///
+  /// O pedido pendente mostra-se onde se decide sobre ele, no ecrã de Pedidos
+  /// Punho, com nome, email, perfil e data. Não no meio de uma lista de
+  /// instalações, entre parêntesis.
+  final bool aprovado;
+
+  const NomeDoTerminalPunho({required this.nome, required this.aprovado});
+
+  /// O que aparece no ecrã: o nome, e mais nada.
+  String get paraMostrar => nome;
 }
 
 /// Empresa do Punho com a ocupação actual.
@@ -88,6 +160,21 @@ class PunhoAdminRepository {
         .cast<Map<String, dynamic>>()
         .map(PunhoPedido.fromJson)
         .toList();
+  }
+
+  /// Nome de cada terminal do Punho, por `machine_id`.
+  ///
+  /// Alimenta a cascata de `ContextoInstalacoes.nomeDe`, para o Control deixar
+  /// de chamar `M2101K6G` a um terminal cuja empresa já se sabe qual é.
+  Future<Map<String, NomeDoTerminalPunho>> nomesPorTerminal() async {
+    final linhas = await _db.rpc('punho_nomes_por_terminal');
+    return {
+      for (final linha in (linhas as List).cast<Map<String, dynamic>>())
+        linha['machine_id'] as String: NomeDoTerminalPunho(
+          nome: linha['nome'] as String,
+          aprovado: linha['aprovado'] == true,
+        ),
+    };
   }
 
   Future<List<PunhoEmpresa>> listarEmpresas() async {

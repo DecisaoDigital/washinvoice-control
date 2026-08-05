@@ -19,6 +19,7 @@ import '../../core/widgets/widgets.dart';
 import '../../models/licenca.dart';
 import '../../models/ping.dart';
 import '../../repositories/providers.dart';
+import '../../repositories/punho_admin_repository.dart';
 import 'detalhe_cliente_screen.dart';
 
 class _InstalacoesData {
@@ -139,10 +140,18 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
     // build (mesmo padrão do Dashboard).
     final app = ref.read(appFilterProvider).valorApp;
 
+    // Os nomes que o Punho já sabe. Falham em silêncio: uma instalação sem
+    // nome do Punho continua a resolver-se como sempre, e o ecrã não deixa de
+    // abrir por causa disto.
+    final nomesPunhoF = ref
+        .read(punhoAdminRepoProvider)
+        .nomesPorTerminal()
+        .catchError((_) => <String, NomeDoTerminalPunho>{});
+
     final licencasF = licencasRepo.listar(app: app);
     final pingsF = pingsRepo.ultimosPorInstalacao(app: app);
     final clientesF = clientesRepo.listar();
-    await Future.wait([licencasF, pingsF, clientesF]);
+    await Future.wait([licencasF, pingsF, clientesF, nomesPunhoF]);
 
     final licencas = await licencasF;
     final pings = await pingsF;
@@ -152,7 +161,10 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
       licencas,
       mapa,
       ContextoInstalacoes.build(
-          clientes: clientes, licencas: licencas, pings: pings),
+          clientes: clientes,
+          licencas: licencas,
+          pings: pings,
+          nomesPunho: await nomesPunhoF),
     );
   }
 
@@ -182,8 +194,8 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.more_time, color: AppColors.azul700),
-              title: const Text('+5 dias'),
-              onTap: () => Navigator.pop(ctx, 'prolongar'),
+              title: Text(l.diasContamDeHoje ? '5 dias' : '+5 dias'),
+              onTap: () => Navigator.pop(ctx, 'dias'),
             ),
             if (l.activa)
               ListTile(
@@ -243,9 +255,11 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
     final servico = ref.read(gerirLicencaProvider);
     try {
       final mensagem = switch (escolha) {
-        'prolongar' => await servico
-            .prolongar(l.machineId, 5)
-            .then((r) => 'Prolongada 5 dias — validade ${Dates.data(r.validade)}.'),
+        'dias' => await servico.darDias(l, 5).then(
+              (r) => l.diasContamDeHoje
+                  ? '5 dias a contar de hoje — validade ${Dates.data(r.validade)}.'
+                  : 'Prolongada 5 dias — validade ${Dates.data(r.validade)}.',
+            ),
         'suspender' => await servico
             .suspender(l.machineId)
             .then((_) => 'Licença suspensa. O POS tranca em ≤5 min.'),

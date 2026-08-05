@@ -144,6 +144,26 @@ class Licenca {
     return EstadoLicenca.activa;
   }
 
+  /// Licença de experiência — a que o auto-onboarding cria sozinho quando um
+  /// terminal se regista pela primeira vez (40 dias, `oferta`).
+  bool get ehTrial => plano == 'trial';
+
+  /// Se um número de dias dado a esta licença é uma **janela a contar de hoje**
+  /// (`true`) ou um **acréscimo** à validade actual (`false`).
+  ///
+  /// Só nos trials do Punho. Regra do César, 5/8/2026: «se eu não dou tempo, o
+  /// trial é dos 40 dias; mas se eu falo em 5 dias ou 10, é sempre a contar de
+  /// hoje». O botão fazia o contrário — somava 5 aos 40 do auto-onboarding e
+  /// devolvia 45 dias.
+  ///
+  /// O POS fica de fora **de propósito**, trials incluídos: a maneira como ele
+  /// funciona não se mexe. E qualquer licença paga fica de fora em qualquer
+  /// app — quem pagou até Dezembro não pode caducar daqui a cinco dias por um
+  /// toque num botão.
+  ///
+  /// Ver [GerirLicencaService.darDias].
+  bool get diasContamDeHoje => ehTrial && app == 'punho';
+
   /// Nome do plano para exibição em PT. Planos legados/desconhecidos (ex.:
   /// 'mensal') são capitalizados de forma segura.
   String get planoLabel {

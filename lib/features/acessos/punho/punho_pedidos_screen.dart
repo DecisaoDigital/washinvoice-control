@@ -313,6 +313,19 @@ class _PedidoCard extends StatelessWidget {
             Text('Organização indicada: ${p.organizacaoIndicada}'),
             Text('Cargo pretendido: ${p.perfilApresentavel}'),
             Text('Pedido em ${Dates.data(p.criadoEm)}'),
+            // De que terminal veio. É a mesma leitura que Instalações faz para
+            // o WashInvoice, agora pela mesma chave `(machine_id, app)`. Sem
+            // isto, um pedido era só um email — e a decisão de aprovar não
+            // tinha como se ancorar num aparelho.
+            if (p.maquinaApresentavel != null)
+              Text(
+                'Terminal: ${p.maquinaApresentavel}'
+                '${p.maquinaVersao == null ? '' : ' · ${p.app} ${p.maquinaVersao}'}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
             if (p.porConvite && p.conviteEmpresaNome != null)
               Padding(
                 padding: const EdgeInsets.only(top: AppSpacing.xs),

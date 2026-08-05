@@ -9,13 +9,16 @@ Licenca _licenca({
   bool activa = true,
   Tier tier = Tier.pro,
   Map<String, bool> prefs = const {},
+  String plano = 'anual',
+  String app = 'pos',
 }) =>
     Licenca(
       id: 'lic-1',
+      app: app,
       machineId: 'abc123',
       nif: '500000001',
       nome: 'Lavandaria Sol',
-      plano: 'anual',
+      plano: plano,
       validade: DateTime(2026, 12, 31),
       activa: activa,
       criadoEm: DateTime(2026, 1, 1),
@@ -27,7 +30,7 @@ Future<void> _montarControlo(
   WidgetTester tester,
   Licenca l, {
   bool ocupado = false,
-  void Function(int)? onProlongar,
+  void Function(int)? onDarDias,
   VoidCallback? onSuspender,
   VoidCallback? onReactivar,
   VoidCallback? onCancelar,
@@ -39,7 +42,7 @@ Future<void> _montarControlo(
         child: CardControloRemoto(
           licenca: l,
           ocupado: ocupado,
-          onProlongar: onProlongar ?? (_) {},
+          onDarDias: onDarDias ?? (_) {},
           onSuspender: onSuspender ?? () {},
           onReactivar: onReactivar ?? () {},
           onCancelar: onCancelar ?? () {},
@@ -60,18 +63,39 @@ Future<void> _montarControlo(
 
 void main() {
   group('CardControloRemoto', () {
-    testWidgets('mostra os três botões de prolongar', (tester) async {
+    testWidgets('numa licença paga os botões somam, e dizem-no', (tester) async {
       await _montarControlo(tester, _licenca());
       expect(find.text('+5 dias'), findsOneWidget);
       expect(find.text('+15 dias'), findsOneWidget);
       expect(find.text('+30 dias'), findsOneWidget);
     });
 
+    testWidgets('num trial do Punho os botões perdem o sinal de mais',
+        (tester) async {
+      // O `+` prometia uma soma. Ali não há soma nenhuma: o número é a janela
+      // toda, a contar de hoje — regra do César, 5/8/2026.
+      await _montarControlo(
+          tester, _licenca(plano: 'trial', app: 'punho'));
+
+      expect(find.text('5 dias'), findsOneWidget);
+      expect(find.text('30 dias'), findsOneWidget);
+      expect(find.text('+5 dias'), findsNothing);
+    });
+
+    testWidgets('um trial do POS continua com o +', (tester) async {
+      // «só para o punho, não quero mexer no pos» — 5/8/2026. O POS tem
+      // trials auto-criados na mesma, e neles somar continua a ser o certo.
+      await _montarControlo(tester, _licenca(plano: 'trial', app: 'pos'));
+
+      expect(find.text('+5 dias'), findsOneWidget);
+      expect(find.text('5 dias'), findsNothing);
+    });
+
     testWidgets('cada botão dispara a acção com os dias certos',
         (tester) async {
       final chamadas = <int>[];
       await _montarControlo(tester, _licenca(),
-          onProlongar: chamadas.add);
+          onDarDias: chamadas.add);
 
       await tester.tap(find.text('+15 dias'));
       await tester.pump();
@@ -95,7 +119,7 @@ void main() {
     testWidgets('ocupado trava todos os botões de acção', (tester) async {
       final chamadas = <int>[];
       await _montarControlo(tester, _licenca(),
-          ocupado: true, onProlongar: chamadas.add);
+          ocupado: true, onDarDias: chamadas.add);
 
       await tester.tap(find.text('+5 dias'));
       await tester.pump();
