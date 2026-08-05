@@ -27,6 +27,7 @@ import '../../repositories/providers.dart';
 import '../../services/licenca/gerir_licenca_service.dart';
 import '../../services/licenca_emissao.dart';
 import 'card_series_widget.dart';
+import 'confirmar_apagar_licenca.dart';
 import 'controlo_remoto_widgets.dart';
 
 class _DetalheData {
@@ -184,6 +185,36 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
 
   void _recarregar() {
     setState(() { _future = _carregar(); });
+  }
+
+  /// Pergunta ao servidor o que está pendurado, mostra-o, e só depois apaga.
+  ///
+  /// A ordem importa: sem os números à frente, "Apagar?" é a mesma pergunta
+  /// para uma linha solta do Punho e para uma licença do POS com cadeia
+  /// fiscal, que não são de todo a mesma coisa.
+  Future<void> _apagarLicenca(String id) async {
+    try {
+      final repo = ref.read(licencasRepoProvider);
+      final dependentes = await repo.dependentes(id);
+      if (!mounted) return;
+
+      final confirmado = await confirmarApagarLicenca(
+        context,
+        dependentes: dependentes,
+      );
+      if (!confirmado || !mounted) return;
+
+      await repo.apagar(id);
+      if (!mounted) return;
+      messengerKey.currentState?.showSnackBar(
+        const SnackBar(content: Text('Licença apagada.')),
+      );
+      // A licença que este ecrã mostra deixou de existir: ficar aqui era ficar
+      // a olhar para dados que já não estão em lado nenhum.
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (mounted) mostrarErro(e);
+    }
   }
 
   Future<void> _marcarRenovacao(Licenca l, PedidoRenovacao? pedido) async {
@@ -508,6 +539,25 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
               return Padding(
                 padding: const EdgeInsets.only(right: AppSpacing.md),
                 child: Center(child: WiBadgeEstado(l.estado)),
+              );
+            },
+          ),
+          // Apagar vive no menu e não num ícone da barra: é a única acção
+          // deste ecrã sem volta, e um ícone à vista ao lado do estado é um
+          // toque distraído à espera de acontecer.
+          FutureBuilder<_DetalheData>(
+            future: _future,
+            builder: (context, snapshot) {
+              final l = snapshot.data?.licenca;
+              if (l == null) return const SizedBox.shrink();
+              return PopupMenuButton<String>(
+                onSelected: (_) => _apagarLicenca(l.id),
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: 'apagar',
+                    child: Text('Apagar licença'),
+                  ),
+                ],
               );
             },
           ),

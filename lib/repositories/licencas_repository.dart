@@ -139,6 +139,32 @@ class LicencasRepository {
     await _client.from('licencas').update({'serie': serie}).eq('id', id);
   }
 
+  /// O que está pendurado nesta licença, antes de se perguntar se se apaga.
+  ///
+  /// Serve para a caixa de confirmação dizer números em vez de generalidades:
+  /// numa licença do Punho vêm todos a zero, numa do POS pode vir cadeia
+  /// fiscal. Ver `licenca_dependentes` no servidor.
+  Future<Map<String, dynamic>> dependentes(String id) async {
+    final resposta = await _client.rpc(
+      'licenca_dependentes',
+      params: {'p_licenca_id': id},
+    );
+    return (resposta as Map).cast<String, dynamic>();
+  }
+
+  /// Apaga a licença em definitivo.
+  ///
+  /// O servidor recusa a quem não for administrador global e recusa qualquer
+  /// licença com guias comunicadas à AT — registo fiscal não se apaga por
+  /// causa de uma limpeza de lista; para essas, desactivar é o caminho.
+  Future<Map<String, dynamic>> apagar(String id) async {
+    final resposta = await _client.rpc(
+      'apagar_licenca',
+      params: {'p_licenca_id': id},
+    );
+    return (resposta as Map).cast<String, dynamic>();
+  }
+
   /// **Obsoleto** — usar `GerirLicencaService.suspender()` / `reactivar()`.
   ///
   /// Escrever aqui com a anon key deixa de funcionar quando a RLS de `licencas`
