@@ -8,6 +8,7 @@ import '../../../core/erros.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../../repositories/providers.dart';
 import '../../../repositories/punho_admin_repository.dart';
+import '../confirmar_apagar_pedido.dart';
 import 'punho_decidir_modal.dart';
 import 'punho_empresas_screen.dart';
 
@@ -98,6 +99,32 @@ class _PunhoPedidosScreenState extends ConsumerState<PunhoPedidosScreen>
       builder: (_) => PunhoRevogarModal(pedido: pedido),
     );
     if (escolha != null) await _aplicar(pedido, escolha);
+  }
+
+  Future<void> _apagar(PunhoPedido pedido) async {
+    final confirmado = await confirmarApagarPedido(
+      context,
+      quem: pedido.nomeApresentavel,
+      email: pedido.email,
+      estado: pedido.estado,
+    );
+    if (!confirmado || !mounted) return;
+
+    setState(() => _aDecidir = true);
+    try {
+      await ref.read(punhoAdminRepoProvider).apagar(pedido.id);
+      if (!mounted) return;
+      messengerKey.currentState?.showSnackBar(
+        SnackBar(
+          content: Text('Pedido de ${pedido.nomeApresentavel} apagado.'),
+        ),
+      );
+      setState(_recarregar);
+    } catch (e) {
+      if (mounted) mostrarErro(e);
+    } finally {
+      if (mounted) setState(() => _aDecidir = false);
+    }
   }
 
   Future<void> _aplicar(PunhoPedido pedido, DecisaoPunho escolha) async {
@@ -218,6 +245,7 @@ class _PunhoPedidosScreenState extends ConsumerState<PunhoPedidosScreen>
                       ocupado: _aDecidir,
                       onDecidir: () => _abrirDecisao(dados.pedidos[i], dados.empresas),
                       onRevogar: () => _abrirRevogacao(dados.pedidos[i]),
+                      onApagar: () => _apagar(dados.pedidos[i]),
                     ),
                   ),
                 );
@@ -249,11 +277,12 @@ class _PedidoCard extends StatelessWidget {
     required this.ocupado,
     required this.onDecidir,
     required this.onRevogar,
+    required this.onApagar,
   });
 
   final PunhoPedido pedido;
   final bool ocupado;
-  final VoidCallback onDecidir, onRevogar;
+  final VoidCallback onDecidir, onRevogar, onApagar;
 
   @override
   Widget build(BuildContext context) {
@@ -299,26 +328,40 @@ class _PedidoCard extends StatelessWidget {
             if (aprovado && p.empresaNome != null)
               Text('Empresa: ${p.empresaNome}'),
             const SizedBox(height: AppSpacing.md),
-            if (aprovado)
-              OutlinedButton(
-                onPressed: ocupado ? null : onRevogar,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.vermelho,
+            // A acção da linha à esquerda, o apagar afastado à direita: são
+            // de naturezas diferentes e não devem ficar lado a lado, onde o
+            // dedo que ia para "Decidir" acerta no que não tem volta.
+            Row(
+              children: [
+                if (aprovado)
+                  OutlinedButton(
+                    onPressed: ocupado ? null : onRevogar,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.vermelho,
+                    ),
+                    child: const Text('Revogar'),
+                  )
+                else if (p.estado == 'pendente')
+                  FilledButton(
+                    onPressed: ocupado ? null : onDecidir,
+                    child: const Text('Decidir'),
+                  )
+                else
+                  // Recusado ou revogado: reabrir é aprovar, e isso passa pelo
+                  // mesmo diálogo.
+                  OutlinedButton(
+                    onPressed: ocupado ? null : onDecidir,
+                    child: const Text('Reabrir'),
+                  ),
+                const Spacer(),
+                IconButton(
+                  tooltip: 'Apagar pedido',
+                  onPressed: ocupado ? null : onApagar,
+                  icon: const Icon(Icons.delete_outline),
+                  color: AppColors.textSecondary,
                 ),
-                child: const Text('Revogar'),
-              )
-            else if (p.estado == 'pendente')
-              FilledButton(
-                onPressed: ocupado ? null : onDecidir,
-                child: const Text('Decidir'),
-              )
-            else
-              // Recusado ou revogado: reabrir é aprovar, e isso passa pelo
-              // mesmo diálogo.
-              OutlinedButton(
-                onPressed: ocupado ? null : onDecidir,
-                child: const Text('Reabrir'),
-              ),
+              ],
+            ),
           ],
         ),
       ),

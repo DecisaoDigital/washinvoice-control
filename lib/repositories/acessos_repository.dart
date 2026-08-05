@@ -72,4 +72,17 @@ class AcessosRepository {
         'p_decisao': decisao,
         'p_organizacao_id': organizacaoId,
       });
+
+  /// Apaga o pedido de acesso em definitivo.
+  ///
+  /// O servidor recusa duas coisas: quem não for administrador global, e o
+  /// próprio pedido de quem chama — apagar o seu deixava-o de fora do Control,
+  /// que é a app onde se voltaria a autorizar.
+  Future<Map<String, dynamic>> apagar(String id) async {
+    final resposta = await _db.rpc(
+      'apagar_pedido_acesso',
+      params: {'p_pedido_id': id},
+    );
+    return (resposta as Map).cast<String, dynamic>();
+  }
 }

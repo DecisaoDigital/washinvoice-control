@@ -6,6 +6,7 @@ import '../../core/dates.dart';
 import '../../core/erros.dart';
 import '../../repositories/acessos_repository.dart';
 import '../../repositories/providers.dart';
+import 'confirmar_apagar_pedido.dart';
 
 /// Separador Acessos do admin global: aprova/recusa pedidos pendentes e
 /// revoga contas já aprovadas. Nada é automático — o admin confirma sempre
@@ -44,6 +45,25 @@ class _PedidosAcessoScreenState extends ConsumerState<PedidosAcessoScreen> {
       await ref.read(acessosRepoProvider).decidir(p.id, decisao, organizacaoId: org);
       if (mounted) setState(_recarregar);
     } catch (e) { if (mounted) mostrarErro(e); }
+  }
+
+  Future<void> _apagar(PedidoAcesso p) async {
+    final confirmado = await confirmarApagarPedido(
+      context,
+      quem: p.nome,
+      email: p.email,
+      estado: p.estado,
+    );
+    if (!confirmado || !mounted) return;
+    try {
+      await ref.read(acessosRepoProvider).apagar(p.id);
+      if (!mounted) return;
+      messengerKey.currentState
+          ?.showSnackBar(SnackBar(content: Text('Pedido de ${p.nome} apagado.')));
+      setState(_recarregar);
+    } catch (e) {
+      if (mounted) mostrarErro(e);
+    }
   }
 
   Future<void> _revogar(PedidoAcesso p) async {
@@ -86,7 +106,7 @@ class _PedidosAcessoScreenState extends ConsumerState<PedidosAcessoScreen> {
             const Padding(padding: EdgeInsets.symmetric(vertical: 8),
               child: Text('Não há pedidos pendentes.')),
           ...v.pendentes.map((p) => _PedidoCard(
-            pedido: p, vista: v, onDecidir: _decidir)),
+            pedido: p, vista: v, onDecidir: _decidir, onApagar: _apagar)),
           const SizedBox(height: 24),
           _Seccao('Contas aprovadas (${v.aprovados.length})'),
           if (v.aprovados.isEmpty)
@@ -164,7 +184,8 @@ class _PedidoCard extends StatefulWidget {
   final PedidoAcesso pedido;
   final AcessosVista vista;
   final Future<void> Function(PedidoAcesso, String, String?) onDecidir;
-  const _PedidoCard({required this.pedido, required this.vista, required this.onDecidir});
+  final Future<void> Function(PedidoAcesso) onApagar;
+  const _PedidoCard({required this.pedido, required this.vista, required this.onDecidir, required this.onApagar});
   @override
   State<_PedidoCard> createState() => _PedidoCardState();
 }
@@ -213,6 +234,13 @@ class _PedidoCardState extends State<_PedidoCard> {
             onPressed: () => widget.onDecidir(p, 'recusado', null),
             style: OutlinedButton.styleFrom(foregroundColor: AppColors.vermelho),
             child: const Text('Recusar')),
+          // Apagar não é uma decisão — é tirar a linha do servidor. Fica no
+          // fim, com o peso de um ícone e não o de um botão.
+          IconButton(
+            tooltip: 'Apagar pedido',
+            onPressed: () => widget.onApagar(p),
+            icon: const Icon(Icons.delete_outline),
+            color: AppColors.textSecondary),
         ]),
       ])));
   }

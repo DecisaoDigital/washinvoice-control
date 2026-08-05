@@ -120,6 +120,19 @@ class PunhoAdminRepository {
     return (resposta as Map).cast<String, dynamic>();
   }
 
+  /// Apaga o pedido em definitivo. Devolve o que foi apagado — nome, email e
+  /// o estado em que estava — para quem chama poder dizê-lo.
+  ///
+  /// O servidor recusa a quem não for administrador global, e um pedido
+  /// aprovado leva o acesso da pessoa com ele: ver `punho_apagar_pedido`.
+  Future<Map<String, dynamic>> apagar(String pedidoId) async {
+    final resposta = await _db.rpc(
+      'punho_apagar_pedido',
+      params: {'p_pedido_id': pedidoId},
+    );
+    return (resposta as Map).cast<String, dynamic>();
+  }
+
   /// Muda o limite de colaboradores activos de uma empresa já existente,
   /// fora do fluxo de aprovação de um pedido (que só o define na criação).
   Future<Map<String, dynamic>> definirLimite(
