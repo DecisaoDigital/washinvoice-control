@@ -1,29 +1,19 @@
 // ============================================================================
-// WashInvoice — Edge Function: enviar-push
+// WashInvoice — Edge Function: enviar-push (multi-app)
 // ----------------------------------------------------------------------------
 // Envia notificações FCM para os dispositivos registados de um admin.
+// v8: aceita `body.app` opcional ('pos' | 'punho'). Se presente, prefixa o
+// título com `[POS] ` ou `[PUNHO] ` — assim o prefixo aparece na barra de
+// notificações do SO em background (não só com a app aberta).
 //
-// Autenticação: header Authorization: Bearer <EDGE_INVOKE_SECRET>. A anon key
-// e JWTs de utilizadores normais NÃO passam — só quem tem o secret partilhado
-// (o trigger DB e curls do Cesar).
-//
-// Payload esperado:
-//   { title: string, body: string, data?: object, user_id?: uuid }
-// Se user_id não vier, usa ADMIN_USER_ID (fallback abaixo).
-//
-// Secrets necessários no Supabase:
-//   FCM_SERVICE_ACCOUNT_JSON — o JSON completo da chave da service account.
-//   EDGE_INVOKE_SECRET       — string aleatória partilhada.
-// Auto-injectados pelo runtime: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
+// Autenticação: header Authorization: Bearer <EDGE_INVOKE_SECRET>.
 // ============================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-// Admin do Control (Cesar). Hardcoded para não obrigar a mais um secret.
 const ADMIN_USER_ID_FALLBACK = "9e1bfae1-b932-430d-ad41-055cf894ff7f";
 
-/** JSON com Content-Type. */
 function json(corpo: unknown, status: number): Response {
   return new Response(JSON.stringify(corpo), {
     status,
@@ -31,7 +21,6 @@ function json(corpo: unknown, status: number): Response {
   });
 }
 
-/** base64url sem padding. */
 function b64url(input: Uint8Array | string): string {
   const raw = typeof input === "string"
     ? btoa(input)
@@ -39,7 +28,6 @@ function b64url(input: Uint8Array | string): string {
   return raw.replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 }
 
-/** PEM PKCS#8 → CryptoKey (RS256). */
 async function importarChavePem(pem: string): Promise<CryptoKey> {
   const corpo = pem
     .replace(/-----BEGIN PRIVATE KEY-----/, "")
@@ -55,7 +43,6 @@ async function importarChavePem(pem: string): Promise<CryptoKey> {
   );
 }
 
-/** Gera JWT OAuth2 e troca por access_token do Google. */
 async function obterAccessToken(sa: {
   client_email: string;
   private_key: string;
@@ -94,12 +81,21 @@ async function obterAccessToken(sa: {
   return j.access_token;
 }
 
+/** Prefixo por app no título para aparecer na notificação do SO. */
+function prefixarTituloPorApp(title: string, app: string | undefined): string {
+  if (!app) return title;
+  const tag = app === "pos" ? "[POS]" : app === "punho" ? "[PUNHO]" : null;
+  if (!tag) return title;
+  // Evitar duplo prefixo se o caller já o incluiu.
+  if (title.startsWith(tag)) return title;
+  return `${tag} ${title}`;
+}
+
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method !== "POST") {
     return json({ erro: "Método não permitido. Só POST." }, 405);
   }
 
-  // Auth: secret partilhado.
   const invokeSecret = Deno.env.get("EDGE_INVOKE_SECRET");
   if (!invokeSecret) {
     return json({ erro: "EDGE_INVOKE_SECRET não configurado no servidor." }, 500);
@@ -109,28 +105,29 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({ erro: "Não autorizado." }, 401);
   }
 
-  // Body.
   let body: {
     title?: unknown;
     body?: unknown;
     data?: unknown;
     user_id?: unknown;
+    app?: unknown;
   };
   try {
     body = await req.json();
   } catch {
     return json({ erro: "JSON inválido." }, 400);
   }
-  const title = typeof body.title === "string" ? body.title : "";
+  const rawTitle = typeof body.title === "string" ? body.title : "";
   const bodyText = typeof body.body === "string" ? body.body : "";
   const userId = typeof body.user_id === "string" && body.user_id
     ? body.user_id
     : ADMIN_USER_ID_FALLBACK;
-  if (!title || !bodyText) {
+  const app = typeof body.app === "string" ? body.app.toLowerCase() : undefined;
+  if (!rawTitle || !bodyText) {
     return json({ erro: "Faltam campos obrigatórios: title, body." }, 400);
   }
+  const title = prefixarTituloPorApp(rawTitle, app);
 
-  // Service account JSON.
   const saRaw = Deno.env.get("FCM_SERVICE_ACCOUNT_JSON");
   if (!saRaw) {
     return json({ erro: "FCM_SERVICE_ACCOUNT_JSON não configurado." }, 500);
@@ -149,7 +146,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({ erro: "FCM_SERVICE_ACCOUNT_JSON incompleto." }, 500);
   }
 
-  // Access token.
   let accessToken: string;
   try {
     accessToken = await obterAccessToken(sa);
@@ -157,7 +153,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({ erro: `Falha OAuth2: ${String(e)}` }, 500);
   }
 
-  // Tokens do dispositivo (service_role ignora RLS).
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -177,7 +172,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }, 200);
   }
 
-  // Data: FCM exige valores string.
+  // Data: FCM exige strings. Injectar `app` também no payload data para o
+  // client-side (foreground handler) reconhecer.
   const rawData = (body.data && typeof body.data === "object")
     ? body.data as Record<string, unknown>
     : {};
@@ -185,8 +181,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
   for (const [k, v] of Object.entries(rawData)) {
     data[k] = typeof v === "string" ? v : JSON.stringify(v);
   }
+  if (app && !data.app) data.app = app;
 
-  // Enviar para cada token.
   const url = `https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`;
   const resultados: Array<Record<string, unknown>> = [];
   for (const d of dispositivos) {

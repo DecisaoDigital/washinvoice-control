@@ -33,7 +33,10 @@ function json(status: number, data: unknown) {
   });
 }
 
-const APPS = ['pos', 'control', 'punho'];
+// 'punho_op' é a app do operador: APK próprio, ritmo de lançamento próprio.
+// Tem de estar aqui e na constraint `versoes_apps_app_check` — as duas listas
+// andam a par.
+const APPS = ['pos', 'control', 'punho', 'punho_op'];
 const PLATFORMS = ['all', 'windows', 'android', 'ios'];
 
 Deno.serve(async (req) => {

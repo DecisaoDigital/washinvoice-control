@@ -1,6 +1,20 @@
 # Edge Functions — WashInvoice
 
-Cópias versionadas das Edge Functions deployadas no Supabase `oefqbkhioncakojipqyx`. Este directório é a **fonte de verdade** para o código das funções — se o Supabase perder a função, redeployamos a partir daqui.
+Cópias versionadas das Edge Functions deployadas no Supabase `oefqbkhioncakojipqyx`. Este directório **quer ser** a fonte de verdade para o código das funções — se o Supabase perder a função, redeployamos a partir daqui.
+
+> **Não era, até 8 de Agosto de 2026.** Um levantamento contra o projecto
+> encontrou catorze funções em produção e sete sem ficheiro em repositório
+> nenhum; e das que cá estavam, **duas estavam desactualizadas** —
+> `versao-mais-recente` (sem `punho_op` na lista de apps: um redeploy daqui
+> teria partido o auto-update do Punho OP) e `enviar-push` (anterior à v8, sem
+> o prefixo `[POS]`/`[PUNHO]` no título). As três do POS que faltavam —
+> `sincronizar-empresa`, `guardar-credenciais-wse-pos`, `comunicar-serie-pos` —
+> foram recuperadas de produção e estão agora aqui.
+>
+> O inventário completo das catorze, com quem serve cada uma e onde vive o
+> código, está em `punho/supabase/functions/README.md`. As funções multi-app
+> (`validar-licenca`, `registar-terminal`, `enviar-sugestao`) vivem no
+> repositório do Punho, não neste.
 
 ## Funções
 
@@ -69,3 +83,17 @@ Os secrets são geridos separadamente (Dashboard → Edge Functions → Secrets)
 ## Regra dourada
 
 Se editares uma função aqui, **redeploya no Supabase**. Se editares na consola web do Supabase, **actualiza aqui**. Nunca deixar as duas versões divergir.
+
+A regra estava escrita e mesmo assim divergiram — porque uma divergência não
+dá erro nenhum, só espera. Para a apanhar, comparar a data de publicação com
+a do último commit:
+
+```bash
+# updated_at de cada função (list_edge_functions) vs git log da pasta
+for d in supabase/functions/*/; do
+  echo "$(basename $d): $(git log -1 --format=%ad --date=short -- $d)"
+done
+```
+
+Publicação mais recente que o commit = alguém editou fora daqui, e um
+`deploy` a partir do repositório vai reverter produção sem deixar rasto.
