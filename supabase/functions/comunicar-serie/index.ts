@@ -20,8 +20,10 @@
 //   at_cred_enc_key         — chave AES-GCM do servidor (cifra as passwords AT)
 //
 // Auth: duas camadas (anon+is_admin -> service_role), padrão de gerir-licenca.
-// TESTE: header x-probe-token salta a camada de utilizador (corre service_role)
-//        e aceita credenciais no body. REMOVER/DESACTIVAR antes de produção.
+// SONDA: o header x-probe-token salta a camada de utilizador (corre
+//        service_role) e aceita credenciais no body. O valor vive no segredo
+//        de ambiente `AT_PROBE_TOKEN`. Sem esse segredo definido, a sonda NÃO
+//        existe — falha fechada, e a função exige admin como qualquer outra.
 
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 import forge from 'https://esm.sh/node-forge@1.3.1';
@@ -30,8 +32,41 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 
-// TESTE apenas — enquanto não há sub-utilizador de produção. Desactivar depois.
-const PROBE_TOKEN = 'probe-9f3a1c7e-at-series';
+/// O segredo da sonda. Vem do ambiente e **nunca** do código.
+///
+/// Esteve aqui escrito à mão — `probe-9f3a1c7e-at-series` — durante três
+/// semanas, num repositório público. Quem o lesse saltava a verificação de
+/// `is_admin()` (a função corre com `verify_jwt: false`) e chegava à acção
+/// `guardar_credenciais`, ou seja, podia escrever credenciais AT em qualquer
+/// `machine_id`. Foi rodado a 9 de Agosto de 2026; o valor antigo já não abre
+/// nada.
+///
+/// Vazio quer dizer que a sonda não existe. É de propósito: uma variável de
+/// ambiente que falhe a chegar tem de fechar a porta, não abri-la a toda a
+/// gente que mande o header vazio.
+const PROBE_TOKEN = Deno.env.get('AT_PROBE_TOKEN') ?? '';
+
+/// Comprimento mínimo para o segredo ser aceite.
+///
+/// Não é paranóia: sem isto, um `AT_PROBE_TOKEN=x` mal configurado deixava a
+/// porta aberta com um caracter. Se o segredo for curto, a sonda desliga-se —
+/// e o pedido cai na camada de admin, que é o comportamento seguro.
+const PROBE_TOKEN_MINIMO = 32;
+
+/// Comparação em tempo constante.
+///
+/// Um `===` sai no primeiro caracter diferente, e a diferença de tempo entre
+/// tentativas deixa adivinhar o segredo caracter a caracter. Aqui percorre-se
+/// sempre tudo.
+function segredoConfere(recebido: string, esperado: string): boolean {
+  if (esperado.length < PROBE_TOKEN_MINIMO) return false;
+  if (recebido.length !== esperado.length) return false;
+  let diferenca = 0;
+  for (let i = 0; i < esperado.length; i++) {
+    diferenca |= recebido.charCodeAt(i) ^ esperado.charCodeAt(i);
+  }
+  return diferenca === 0;
+}
 
 const AT_HOST = 'servicos.portaldasfinancas.gov.pt';
 const AT_PORT = 722;
@@ -228,7 +263,10 @@ Deno.serve(async (req) => {
     return json(400, { ok: false, erro: 'body inválido' });
   }
 
-  const modoTeste = req.headers.get('x-probe-token') === PROBE_TOKEN;
+  const modoTeste = segredoConfere(
+    req.headers.get('x-probe-token') ?? '',
+    PROBE_TOKEN,
+  );
 
   // service_role para tudo o que é mutação/leitura de secrets
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } });

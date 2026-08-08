@@ -77,6 +77,12 @@ Os secrets são geridos separadamente (Dashboard → Edge Functions → Secrets)
 - `FCM_SERVICE_ACCOUNT_JSON` (para `enviar-push`)
 - `EDGE_INVOKE_SECRET` (para `enviar-push`)
 - `RSA_PRIVATE_KEY` (para `assinar-documento`)
+- `AT_PROBE_TOKEN` (para `comunicar-serie`) — o segredo da sonda de teste.
+  Esteve escrito à mão dentro do código, num repositório **público**, e quem o
+  lesse saltava o `is_admin()`. Rodado a 9 de Agosto de 2026; cópia local em
+  `~/keystores/at_probe_token.txt` (chmod 600). Se este segredo não estiver
+  definido, a sonda simplesmente não existe e a função exige admin — falha
+  fechada, de propósito.
 
 `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` são auto-injectados pelo runtime.
 
