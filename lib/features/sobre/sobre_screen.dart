@@ -118,6 +118,9 @@ class _SobreScreenState extends ConsumerState<SobreScreen> {
                 helperText: 'Pelo menos 8 caracteres.',
                 suffixIcon: IconButton(
                   icon: Icon(oculta ? Icons.visibility : Icons.visibility_off),
+                  tooltip: oculta
+                      ? 'Mostrar palavra-passe'
+                      : 'Ocultar palavra-passe',
                   onPressed: () => setSt(() => oculta = !oculta),
                 ),
               ),

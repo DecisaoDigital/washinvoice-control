@@ -337,6 +337,9 @@ class _ModalCredenciaisAtState extends ConsumerState<_ModalCredenciaisAt> {
                 suffixIcon: IconButton(
                   icon: Icon(
                       _verPassword ? Icons.visibility_off : Icons.visibility),
+                  tooltip: _verPassword
+                      ? 'Ocultar palavra-passe'
+                      : 'Mostrar palavra-passe',
                   onPressed: () =>
                       setState(() => _verPassword = !_verPassword),
                 ),

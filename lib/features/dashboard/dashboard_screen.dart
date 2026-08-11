@@ -315,6 +315,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 IconButton(
                   iconSize: 20,
                   icon: const Icon(Icons.refresh),
+                  tooltip: 'Recarregar',
                   onPressed: _recarregar,
                 ),
               ],
@@ -725,6 +726,7 @@ class _CardPedidoAjuda extends StatelessWidget {
           if (telefone != null)
             IconButton(
               icon: const Icon(Icons.phone, color: AppColors.azul700),
+              tooltip: 'Ligar',
               onPressed: () => Acoes.ligarPara(telefone),
             ),
         ],

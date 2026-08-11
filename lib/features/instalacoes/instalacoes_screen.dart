@@ -371,6 +371,7 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
           IconButton(
             iconSize: 20,
             icon: const Icon(Icons.refresh),
+            tooltip: 'Recarregar',
             onPressed: _recarregar,
           ),
           const SizedBox(width: AppSpacing.sm),

@@ -263,6 +263,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   icon: Icon(
                     _ocultarPass ? Icons.visibility : Icons.visibility_off,
                   ),
+                  tooltip: _ocultarPass
+                      ? 'Mostrar palavra-passe'
+                      : 'Ocultar palavra-passe',
                   onPressed: () => setState(() => _ocultarPass = !_ocultarPass),
                 ),
               ),
