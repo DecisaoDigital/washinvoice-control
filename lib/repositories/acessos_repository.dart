@@ -49,7 +49,7 @@ class AcessosRepository {
 
   Future<List<PedidoAcesso>> listarPendentes() async {
     final rows = await _db.from('pedidos_acesso').select().eq('estado', 'pendente')
-        .order('criado_em');
+        .order('criado_em', ascending: true);
     return (rows as List).cast<Map<String, dynamic>>().map(PedidoAcesso.fromJson).toList();
   }
 
@@ -57,12 +57,12 @@ class AcessosRepository {
   /// ocupação (`ativos / limite`) de cada organização.
   Future<List<PedidoAcesso>> listarAprovados() async {
     final rows = await _db.from('pedidos_acesso').select().eq('estado', 'aprovado')
-        .order('criado_em');
+        .order('criado_em', ascending: true);
     return (rows as List).cast<Map<String, dynamic>>().map(PedidoAcesso.fromJson).toList();
   }
 
   Future<List<OrganizacaoAcesso>> listarOrganizacoes() async {
-    final rows = await _db.from('organizacoes').select().order('nome');
+    final rows = await _db.from('organizacoes').select().order('nome', ascending: true);
     return (rows as List).cast<Map<String, dynamic>>().map(OrganizacaoAcesso.fromJson).toList();
   }
 
