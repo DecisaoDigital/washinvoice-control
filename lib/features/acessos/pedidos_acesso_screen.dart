@@ -213,7 +213,7 @@ class _PedidoCardState extends State<_PedidoCard> {
         Text('Pedido em ${Dates.data(p.criadoEm)}'),
         if (ocupacao != null) Text('Ocupação: $ocupacao'),
         if (p.origem == 'livre') DropdownButtonFormField<String?>(
-          value: _org,
+          initialValue: _org,
           decoration: const InputDecoration(labelText: 'Associar a organização (vazio = nova)'),
           items: [
             const DropdownMenuItem<String?>(value: null, child: Text('Criar nova organização')),

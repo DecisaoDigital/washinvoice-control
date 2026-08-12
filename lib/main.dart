@@ -109,7 +109,7 @@ Future<void> main() async {
 
     await Supabase.initialize(
       url: SupabaseConfig.url,
-      anonKey: SupabaseConfig.anonKey,
+      publishableKey: SupabaseConfig.anonKey,
       // O observador de deep links de origem fica desligado: neste projecto
       // nunca entregou nada (a história está em [LinksDeAutenticacao]), e
       // deixá-lo ligado só abriria a hipótese de dois observadores a trocarem

@@ -722,10 +722,11 @@ class _CardLicenca extends StatelessWidget {
             WiLinhaKV(
               rotulo: 'Telefone',
               valor: data.cliente!.telemovel!.trim(),
-              trailing: InkWell(
-                onTap: () => Acoes.ligarPara(data.cliente!.telemovel),
-                child: const Icon(Icons.phone,
-                    size: 18, color: AppColors.verde),
+              trailing: WiAccaoDeLinha(
+                icone: Icons.phone,
+                aoTocar: () => Acoes.ligarPara(data.cliente!.telemovel),
+                descricao: 'Ligar ao cliente',
+                cor: AppColors.verde,
               ),
             ),
           WiLinhaKV(rotulo: 'Plano', valor: l.planoLabel),
@@ -739,20 +740,20 @@ class _CardLicenca extends StatelessWidget {
               rotulo: 'Chave mestre',
               valor: l.chaveMestre!,
               mono: true,
-              trailing: InkWell(
-                onTap: () => onCopiarChave(l.chaveMestre!),
-                child: const Icon(Icons.copy,
-                    size: 18, color: AppColors.textTertiary),
+              trailing: WiAccaoDeLinha(
+                icone: Icons.copy,
+                aoTocar: () => onCopiarChave(l.chaveMestre!),
+                descricao: 'Copiar a chave mestre',
               ),
             ),
           WiLinhaKV(
             rotulo: 'Máquina',
             valor: machineCurto,
             mono: true,
-            trailing: InkWell(
-              onTap: () => onCopiar(l.machineId),
-              child: const Icon(Icons.copy,
-                  size: 18, color: AppColors.textTertiary),
+            trailing: WiAccaoDeLinha(
+              icone: Icons.copy,
+              aoTocar: () => onCopiar(l.machineId),
+              descricao: 'Copiar o identificador da máquina',
             ),
           ),
         ],

@@ -254,10 +254,10 @@ class _DetalhePedidoAjudaScreenState
             rotulo: 'Máquina',
             valor: machineCurto,
             mono: true,
-            trailing: InkWell(
-              onTap: () => _copiar(_pedido.machineId),
-              child:
-                  const Icon(Icons.copy, size: 18, color: AppColors.textTertiary),
+            trailing: WiAccaoDeLinha(
+              icone: Icons.copy,
+              aoTocar: () => _copiar(_pedido.machineId),
+              descricao: 'Copiar o identificador da máquina',
             ),
           ),
           Padding(

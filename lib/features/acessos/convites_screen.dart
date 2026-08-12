@@ -38,7 +38,7 @@ class _ConvitesScreenState extends ConsumerState<ConvitesScreen> {
       TextField(controller: _email, keyboardType: TextInputType.emailAddress,
         decoration: const InputDecoration(labelText: 'Email do funcionário')),
       const SizedBox(height: 14),
-      DropdownButtonFormField<String>(value: _cargo, decoration: const InputDecoration(labelText: 'Cargo'),
+      DropdownButtonFormField<String>(initialValue: _cargo, decoration: const InputDecoration(labelText: 'Cargo'),
         items: const [DropdownMenuItem(value: 'funcionario', child: Text('Funcionário')),
           DropdownMenuItem(value: 'admin', child: Text('Administrador'))],
         onChanged: (v) => setState(() => _cargo = v ?? 'funcionario')),

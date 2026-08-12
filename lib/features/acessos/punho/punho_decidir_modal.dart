@@ -117,36 +117,57 @@ class _PunhoDecidirModalState extends State<PunhoDecidirModal> {
   List<Widget> _livre(PunhoPedido p) => [
     const Text('Pedido livre. Escolha a empresa de destino.'),
     const SizedBox(height: AppSpacing.sm),
-    RadioListTile<bool>(
-      value: true,
+    // `RadioGroup` e não `groupValue`/`onChanged` em cada tile: a partir do
+    // Flutter 3.32 é o grupo que guarda a escolha e recebe a mudança. Com a
+    // API antiga, os dois tiles repetiam o estado e nada obrigava a que
+    // falassem do mesmo — dois `groupValue` diferentes compilavam na mesma.
+    //
+    // O campo do limite fica **dentro** do grupo, entre os dois tiles, porque é
+    // onde pertence visualmente: pertence à opção de cima.
+    RadioGroup<bool>(
       groupValue: _criarNova,
-      contentPadding: EdgeInsets.zero,
-      title: Text('Criar nova "${p.organizacaoIndicada}"'),
       onChanged: (v) => setState(() => _criarNova = v ?? true),
-    ),
-    if (_criarNova)
-      Padding(
-        padding: const EdgeInsets.only(left: AppSpacing.xxl, bottom: AppSpacing.sm),
-        child: TextField(
-          controller: _limite,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Limite de utilizadores'),
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          RadioListTile<bool>(
+            value: true,
+            contentPadding: EdgeInsets.zero,
+            // O nome que o pedido indica fica no rótulo: quem aprova precisa de
+            // ver o que vai ser criado, não só que vai criar alguma coisa.
+            title: Text('Criar nova "${p.organizacaoIndicada}"'),
+          ),
+          if (_criarNova)
+            Padding(
+              padding: const EdgeInsets.only(
+                left: AppSpacing.xxl,
+                bottom: AppSpacing.sm,
+              ),
+              child: TextField(
+                controller: _limite,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Limite de utilizadores',
+                ),
+              ),
+            ),
+          RadioListTile<bool>(
+            value: false,
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Anexar a empresa existente'),
+            // Sem empresas onde anexar, a opção não se pode escolher. Antes
+            // isto era `onChanged: null`; agora é o `enabled`, porque quem
+            // decide o que acontece ao tocar passou a ser o grupo.
+            enabled: widget.empresas.isNotEmpty,
+          ),
+        ],
       ),
-    RadioListTile<bool>(
-      value: false,
-      groupValue: _criarNova,
-      contentPadding: EdgeInsets.zero,
-      title: const Text('Anexar a empresa existente'),
-      onChanged: widget.empresas.isEmpty
-          ? null
-          : (v) => setState(() => _criarNova = v ?? false),
     ),
     if (!_criarNova)
       Padding(
         padding: const EdgeInsets.only(left: AppSpacing.xxl),
         child: DropdownButtonFormField<String>(
-          value: _empresaId,
+          initialValue: _empresaId,
           decoration: const InputDecoration(labelText: 'Empresa'),
           items: widget.empresas
               .map(

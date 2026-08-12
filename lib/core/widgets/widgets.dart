@@ -1,6 +1,7 @@
 /// Barrel dos componentes reutilizáveis do redesign v1.4 (tokens.md §8).
 library;
 
+export 'wi_accao_de_linha.dart';
 export 'wi_app_badge.dart';
 export 'wi_app_selector.dart';
 export 'wi_badge_estado.dart';

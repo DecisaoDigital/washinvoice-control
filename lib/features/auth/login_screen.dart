@@ -240,7 +240,7 @@ class _LoginScreenState extends State<LoginScreen> {
               TextField(controller: _organizacaoCtrl, decoration: _decoracao()),
               const SizedBox(height: AppSpacing.md),
               const _Rotulo('CARGO PRETENDIDO'),
-              DropdownButtonFormField<String>(value: _cargo, decoration: _decoracao(),
+              DropdownButtonFormField<String>(initialValue: _cargo, decoration: _decoracao(),
                 items: const [
                   DropdownMenuItem(value: 'funcionario', child: Text('Funcionário')),
                   DropdownMenuItem(value: 'admin', child: Text('Administrador')),

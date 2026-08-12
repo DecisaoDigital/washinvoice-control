@@ -181,7 +181,17 @@ void main() {
       final opcao = tester.widget<RadioListTile<bool>>(
         find.widgetWithText(RadioListTile<bool>, 'Anexar a empresa existente'),
       );
-      expect(opcao.onChanged, isNull);
+      // `enabled` e já não `onChanged == null`: com o `RadioGroup`, quem
+      // responde ao toque é o grupo, e desligar uma opção passou a ser
+      // propriedade dela. O que se afirma continua a ser o mesmo — sem
+      // empresas onde anexar, a opção não se escolhe.
+      expect(opcao.enabled, isFalse);
+
+      // E a prova pelo comportamento, que é a que interessa: tocar não muda
+      // nada. Sem isto, o teste só afirmava sobre uma bandeira.
+      await tester.tap(find.text('Anexar a empresa existente'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Limite de utilizadores'), findsOneWidget);
     });
   });
 

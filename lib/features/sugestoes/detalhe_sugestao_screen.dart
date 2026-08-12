@@ -262,10 +262,10 @@ class _DetalheSugestaoScreenState
             mono: true,
             trailing: machineId == null
                 ? null
-                : InkWell(
-                    onTap: () => _copiar(machineId),
-                    child: const Icon(Icons.copy,
-                        size: 18, color: AppColors.textTertiary),
+                : WiAccaoDeLinha(
+                    icone: Icons.copy,
+                    aoTocar: () => _copiar(machineId),
+                    descricao: 'Copiar o identificador da máquina',
                   ),
           ),
           Padding(

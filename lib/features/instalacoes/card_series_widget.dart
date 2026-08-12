@@ -489,7 +489,7 @@ class _ModalNovaSerieState extends ConsumerState<_ModalNovaSerie> {
           ),
           const SizedBox(height: AppSpacing.sm),
           DropdownButtonFormField<String>(
-            value: _tipoDoc,
+            initialValue: _tipoDoc,
             decoration: const InputDecoration(
               labelText: 'Tipo de documento',
               border: OutlineInputBorder(),
@@ -524,7 +524,7 @@ class _ModalNovaSerieState extends ConsumerState<_ModalNovaSerie> {
           ),
           const SizedBox(height: AppSpacing.sm),
           DropdownButtonFormField<String>(
-            value: _meio,
+            initialValue: _meio,
             decoration: const InputDecoration(
               labelText: 'Meio de processamento',
               border: OutlineInputBorder(),
