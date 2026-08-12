@@ -39,6 +39,12 @@ class WiChipFiltro extends StatelessWidget {
         onTap: onTap,
         borderRadius: AppRadius.pillAll,
         child: Container(
+          // 48 medidos, e não um `padding` maior a olho: a régua em
+          // `test/core/widgets/alvos_de_toque_test.dart` dava 35 dp a este chip.
+          // O mínimo fica na altura, e a largura continua a ser a do texto —
+          // uma linha de filtros mede-se ao alto, não ao lado.
+          constraints: const BoxConstraints(minHeight: 48),
+          alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
             vertical: AppSpacing.sm,

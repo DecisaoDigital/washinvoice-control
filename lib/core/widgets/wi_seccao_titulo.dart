@@ -41,10 +41,18 @@ class WiSeccaoTitulo extends StatelessWidget {
           const Icon(Icons.chevron_right, size: 20, color: AppColors.textTertiary),
       ],
     );
+    // Sem `onTap` não há alvo de toque nenhum, e forçar 48 dp aqui só afastava
+    // secções que ninguém carrega. É por isso que a régua tem um teste a
+    // afirmar que este caso **continua** curto.
     if (onTap == null) return linha;
     return InkWell(
       onTap: onTap,
-      child: Padding(
+      child: Container(
+        // Media 28 dp — o título de secção que abre um ecrã era o alvo mais
+        // pequeno do Control, pouco mais de metade do mínimo. O texto não muda
+        // de tamanho: o que cresce é o que responde ao dedo.
+        constraints: const BoxConstraints(minHeight: 48),
+        alignment: Alignment.centerLeft,
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
         child: linha,
       ),

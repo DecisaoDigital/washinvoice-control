@@ -14,7 +14,7 @@ import '../app_colors.dart';
 /// da máquina — indistinguíveis um do outro.
 ///
 /// O ícone continua a desenhar 18 dp. O que cresce é a área que responde ao
-/// dedo, com 11 dp de folga à volta.
+/// dedo, com 15 dp de folga à volta.
 class WiAccaoDeLinha extends StatelessWidget {
   const WiAccaoDeLinha({
     super.key,
@@ -34,11 +34,15 @@ class WiAccaoDeLinha extends StatelessWidget {
 
   final Color? cor;
 
-  /// 40 e não 48: a linha chave-valor tem 18 dp de texto e um espaçamento
-  /// vertical curto, e 48 empurrava as linhas todas para longe umas das outras
-  /// num ecrã que é feito de as ter juntas. 40 é a densidade compacta do
-  /// Material, mais do dobro do que aqui havia.
-  static const double _lado = 40;
+  /// 48, que é o mínimo do Material e das WCAG.
+  ///
+  /// Esteve em 40 por uma razão que parecia boa e não resistiu à régua: «48
+  /// empurrava as linhas todas para longe umas das outras». Medido
+  /// (`alvos_de_toque_test.dart`), a `WiLinhaKV` mede 27 dp sozinha, **48 com
+  /// uma acção de 40** — o `padding` já lá punha os 8 que faltavam — e 56 com
+  /// uma de 48. O custo verdadeiro são 8 dp, e só nas linhas que têm botão,
+  /// não «nas linhas todas».
+  static const double _lado = 48;
 
   @override
   Widget build(BuildContext context) => Tooltip(
