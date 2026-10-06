@@ -1,6 +1,6 @@
 import 'package:washinvoice_control/repositories/punho_admin_repository.dart';
 
-PunhoPedido pedidoPunho({
+FistPedido pedidoFist({
   String id = 'p1',
   String? nome = 'Ana Silva',
   String email = 'ana@exemplo.pt',
@@ -12,7 +12,7 @@ PunhoPedido pedidoPunho({
   String? conviteEmpresaNome,
   String? empresaId,
   String? empresaNome,
-}) => PunhoPedido.fromJson({
+}) => FistPedido.fromJson({
   'id': id,
   'user_id': 'u-$id',
   'nome': nome,
@@ -31,12 +31,12 @@ PunhoPedido pedidoPunho({
   'empresa_nome': empresaNome,
 });
 
-PunhoEmpresa empresaPunho({
+FistEmpresa empresaFist({
   String id = 'e1',
   String nome = 'Empresa do Convite',
   int limite = 3,
   int ativos = 1,
-}) => PunhoEmpresa.fromJson({
+}) => FistEmpresa.fromJson({
   'id': id,
   'nome': nome,
   'limite_utilizadores': limite,
@@ -44,15 +44,15 @@ PunhoEmpresa empresaPunho({
 });
 
 /// Fake do repositório: guarda as decisões tomadas para as podermos verificar.
-class FakePunhoAdmin extends PunhoAdminRepository {
-  FakePunhoAdmin({
+class FakeFistAdmin extends FistAdminRepository {
+  FakeFistAdmin({
     this.porEstado = const {},
     this.empresas = const [],
     this.erro,
   });
 
-  final Map<String, List<PunhoPedido>> porEstado;
-  final List<PunhoEmpresa> empresas;
+  final Map<String, List<FistPedido>> porEstado;
+  final List<FistEmpresa> empresas;
   final Object? erro;
 
   final decisoes = <Map<String, Object?>>[];
@@ -63,14 +63,14 @@ class FakePunhoAdmin extends PunhoAdminRepository {
   int listagens = 0;
 
   @override
-  Future<List<PunhoPedido>> listarPedidos({String estado = 'pendente'}) async {
+  Future<List<FistPedido>> listarPedidos({String estado = 'pendente'}) async {
     listagens++;
     if (erro != null) throw erro!;
     return porEstado[estado] ?? const [];
   }
 
   @override
-  Future<List<PunhoEmpresa>> listarEmpresas() async {
+  Future<List<FistEmpresa>> listarEmpresas() async {
     if (erro != null) throw erro!;
     return empresas;
   }

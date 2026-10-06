@@ -1,8 +1,8 @@
-# Prompt Code Control — sprint: multi-app (POS + Punho) + badge PRO
+# Prompt Code Control — sprint: multi-app (POS + Fist) + badge PRO
 
 > Cola numa sessão nova do Claude Code em `D:\WashInvoiceControl\washinvoice_control\`.
 > Branch: **`feature/multi-app-e-badge-pro`** a partir de `main`.
-> Alvo: adicionar suporte multi-app ao Control (era só WashInvoice POS, passa a mostrar também Punho) + badge PRO azul antes do nome do cliente. Bump `pubspec.yaml` para próxima versão minor (ex: `1.5.0`).
+> Alvo: adicionar suporte multi-app ao Control (era só WashInvoice POS, passa a mostrar também Fist) + badge PRO azul antes do nome do cliente. Bump `pubspec.yaml` para próxima versão minor (ex: `1.5.0`).
 
 ---
 
@@ -39,7 +39,7 @@ extension AppFiltroExt on AppFiltro {
   String get etiqueta => switch (this) {
     AppFiltro.todas => 'Todas as apps',
     AppFiltro.pos   => 'WashInvoice',
-    AppFiltro.punho => 'Punho',
+    AppFiltro.punho => 'Fist',
   };
 
   /// Devolve o valor a passar ao filtro SQL `.eq('app', ...)`, ou null se todas.
@@ -96,7 +96,7 @@ Future<List<Licenca>> listar({String? app}) async {
 
 Fazer o mesmo em `listarPorNif`, `listarPendentesRevisao`, etc.
 
-**Regra INSERT/UPDATE:** cada `.insert({...})` para `licencas` **tem de** incluir `'app': 'pos'` (o Control só cria licenças manuais para POS por agora — Punho auto-onboarda; se um dia Cesar criar linha manual para Punho no Control, aí passa `'app': 'punho'`).
+**Regra INSERT/UPDATE:** cada `.insert({...})` para `licencas` **tem de** incluir `'app': 'pos'` (o Control só cria licenças manuais para POS por agora — Fist auto-onboarda; se um dia Cesar criar linha manual para Fist no Control, aí passa `'app': 'punho'`).
 
 ### 2b. Outros repositories
 
@@ -178,7 +178,7 @@ class AppBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final (color, label) = switch (app) {
       'pos'   => (const Color(0xFF007ACC), 'POS'),
-      'punho' => (Colors.green.shade700, 'PUNHO'),
+      'punho' => (Colors.green.shade700, 'FIST'),
       _       => (Colors.grey, app.toUpperCase()),
     };
     return Container(
@@ -241,7 +241,7 @@ Uso: `Row(children: [TierBadge(tier: licenca.tier), Text(licenca.nome ?? '—')]
 
 - Adicionar `AppSelector` na AppBar (após título, antes de outros ícones).
 - KPIs/cards do dashboard passam a mostrar contagens filtradas por app.
-- Se filtro = `todas`, mostrar breakdown por app ("POS: N | Punho: M").
+- Se filtro = `todas`, mostrar breakdown por app ("POS: N | Fist: M").
 
 ### 4b. Lista de instalações (`lib/features/instalacoes/`)
 
@@ -296,8 +296,8 @@ O Control passou a suportar múltiplas apps da Decisão Digital. Coluna `app`
 nas tabelas de licenciamento (`licencas`, `pings`, `pedidos_ajuda`, etc.) é
 NOT NULL sem default — cliente tem de passar explícito.
 
-Selector no dashboard: Todas | WashInvoice | Punho. Filtro persistente em
-SharedPreferences. Badges `POS` (azul) e `PUNHO` (verde) por linha.
+Selector no dashboard: Todas | WashInvoice | Fist. Filtro persistente em
+SharedPreferences. Badges `POS` (azul) e `FIST` (verde) por linha.
 
 Badge PRO (azul VSCode #007ACC) antes do nome do cliente quando
 `licenca.tier == 'pro'`.
@@ -320,9 +320,9 @@ que se escolheu coluna).
 2. `flutter test` — todos verdes
 3. `flutter analyze` — limpo
 4. Testar app localmente:
-   - Filtro "Todas" → vê linhas com badge POS e PUNHO
+   - Filtro "Todas" → vê linhas com badge POS e FIST
    - Filtro "WashInvoice" → só POS
-   - Filtro "Punho" → só Punho
+   - Filtro "Fist" → só Fist
    - Cliente com `tier='pro'` no BD → badge PRO renderiza na ficha
    - Cliente com `tier='base'` → sem badge
 5. Push notification simulada com `app='punho'` no payload → título "[PUNHO] …"
@@ -334,8 +334,8 @@ que se escolheu coluna).
 ## Fora de âmbito (NÃO fazer neste sprint)
 
 - Alterar as EFs no Supabase. Cowork trata.
-- Criar novas apps além de POS e Punho. Não.
-- Gestão de licenças Punho manualmente pelo Control (activar/prolongar). Fica para sprint futuro quando Cesar precisar realmente disso.
+- Criar novas apps além de POS e Fist. Não.
+- Gestão de licenças Fist manualmente pelo Control (activar/prolongar). Fica para sprint futuro quando Cesar precisar realmente disso.
 - Redesign visual do dashboard. Não. Apenas adicionar selector + badges.
 - Alterar autenticação. Não.
 

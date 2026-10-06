@@ -1,7 +1,7 @@
-# Control aprova pedidos do Punho
+# Control aprova pedidos do Fist
 
 Como o admin global do Decisão Digital Control aprova, recusa e revoga o acesso
-de utilizadores da app **Punho**.
+de utilizadores da app **Fist**.
 
 **Não confundir** com `pedidos_acesso` / `PedidosAcessoScreen`, que são os
 acessos ao próprio Control (equipa do escritório). São namespaces separados de
@@ -13,17 +13,17 @@ propósito e não foram tocados nesta ronda.
 
 | Camada | Ficheiro |
 |---|---|
-| SQL | `D:\Punho\supabase\migrations\20260801_punho_aprovacao_pelo_control.sql` |
-| Testes SQL | `D:\Punho\supabase\tests\punho_aprovacao_test.sql` |
+| SQL | `D:\Fist\supabase\migrations\20260801_punho_aprovacao_pelo_control.sql` |
+| Testes SQL | `D:\Fist\supabase\tests\punho_aprovacao_test.sql` |
 | Repositório | `lib/repositories/punho_admin_repository.dart` |
 | Ecrã | `lib/features/acessos/punho/punho_pedidos_screen.dart` |
 | Diálogos | `lib/features/acessos/punho/punho_decidir_modal.dart` |
 | Separador | `lib/features/nav/home_shell.dart` (5.º, só para admin) |
 
-A migration ficou no repo do Punho, junto do resto do schema dessa app, como
+A migration ficou no repo do Fist, junto do resto do schema dessa app, como
 pedido. Os dois repos falam com o mesmo projecto Supabase, por isso
 `public.is_admin()` (definido em `washinvoice_control/supabase/rls_policies.sql`)
-está disponível para as RPCs do Punho.
+está disponível para as RPCs do Fist.
 
 ---
 
@@ -31,7 +31,7 @@ está disponível para as RPCs do Punho.
 
 ### Aprovar
 
-O admin abre **Punho** → filtro **Pendentes** → **Decidir**.
+O admin abre **Fist** → filtro **Pendentes** → **Decidir**.
 
 **Origem `convite`** — a empresa vem do convite e não se escolhe. O diálogo
 diz qual é e o botão aprova. O servidor lê `convite_id → punho_convites →
@@ -60,7 +60,7 @@ Só de `aprovado`. Põe `punho_membros.ativo = false` e o pedido em `revogado`.
 Nunca apaga. O diálogo de confirmação diz quem perde o acesso, de que empresa,
 que liberta uma vaga e que nada é apagado.
 
-O utilizador perde o acesso no arranque seguinte da app Punho — é aí que o
+O utilizador perde o acesso no arranque seguinte da app Fist — é aí que o
 `AcessoGate` consulta `punho_meu_acesso()`.
 
 ### Reabrir
@@ -86,7 +86,7 @@ Aprovar um pedido livre com empresa nova faz o mesmo que a antiga
 
 ### Toda a escrita passa por uma RPC
 
-Nenhuma policy de escrita foi aberta a `authenticated` nas tabelas do Punho. As
+Nenhuma policy de escrita foi aberta a `authenticated` nas tabelas do Fist. As
 três funções são `security definer` com `search_path = public`, verificam
 `is_admin()` à cabeça, e têm `execute` revogado de `public` e `anon`. A UI não
 faz UPDATE em `punho_membros` — não tem por onde.
@@ -99,26 +99,26 @@ segurança: mesmo que alguém chegue ao ecrã, as RPCs recusam.
 ### O separador só aparece ao admin
 
 `HomeShell` observa `souAdminGlobalProvider`. Um gerente de organização não vê
-"Punho" — em vez de lhe bater com um erro ao entrar. O índice do
+"Fist" — em vez de lhe bater com um erro ao entrar. O índice do
 `BottomNavigationBar` é limitado com `clamp`, porque o perfil só é conhecido
 depois do primeiro build e a lista de separadores pode encolher.
 
 ### Ícone distinto
 
-`Icons.approval` para Punho, `Icons.manage_accounts_outlined` para Acessos. São
+`Icons.approval` para Fist, `Icons.manage_accounts_outlined` para Acessos. São
 coisas diferentes — clientes de uma app vs. equipa do escritório — e o custo de
 as confundir é aprovar a pessoa errada no sítio errado.
 
 ### O filtro multi-app não se aplica
 
-O selector `Todas | WashInvoice | Punho` da AppBar não afecta este ecrã: por
-definição é sempre Punho. `appFilterProvider` não é observado em
+O selector `Todas | WashInvoice | Fist` da AppBar não afecta este ecrã: por
+definição é sempre Fist. `appFilterProvider` não é observado em
 `punho_pedidos_screen.dart`, e está comentado lá para não parecer esquecimento.
 
 ### Os diálogos não sabem o que é rede
 
-`PunhoDecidirModal` e `PunhoRevogarModal` recebem dados já carregados e
-devolvem uma `DecisaoPunho` por `Navigator.pop`. Quem chama a RPC é o ecrã.
+`FistDecidirModal` e `FistRevogarModal` recebem dados já carregados e
+devolvem uma `DecisaoFist` por `Navigator.pop`. Quem chama a RPC é o ecrã.
 Assim os diálogos montam-se em teste sem Supabase nenhum, que é o que os três
 ficheiros de teste fazem.
 
@@ -166,5 +166,5 @@ de aplicação estão no cabeçalho da migration.
   ultrapassá-lo com um aviso. Se isso passar a ser proibido, é uma guarda a
   acrescentar em `punho_decidir_pedido`.
 - **Gerir `punho_empresas` do Control** (renomear, mudar limite) — v0.0.4.
-- **Convites do lado do Control** — não; quem convida é o gestor, na app Punho.
-- **Push quando entra um pedido Punho novo** — por avaliar.
+- **Convites do lado do Control** — não; quem convida é o gestor, na app Fist.
+- **Push quando entra um pedido Fist novo** — por avaliar.

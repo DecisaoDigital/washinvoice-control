@@ -1,7 +1,7 @@
--- Punho — campainha de tempo real sobre `punho_operacoes`
+-- Fist — campainha de tempo real sobre `punho_operacoes`
 -- Correr uma vez no SQL Editor do Supabase.
 --
--- Desenho e alternativas ponderadas: `docs/design/tempo_real.md` (repo Punho).
+-- Desenho e alternativas ponderadas: `docs/design/tempo_real.md` (repo Fist).
 --
 -- ## O que faz
 --
@@ -121,7 +121,7 @@ begin
       true                                         -- privado (usa a política acima)
     );
   exception when others then
-    raise warning 'campainha do Punho falhou (seq %): %', NEW.seq, sqlerrm;
+    raise warning 'campainha do Fist falhou (seq %): %', NEW.seq, sqlerrm;
   end;
 
   return null;  -- AFTER trigger: o valor devolvido é ignorado

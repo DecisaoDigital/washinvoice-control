@@ -8,20 +8,20 @@ import 'package:washinvoice_control/repositories/punho_admin_repository.dart';
 
 import 'fake_punho_admin_repository.dart';
 
-Future<DecisaoPunho?> _abrirRevogar(
+Future<DecisaoFist?> _abrirRevogar(
   WidgetTester tester,
-  PunhoPedido pedido,
+  FistPedido pedido,
 ) async {
-  DecisaoPunho? resultado;
+  DecisaoFist? resultado;
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
         body: Builder(
           builder: (context) => ElevatedButton(
             onPressed: () async {
-              resultado = await showDialog<DecisaoPunho>(
+              resultado = await showDialog<DecisaoFist>(
                 context: context,
-                builder: (_) => PunhoRevogarModal(pedido: pedido),
+                builder: (_) => FistRevogarModal(pedido: pedido),
               );
             },
             child: const Text('abrir'),
@@ -39,7 +39,7 @@ void main() {
   testWidgets('mostra o impacto: quem perde o acesso e quando', (tester) async {
     await _abrirRevogar(
       tester,
-      pedidoPunho(
+      pedidoFist(
         estado: 'aprovado',
         empresaId: 'e1',
         empresaNome: 'Terraplanagens Ana',
@@ -59,7 +59,7 @@ void main() {
   });
 
   testWidgets('pede confirmação: cancelar não devolve decisão', (tester) async {
-    await _abrirRevogar(tester, pedidoPunho(estado: 'aprovado'));
+    await _abrirRevogar(tester, pedidoFist(estado: 'aprovado'));
 
     await tester.tap(find.text('Cancelar'));
     await tester.pumpAndSettle();
@@ -68,17 +68,17 @@ void main() {
   });
 
   testWidgets('confirmar devolve a decisão de revogar', (tester) async {
-    DecisaoPunho? escolhido;
+    DecisaoFist? escolhido;
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
           body: Builder(
             builder: (context) => ElevatedButton(
               onPressed: () async {
-                escolhido = await showDialog<DecisaoPunho>(
+                escolhido = await showDialog<DecisaoFist>(
                   context: context,
                   builder: (_) =>
-                      PunhoRevogarModal(pedido: pedidoPunho(estado: 'aprovado')),
+                      FistRevogarModal(pedido: pedidoFist(estado: 'aprovado')),
                 );
               },
               child: const Text('abrir'),
@@ -99,16 +99,16 @@ void main() {
   testWidgets('no ecrã, revogar só chega à RPC depois de confirmado', (
     tester,
   ) async {
-    final fake = FakePunhoAdmin(
+    final fake = FakeFistAdmin(
       porEstado: {
         'pendente': const [],
-        'aprovado': [pedidoPunho(estado: 'aprovado', empresaNome: 'Empresa A')],
+        'aprovado': [pedidoFist(estado: 'aprovado', empresaNome: 'Empresa A')],
       },
     );
     await tester.pumpWidget(
       ProviderScope(
         overrides: [punhoAdminRepoProvider.overrideWithValue(fake)],
-        child: const MaterialApp(home: PunhoPedidosScreen()),
+        child: const MaterialApp(home: FistPedidosScreen()),
       ),
     );
     await tester.pumpAndSettle();

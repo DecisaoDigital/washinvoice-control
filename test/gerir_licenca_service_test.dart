@@ -180,7 +180,7 @@ void main() {
           criadoEm: DateTime(2026, 1, 1),
         );
 
-    test('num trial do Punho é uma janela a contar de hoje — e encurta',
+    test('num trial do Fist é uma janela a contar de hoje — e encurta',
         () async {
       final s = servicoCom(_resposta(acao: 'definir_validade'));
       await s.darDias(lic('trial'), 5);

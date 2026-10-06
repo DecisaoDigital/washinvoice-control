@@ -3,7 +3,7 @@ import 'package:washinvoice_control/services/push_routing.dart';
 
 void main() {
   group('destinoDoPush', () {
-    test('novo_terminal vai aos terminais, não aos Pedidos Punho', () {
+    test('novo_terminal vai aos terminais, não aos Pedidos Fist', () {
       // O bug de 2026-07-28: a linha foi para `licencas` e o Cesar aterrou
       // numa lista de pedidos vazia.
       expect(
@@ -12,10 +12,10 @@ void main() {
       );
     });
 
-    test('novo_pedido vai aos Pedidos Punho', () {
+    test('novo_pedido vai aos Pedidos Fist', () {
       expect(
         destinoDoPush({'tipo': 'novo_pedido', 'app': 'punho'}),
-        DestinoPush.pedidosPunho,
+        DestinoPush.pedidosFist,
       );
     });
 

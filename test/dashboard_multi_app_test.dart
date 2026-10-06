@@ -131,13 +131,13 @@ void main() {
 
     // Breakdown por app aparece só quando há mais do que uma app.
     expect(find.text('WashInvoice: 2'), findsOneWidget);
-    expect(find.text('Punho: 1'), findsOneWidget);
+    expect(find.text('Fist: 1'), findsOneWidget);
 
     // O selector mostra o estado actual.
     expect(find.text('Todas'), findsOneWidget);
   });
 
-  testWidgets('mudar o filtro para Punho recarrega e passa app=punho',
+  testWidgets('mudar o filtro para Fist recarrega e passa app=punho',
       (tester) async {
     final (fake, container) = await montar(tester, [
       _licenca('1', 'pos'),
@@ -152,8 +152,8 @@ void main() {
     expect(fake.appsPedidas.last, 'punho');
 
     // Com uma só app o breakdown desaparece — os KPIs já são dessa app.
-    expect(find.text('Punho: 1'), findsNothing);
-    expect(find.text('Punho'), findsOneWidget); // etiqueta curta do selector
+    expect(find.text('Fist: 1'), findsNothing);
+    expect(find.text('Fist'), findsOneWidget); // etiqueta curta do selector
   });
 
   testWidgets('breakdown não aparece quando só há uma app', (tester) async {

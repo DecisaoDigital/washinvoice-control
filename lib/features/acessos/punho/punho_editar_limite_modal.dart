@@ -5,7 +5,7 @@ import '../../../core/app_spacing.dart';
 import '../../../repositories/punho_admin_repository.dart';
 
 /// Novo limite escolhido no diálogo — devolvido por `Navigator.pop`, tal como
-/// [DecisaoPunho]. Quem chama a RPC é o ecrã, não o diálogo: assim isto é
+/// [DecisaoFist]. Quem chama a RPC é o ecrã, não o diálogo: assim isto é
 /// montável num teste sem Supabase.
 class NovoLimite {
   final int valor;
@@ -15,17 +15,17 @@ class NovoLimite {
 /// Diálogo de edição do limite de colaboradores activos de uma empresa já
 /// existente — fora do fluxo de aprovação de um pedido, que só define o
 /// limite na criação.
-class PunhoEditarLimiteModal extends StatefulWidget {
-  const PunhoEditarLimiteModal({super.key, required this.empresa});
+class FistEditarLimiteModal extends StatefulWidget {
+  const FistEditarLimiteModal({super.key, required this.empresa});
 
-  final PunhoEmpresa empresa;
+  final FistEmpresa empresa;
 
   @override
-  State<PunhoEditarLimiteModal> createState() =>
-      _PunhoEditarLimiteModalState();
+  State<FistEditarLimiteModal> createState() =>
+      _FistEditarLimiteModalState();
 }
 
-class _PunhoEditarLimiteModalState extends State<PunhoEditarLimiteModal> {
+class _FistEditarLimiteModalState extends State<FistEditarLimiteModal> {
   late final _limite = TextEditingController(
     text: '${widget.empresa.limiteUtilizadores}',
   );

@@ -74,7 +74,7 @@ class LicencasRepository {
   ///
   /// [app] tem de ir sempre (`licencas.app` é `NOT NULL` sem default). Fica em
   /// `pos` por omissão porque é a única app cujas licenças o Cesar cria à mão
-  /// aqui — o Punho auto-onboarda pela Edge Function `registar-terminal`.
+  /// aqui — o Fist auto-onboarda pela Edge Function `registar-terminal`.
   Future<void> criar({
     required String machineId,
     required String nif,
@@ -142,7 +142,7 @@ class LicencasRepository {
   /// O que está pendurado nesta licença, antes de se perguntar se se apaga.
   ///
   /// Serve para a caixa de confirmação dizer números em vez de generalidades:
-  /// numa licença do Punho vêm todos a zero, numa do POS pode vir cadeia
+  /// numa licença do Fist vêm todos a zero, numa do POS pode vir cadeia
   /// fiscal. Ver `licenca_dependentes` no servidor.
   Future<Map<String, dynamic>> dependentes(String id) async {
     final resposta = await _client.rpc(

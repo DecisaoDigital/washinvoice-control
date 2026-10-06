@@ -135,15 +135,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final actividade = pingsRepo.ultimosPorInstalacao(app: app);
     final comLicenca = licencasRepo.machineIdsComLicenca(app: app);
     final clientes = clientesRepo.listar();
-    // Os nomes que o Punho já sabe dos seus terminais. Falha em silêncio: sem
+    // Os nomes que o Fist já sabe dos seus terminais. Falha em silêncio: sem
     // eles a cascata resolve-se como sempre, e o painel não deixa de abrir.
-    final nomesPunho = ref
+    final nomesFist = ref
         .read(punhoAdminRepoProvider)
         .nomesPorTerminal()
-        .catchError((_) => <String, NomeDoTerminalPunho>{});
+        .catchError((_) => <String, NomeDoTerminalFist>{});
     final info = PackageInfo.fromPlatform();
     await Future.wait([
-      nomesPunho,
+      nomesFist,
       licencas,
       aExpirar,
       pendentes,
@@ -182,7 +182,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         pings: acts,
         // Para a Actividade recente deixar de chamar `M2101K6G` a um terminal
         // cuja empresa já se sabe qual é.
-        nomesPunho: await nomesPunho,
+        nomesFist: await nomesFist,
       ),
       versaoApp: pkg.version,
     );
@@ -502,7 +502,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 }
 
-/// Repartição das instalações por app — "POS 3 · Punho 1".
+/// Repartição das instalações por app — "POS 3 · Fist 1".
 ///
 /// Só aparece com o filtro em "Todas as apps" e havendo mais do que uma app
 /// com licenças: os KPIs acima somam tudo, e sem esta linha não se via de que

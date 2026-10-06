@@ -16,7 +16,7 @@ void main() {
     test('etiqueta usa o nome comercial da app', () {
       expect(AppFiltro.todas.etiqueta, 'Todas as apps');
       expect(AppFiltro.pos.etiqueta, 'WashInvoice');
-      expect(AppFiltro.punho.etiqueta, 'Punho');
+      expect(AppFiltro.punho.etiqueta, 'Fist');
     });
 
     test('aceita: "todas" deixa passar tudo, as outras só a própria app', () {

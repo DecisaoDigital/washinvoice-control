@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Para onde levar o Cesar quando ele toca numa notificação.
-enum DestinoPush { dashboard, instalacoes, pedidosPunho, pedidosAjuda }
+enum DestinoPush { dashboard, instalacoes, pedidosFist, pedidosAjuda }
 
 /// Decide o destino a partir do payload `data` do push.
 ///
@@ -9,7 +9,7 @@ enum DestinoPush { dashboard, instalacoes, pedidosPunho, pedidosAjuda }
 /// Edge Function `enviar-push`). `data['app']` **não** serve para isto: um
 /// terminal novo e um pedido de acesso chegam ambos com `app: punho` e vivem
 /// em tabelas — e ecrãs — diferentes. Foi essa confusão que mandou o "novo
-/// terminal" para os Pedidos Punho, que estavam vazios.
+/// terminal" para os Pedidos Fist, que estavam vazios.
 ///
 /// Pushes antigos não trazem `tipo`. Nesse caso devolve `null`, e quem chama
 /// não navega — o comportamento que a app tinha antes de haver routing. As
@@ -19,7 +19,7 @@ DestinoPush? destinoDoPush(Map<String, dynamic> data) {
   final tipo = (data['tipo'] as String?)?.trim().toLowerCase();
   return switch (tipo) {
     'novo_terminal' => DestinoPush.instalacoes,
-    'novo_pedido' => DestinoPush.pedidosPunho,
+    'novo_pedido' => DestinoPush.pedidosFist,
     'pedido_ajuda' => DestinoPush.pedidosAjuda,
     'inicio_actividade' => DestinoPush.dashboard,
     _ => null,

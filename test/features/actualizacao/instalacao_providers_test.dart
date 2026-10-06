@@ -8,7 +8,7 @@ import 'package:washinvoice_control/features/actualizacao/instalacao_providers.d
 /// Nenhum ecrã do Android nesta sequência está preparado para landscape: nem
 /// o pedido de autorização de fontes desconhecidas, nem o scan do Play
 /// Protect, nem o instalador em si — os botões de confirmação ficam fora do
-/// ecrã. É o mesmo bug que já mordeu o Punho (v0.1.6): forçar retrato antes
+/// ecrã. É o mesmo bug que já mordeu o Fist (v0.1.6): forçar retrato antes
 /// do primeiro pedido ao sistema evita repeti-lo aqui.
 class _InstaladorFalso extends InstaladorDeUpdate {
   _InstaladorFalso({

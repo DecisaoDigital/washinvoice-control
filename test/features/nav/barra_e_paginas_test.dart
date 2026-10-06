@@ -3,14 +3,14 @@ import 'package:washinvoice_control/features/nav/home_shell.dart';
 
 /// **A barra de baixo e as páginas têm de ter o mesmo comprimento.**
 ///
-/// O separador "Pedidos Punho" existia na lista de páginas e não na lista de
-/// botões: cinco páginas, quatro botões. Ao entrar no Punho, `currentIndex`
+/// O separador "Pedidos Fist" existia na lista de páginas e não na lista de
+/// botões: cinco páginas, quatro botões. Ao entrar no Fist, `currentIndex`
 /// valia 4 numa barra de 0..3 e o `BottomNavigationBar` atirava
 /// `RangeError (length): Invalid value: Not in inclusive range 0..3: 4` de
 /// dentro do `didUpdateWidget`, **a cada frame**.
 ///
 /// O sintoma não parecia um crash: a app continuava pintada, com o pedido do
-/// Punho à vista e o botão "Decidir" activo. Só não reagia a nada — nem ao
+/// Fist à vista e o botão "Decidir" activo. Só não reagia a nada — nem ao
 /// "Decidir", nem aos filtros, nem aos separadores. Visto no Redmi a 5/8/2026.
 ///
 /// Por isso o teste é sobre o **invariante**, e não sobre o ecrã: é a
@@ -32,14 +32,14 @@ void main() {
       );
     });
 
-    test('o separador do Punho é exclusivo do admin', () {
+    test('o separador do Fist é exclusivo do admin', () {
       // As RPCs `punho_*_admin` recusam qualquer outra conta: mostrar o
       // separador a quem não pode entrar seria pô-lo a bater num erro.
       List<String?> rotulos(bool admin) =>
           HomeShell.itensDe(admin).map((i) => i.label).toList();
 
-      expect(rotulos(true), contains('Pedidos Punho'));
-      expect(rotulos(false), isNot(contains('Pedidos Punho')));
+      expect(rotulos(true), contains('Pedidos Fist'));
+      expect(rotulos(false), isNot(contains('Pedidos Fist')));
     });
 
     test('ao admin a barra passa dos quatro itens', () {

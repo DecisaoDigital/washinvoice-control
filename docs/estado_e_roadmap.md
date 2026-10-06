@@ -1,26 +1,26 @@
 # WashInvoice Control — Estado e Roadmap
 
 > Documento vivo. Actualizar sempre que uma ronda fechar ou uma decisão de arquitectura mudar.
-> Última actualização: 2026-08-02 (notificação Punho ponta-a-ponta confirmada + campainha tempo real por broadcast + limite de colaboradores por decidir).
+> Última actualização: 2026-08-02 (notificação Fist ponta-a-ponta confirmada + campainha tempo real por broadcast + limite de colaboradores por decidir).
 
 ---
 
-## 0.0 Sessão 02/08/2026 — notificação Punho confirmada + campainha por broadcast + limite de colaboradores por decidir
+## 0.0 Sessão 02/08/2026 — notificação Fist confirmada + campainha por broadcast + limite de colaboradores por decidir
 
-Apurado do lado do Control e do servidor partilhado (Supabase `oefqbkhioncakojipqyx`, mesmo projecto do POS e do Punho). Tudo verificado, nada por suposição.
+Apurado do lado do Control e do servidor partilhado (Supabase `oefqbkhioncakojipqyx`, mesmo projecto do POS e do Fist). Tudo verificado, nada por suposição.
 
-1. **Notificação de empresa nova confirmada ponta-a-ponta em produção.** O trigger `trg_notificar_novo_pedido_punho` (AFTER INSERT em `punho_pedidos_acesso`) chamou a Edge Function `enviar-push`, que devolveu **200 às 00:59:06 UTC** — o pedido tinha entrado às 00:59:03 UTC. Cesar aprovou no Control às 01:00:10 UTC. Cadeia completa sem intercorrências: app Punho → pedido de acesso → push → aprovação no Control → `punho_membros` activo.
-2. **Campainha em tempo real do Punho já funciona — mas não pelo caminho do trigger DB.** O `realtime.messages` deste projecto Supabase não tem partições; sem elas o Realtime recusa a subscrição com `MissingPartition`, e criar partições exige permissões no schema `realtime` que não temos. A app resolve isto com broadcast directo entre aparelhos num canal público (detalhe em `lib/features/sync/sync_providers.dart` do repo Punho), não com o trigger. O ficheiro `supabase/punho_campainha_tempo_real.sql` **deste repo continua por commitar** (untracked) — contém o trigger da via que não está em uso. Registar para não se voltar a tentar esse caminho sem primeiro resolver as partições.
-3. **Limite de colaboradores não é respeitado pela app.** `punho_subscricoes.limite_colaboradores_ativos = 1` na empresa de teste, mas a app Punho usa o número que o gestor declara no onboarding (3) e ignora o valor do servidor. Por decidir: passar a app a obedecer ao limite do Control. É matéria de roadmap deste repo — é o Control que atribui as vagas (ver §7, "Curto prazo").
+1. **Notificação de empresa nova confirmada ponta-a-ponta em produção.** O trigger `trg_notificar_novo_pedido_punho` (AFTER INSERT em `punho_pedidos_acesso`) chamou a Edge Function `enviar-push`, que devolveu **200 às 00:59:06 UTC** — o pedido tinha entrado às 00:59:03 UTC. Cesar aprovou no Control às 01:00:10 UTC. Cadeia completa sem intercorrências: app Fist → pedido de acesso → push → aprovação no Control → `punho_membros` activo.
+2. **Campainha em tempo real do Fist já funciona — mas não pelo caminho do trigger DB.** O `realtime.messages` deste projecto Supabase não tem partições; sem elas o Realtime recusa a subscrição com `MissingPartition`, e criar partições exige permissões no schema `realtime` que não temos. A app resolve isto com broadcast directo entre aparelhos num canal público (detalhe em `lib/features/sync/sync_providers.dart` do repo Fist), não com o trigger. O ficheiro `supabase/punho_campainha_tempo_real.sql` **deste repo continua por commitar** (untracked) — contém o trigger da via que não está em uso. Registar para não se voltar a tentar esse caminho sem primeiro resolver as partições.
+3. **Limite de colaboradores não é respeitado pela app.** `punho_subscricoes.limite_colaboradores_ativos = 1` na empresa de teste, mas a app Fist usa o número que o gestor declara no onboarding (3) e ignora o valor do servidor. Por decidir: passar a app a obedecer ao limite do Control. É matéria de roadmap deste repo — é o Control que atribui as vagas (ver §7, "Curto prazo").
 4. Confirmado por SQL: aprovação de acessos e confirmação de email de contas de teste resolvem-se pelo Control ou pelo Supabase, sem depender de acção do Cesar fora desses dois sítios.
 
 ---
 
-## 0.0 Sessão 26/07/2026 (v1.8.1) — Punho em produção + aprovação central
+## 0.0 Sessão 26/07/2026 (v1.8.1) — Fist em produção + aprovação central
 
 **Dossier AT enviado** ao início da noite (v1.8 do dossier, 45 ficheiros, SHA-256 `22d9a827...86131`).
 
-**Punho — schema completo em produção** (`oefqbkhioncakojipqyx`). Aplicadas as 8 migrations por ordem cronológica sem intercorrências:
+**Fist — schema completo em produção** (`oefqbkhioncakojipqyx`). Aplicadas as 8 migrations por ordem cronológica sem intercorrências:
 
 | Migration | Objecto |
 |---|---|
@@ -37,9 +37,9 @@ Achado importante ao aplicar: a `punho_criar_empresa_inicial` estava com `grant 
 
 Smoke test do trigger em `auth.users` passou: signup sem `app='punho'` não cria pedido, com `app='punho'` cria (`origem='livre'`, `estado='pendente'`).
 
-**Control — Parte A de `acessos_organizacoes` aplicada** (`acessos_organizacoes_parte_a.sql`, migration `20260726032530`). Cria `organizacoes`, `pedidos_acesso`, `convites_organizacao` + trigger de auth (filtra `app in ('', 'control')` para não colidir com o do Punho) + RPCs `meu_estado_acesso`, `decidir_pedido_acesso`, `criar_convite_organizacao`. **A Parte B** (adicionar `organizacao_id` às 5 tabelas de negócio + substituir policies) **não foi aplicada** — o SQL original assumia `licencas.user_id` que nunca existiu em prod. Bloco `⛔ NÃO APLICAR` no topo do ficheiro original. Reescrever contra modelo real **antes** de aprovar primeiro não-admin no separador Acessos (task #190).
+**Control — Parte A de `acessos_organizacoes` aplicada** (`acessos_organizacoes_parte_a.sql`, migration `20260726032530`). Cria `organizacoes`, `pedidos_acesso`, `convites_organizacao` + trigger de auth (filtra `app in ('', 'control')` para não colidir com o do Fist) + RPCs `meu_estado_acesso`, `decidir_pedido_acesso`, `criar_convite_organizacao`. **A Parte B** (adicionar `organizacao_id` às 5 tabelas de negócio + substituir policies) **não foi aplicada** — o SQL original assumia `licencas.user_id` que nunca existiu em prod. Bloco `⛔ NÃO APLICAR` no topo do ficheiro original. Reescrever contra modelo real **antes** de aprovar primeiro não-admin no separador Acessos (task #190).
 
-**Control — separador "Punho" novo**, visível só ao admin global. Repository `punho_admin_repository.dart` + `punho_pedidos_screen.dart` + modais de decidir/revogar. Testes: 220 verdes (+21). Branch `feat/aprovar-pedidos-punho`, 3 commits à frente de `feature/multi-app-e-badge-pro`, ainda por merge.
+**Control — separador "Fist" novo**, visível só ao admin global. Repository `punho_admin_repository.dart` + `punho_pedidos_screen.dart` + modais de decidir/revogar. Testes: 220 verdes (+21). Branch `feat/aprovar-pedidos-punho`, 3 commits à frente de `feature/multi-app-e-badge-pro`, ainda por merge.
 
 **Control — melhorias de infra:**
 - Timer de verificação de actualizações: 6h → 24h (alinhado com POS, #119).
@@ -69,13 +69,13 @@ por omissão e ninguém dar por isso. As linhas que já existiam migraram para `
 As Edge Functions `registar-terminal` e `validar-licenca` (v6) exigem `body.app`.
 
 **Selector.** Dashboard, Instalações, Mapa, Pedidos de ajuda e Sugestões levam um
-selector na AppBar: Todas as apps | WashInvoice | Punho. A escolha é global e fica
+selector na AppBar: Todas as apps | WashInvoice | Fist. A escolha é global e fica
 persistida em SharedPreferences (`app_filtro`). Mudar de app recarrega os ecrãs
 montados. Com o filtro em "Todas", o Dashboard mostra a repartição
-("WashInvoice: 3 · Punho: 1") por baixo dos KPIs — senão os totais não diriam de
+("WashInvoice: 3 · Fist: 1") por baixo dos KPIs — senão os totais não diriam de
 que app são.
 
-**Badges.** `POS` (azul) e `PUNHO` (verde) por linha, e só quando o filtro está em
+**Badges.** `POS` (azul) e `FIST` (verde) por linha, e só quando o filtro está em
 "Todas" — com o filtro fixo numa app, marcar cada linha seria ruído. Excepção: na
 ficha do cliente e na pesquisa global o badge aparece sempre.
 
@@ -428,8 +428,8 @@ séries, ainda por fazer merge). Bug apanhado no teste do POS 2.0.6 + APK 1.6.2.
 
 ### Curto prazo (esta semana ou próxima)
 
-- **Decidir o limite de colaboradores do Punho (02/08/2026)** — hoje o Control atribui `punho_subscricoes.limite_colaboradores_ativos`, mas a app Punho ignora-o e usa o número declarado pelo gestor no onboarding. Decidir se a app passa a obedecer ao valor do servidor (ver §0.0).
-- **Commitar `supabase/punho_campainha_tempo_real.sql`** — fica por commitar desde 02/08/2026; documenta o trigger da via de campainha que não está em uso (o Punho usa broadcast por canal público em vez do trigger, por falta de partições em `realtime.messages`). Commitar como registo, não como caminho a reactivar sem resolver as partições primeiro.
+- **Decidir o limite de colaboradores do Fist (02/08/2026)** — hoje o Control atribui `punho_subscricoes.limite_colaboradores_ativos`, mas a app Fist ignora-o e usa o número declarado pelo gestor no onboarding. Decidir se a app passa a obedecer ao valor do servidor (ver §0.0).
+- **Commitar `supabase/punho_campainha_tempo_real.sql`** — fica por commitar desde 02/08/2026; documenta o trigger da via de campainha que não está em uso (o Fist usa broadcast por canal público em vez do trigger, por falta de partições em `realtime.messages`). Commitar como registo, não como caminho a reactivar sem resolver as partições primeiro.
 - **Verificação UI real da ronda 1.4.0** — Cesar corre `docs/verificacao_apk_r1_4.md`
   no telemóvel (APK release da `feature/redesign-visual`). Sem isto o merge fica suspenso.
 - **Fechar a Fase 4 de verificação UI do R1** — Cesar corre `docs/verificacao_apk_r1.md` no telemóvel. Sem isto o merge de `feature/melhorias-r1-r2` para `master` fica em suspenso.

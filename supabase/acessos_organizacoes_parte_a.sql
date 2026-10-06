@@ -105,9 +105,9 @@ create policy convites_admin_ler on public.convites_organizacao
 -- confirmação de email o utilizador pode só voltar dias depois.
 --
 -- FILTRO POR APP (correcção face ao ficheiro original): o projeto Supabase é
--- partilhado pelo Control, pelo POS e pelo Punho, e já existe um trigger
+-- partilhado pelo Control, pelo POS e pelo Fist, e já existe um trigger
 -- `punho_criar_pedido_ao_registar` em `auth.users`. Sem filtro, cada registo
--- no Punho criava também um pedido de acesso ao Control e enchia o separador
+-- no Fist criava também um pedido de acesso ao Control e enchia o separador
 -- "Acessos" com gente que nunca vai usar o Control.
 --
 -- O registo do Control não envia `app` nos metadados; qualquer app cliente

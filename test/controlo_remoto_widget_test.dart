@@ -70,7 +70,7 @@ void main() {
       expect(find.text('+30 dias'), findsOneWidget);
     });
 
-    testWidgets('num trial do Punho os botões perdem o sinal de mais',
+    testWidgets('num trial do Fist os botões perdem o sinal de mais',
         (tester) async {
       // O `+` prometia uma soma. Ali não há soma nenhuma: o número é a janela
       // toda, a contar de hoje — regra do César, 5/8/2026.

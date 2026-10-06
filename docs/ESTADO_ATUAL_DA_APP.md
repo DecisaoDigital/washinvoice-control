@@ -24,14 +24,14 @@ Marca comercial: **WashInvoice** — "WashControl" continua nome interno para di
 
 ### Multi-app (v1.8.0)
 - Coluna `app text NOT NULL` (sem default) em `licencas`, `pings`, `pedidos_ajuda`, `pedidos_renovacao`, `sugestoes`, `aceites_termos`. Linhas pré-existentes migradas para `'pos'`.
-- Selector na AppBar (Dashboard, Instalações, Mapa, Pedidos de Ajuda, Sugestões): Todas | WashInvoice | Punho. Persistido em SharedPreferences (`app_filtro`).
+- Selector na AppBar (Dashboard, Instalações, Mapa, Pedidos de Ajuda, Sugestões): Todas | WashInvoice | Fist. Persistido em SharedPreferences (`app_filtro`).
 - Dashboard com repartição por app quando o filtro está em "Todas".
-- Badges `POS` (azul) e `PUNHO` (verde) por linha, só com filtro "Todas". Excepção: ficha do cliente e pesquisa global mostram sempre.
+- Badges `POS` (azul) e `FIST` (verde) por linha, só com filtro "Todas". Excepção: ficha do cliente e pesquisa global mostram sempre.
 - Badge `PRO` (#177) antes do nome do cliente para `tier` pro e legado.
-- Push routing por `data.tipo` (#211): `novo_terminal` → Instalações, `novo_pedido` → Pedidos Punho, `pedido_ajuda` → Pedidos de Ajuda, `inicio_actividade` → Dashboard.
+- Push routing por `data.tipo` (#211): `novo_terminal` → Instalações, `novo_pedido` → Pedidos Fist, `pedido_ajuda` → Pedidos de Ajuda, `inicio_actividade` → Dashboard.
 
-### Separador Punho (v1.8.1 / v1.8.2)
-- Aprovar, recusar e revogar pedidos de acesso ao Punho — visível só ao admin global.
+### Separador Fist (v1.8.1 / v1.8.2)
+- Aprovar, recusar e revogar pedidos de acesso ao Fist — visível só ao admin global.
 - Filtros por estado: pendentes, aprovados, recusados, revogados.
 - Aprovar deixa escolher empresa de destino (existente ou nova) e limite de utilizadores.
 - Revogar mostra antes quem perde acesso.
@@ -40,14 +40,14 @@ Marca comercial: **WashInvoice** — "WashControl" continua nome interno para di
 
 ### Acessos por organização — parte A (v1.8.1)
 - Tabelas `organizacoes`, `pedidos_acesso`, `convites_organizacao` aplicadas em produção (migration `20260726032530`).
-- Trigger de auth filtra `app in ('', 'control')` para não colidir com o do Punho.
+- Trigger de auth filtra `app in ('', 'control')` para não colidir com o do Fist.
 - RPCs `meu_estado_acesso`, `decidir_pedido_acesso`, `criar_convite_organizacao`.
 - Gate de sessão: ter sessão Supabase deixou de bastar para entrar — acesso é libertado à mão. Quem ainda não foi aprovado vê ecrã de estado (`AcessoPendenteScreen`) em vez da app.
 - Falha a consultar estado mostra erro com retentativa, em vez de ficar preso no splash.
 
 ### Dashboard e navegação
 - AppBar responsiva (task #188) — título compacto <600 dp, `WiAppSelector` com pastilha própria, hit-target 48×48.
-- 4 separadores base + 1 exclusivo do admin: Dashboard, Instalações, Mapa, Acessos, Punho (só admin).
+- 4 separadores base + 1 exclusivo do admin: Dashboard, Instalações, Mapa, Acessos, Fist (só admin).
 - KPIs clicáveis (Activas / Pendentes / A expirar / Expiradas) abrem `InstalacoesPorEstadoScreen`.
 - Pesquisa global (clientes, licenças, pings, pedidos, sugestões) com debounce 250 ms.
 - Filtros na Instalações (estado, versão, cidade, "sem ping há N dias") + ordenação persistida em SharedPreferences.
@@ -94,8 +94,8 @@ Marca comercial: **WashInvoice** — "WashControl" continua nome interno para di
 - **Parte B de `acessos_organizacoes`** (task **#190**) — coluna `organizacao_id` nas 5 tabelas de negócio + substituir policies. O SQL original assumia `licencas.user_id` que nunca existiu em prod. Reescrever contra modelo real **antes** de aprovar primeiro não-admin no separador Acessos.
 - Merge `feat/aprovar-pedidos-punho` → `main` — branch existe localmente (3 commits à frente de `feature/multi-app-e-badge-pro`); no `master` já está a v1.8.2 mas há branch órfãs por arrumar.
 - Line endings CRLF/LF a poluir `git status` — dezenas de ficheiros "modified" sem conteúdo real diff. Arrumação futura.
-- **`supabase/punho_campainha_tempo_real.sql` por commitar** (untracked desde 02/08/2026) — contém o trigger de campainha que **não** está em uso: o Punho usa broadcast por canal público porque `realtime.messages` deste projecto não tem partições (Realtime recusa com `MissingPartition`; criar partições exige permissões de schema `realtime` que não temos).
-- **Limite de colaboradores do Punho não é respeitado pela app** — `punho_subscricoes.limite_colaboradores_ativos` é atribuído pelo Control, mas a app usa o número declarado pelo gestor no onboarding. Por decidir se a app passa a obedecer ao servidor.
+- **`supabase/punho_campainha_tempo_real.sql` por commitar** (untracked desde 02/08/2026) — contém o trigger de campainha que **não** está em uso: o Fist usa broadcast por canal público porque `realtime.messages` deste projecto não tem partições (Realtime recusa com `MissingPartition`; criar partições exige permissões de schema `realtime` que não temos).
+- **Limite de colaboradores do Fist não é respeitado pela app** — `punho_subscricoes.limite_colaboradores_ativos` é atribuído pelo Control, mas a app usa o número declarado pelo gestor no onboarding. Por decidir se a app passa a obedecer ao servidor.
 
 ---
 
@@ -111,19 +111,19 @@ Marca comercial: **WashInvoice** — "WashControl" continua nome interno para di
 ## Bugs conhecidos abertos
 
 - **Contrato multi-app desactualizado**: `supabase/contrato_apps.md` cabeçalho diz "2026-07-11" e cataloga só 1 Edge Function chamada pelo POS. Realidade: POS chama 8. Ver auditoria `outputs/AUDITORIA_MD_vs_CODIGO_2026-07-29.md` §1.
-- **README stale**: refere v1.4.0 + Pedidos de Ajuda como novidade. Realidade: v1.8.2 com multi-app, badge PRO, aprovar pedidos Punho, fix push destino.
+- **README stale**: refere v1.4.0 + Pedidos de Ajuda como novidade. Realidade: v1.8.2 com multi-app, badge PRO, aprovar pedidos Fist, fix push destino.
 - **`estado_e_roadmap.md:108`** — tabela declara POS "em desenvolvimento: 1.6.6" e "pré-certificação AT". Realidade: POS 2.2.1+41 com dossier AT enviado.
 
 ---
 
 ## Próximos passos priorizados
 
-1. **Decidir o limite de colaboradores do Punho** — a app ignora hoje o valor atribuído pelo Control (02/08/2026).
+1. **Decidir o limite de colaboradores do Fist** — a app ignora hoje o valor atribuído pelo Control (02/08/2026).
 2. **Task #190 — parte B de `acessos_organizacoes`** reescrita contra modelo real; bloqueia aprovar não-admins.
 3. Actualizar `supabase/contrato_apps.md` e `README.md` (menor risco de Claude Code partir RLS por seguir contrato antigo).
 4. Merge `feat/aprovar-pedidos-punho` no `main` + compilar APK 1.8.2 + testar no Redmi.
 5. Aplicar Opção D de RLS (fechar anon writes) — depende de decisão pós-AT do POS.
-6. Testes E2E do fluxo aprovar/recusar Punho ligado ao Punho real.
+6. Testes E2E do fluxo aprovar/recusar Fist ligado ao Fist real.
 
 ---
 
@@ -134,6 +134,6 @@ Marca comercial: **WashInvoice** — "WashControl" continua nome interno para di
 - Auditoria .md vs código: `outputs/AUDITORIA_MD_vs_CODIGO_2026-07-29.md`.
 - Contrato multi-app POS ↔ Control: `supabase/contrato_apps.md` (desactualizado — ver bugs).
 - Design multi-app: `docs/design/multi_app.md`.
-- Design aprovação Punho: `docs/design/control_aprova_punho.md`.
+- Design aprovação Fist: `docs/design/control_aprova_punho.md`.
 - Roadmap raiz (repo pai): `../ROADMAP.md`.
 - Backend Supabase: projecto `oefqbkhioncakojipqyx` (eu-central-1).

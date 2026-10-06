@@ -8,7 +8,7 @@
 
 ## 1. Decisão: coluna `app` vs tabelas separadas
 
-Havia três caminhos para separar os dados do POS dos do Punho.
+Havia três caminhos para separar os dados do POS dos do Fist.
 
 | Opção | O que era | Porque não |
 |---|---|---|
@@ -23,7 +23,7 @@ nova é um valor novo no CHECK: zero migrações estruturais, zero código novo 
 repositórios.
 
 O preço é que uma app com campos próprios teria de os pôr em colunas nullable ou num
-JSONB. Aceitável enquanto POS e Punho partilharem o modelo de licenciamento — que é
+JSONB. Aceitável enquanto POS e Fist partilharem o modelo de licenciamento — que é
 todo o ponto de terem o mesmo backoffice. Se um dia divergirem a sério, a conversa
 volta a abrir-se.
 
@@ -31,7 +31,7 @@ volta a abrir-se.
 
 A coluna não tem default. Um `DEFAULT 'pos'` teria sido mais cómodo de migrar, mas
 transformava o esquecimento de alguém em dados silenciosamente errados: um terminal
-Punho registado sem `app` ficaria a contar como POS e ninguém daria por isso até os
+Fist registado sem `app` ficaria a contar como POS e ninguém daria por isso até os
 números não baterem certo. Sem default, o INSERT rebenta na hora e o bug aparece em
 desenvolvimento, não em produção.
 
@@ -66,12 +66,12 @@ Duas excepções deliberadas, ambas comentadas no código:
 - **Exportar dados** (`backup_screen.dart`) — um backup filtrado seria um backup
   incompleto sem o anunciar. Exporta sempre tudo, e os CSV levam agora coluna `app`.
 - **Pesquisa global** (`pesquisa_global_screen.dart`) — é o escape à vista filtrada.
-  Com o selector em Punho, procurar um cliente POS tem de o encontrar, não devolver
+  Com o selector em Fist, procurar um cliente POS tem de o encontrar, não devolver
   "sem resultados". Os resultados levam badge de app sempre visível.
 
 Uma terceira, de natureza diferente: a **ficha do cliente** filtra pela app *daquela
 licença*, não pelo filtro global — a contagem "Terminal 2 de 3" conta terminais da
-mesma app, e um cliente com POS e Punho não deve vê-los somados.
+mesma app, e um cliente com POS e Fist não deve vê-los somados.
 
 ## 5. Uma app desconhecida não é erro
 
@@ -83,7 +83,7 @@ rebentar ou esconder a linha.
 
 `AppsUi` é o sítio único para "dado `pos`/`punho`: que sigla, que nome, que cor, que
 ícone", à imagem do `estado_ui.dart`. As cores saem dos tokens (`tokens.md` §1), não
-de hex avulsos: azul de marca para o POS, verde para o Punho, com os pares
+de hex avulsos: azul de marca para o POS, verde para o Fist, com os pares
 pastel/forte já validados para contraste.
 
 ## 6. Push: o que o cliente pode e não pode fazer

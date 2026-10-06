@@ -26,13 +26,13 @@ void main() {
   );
 
   ContextoInstalacoes ctx({
-    Map<String, NomeDoTerminalPunho> nomes = const {},
+    Map<String, NomeDoTerminalFist> nomes = const {},
     Licenca? lic,
   }) => ContextoInstalacoes.build(
     clientes: const [],
     licencas: [lic ?? licenca()],
     pings: const [],
-    nomesPunho: nomes,
+    nomesFist: nomes,
   );
 
   test('sem nada sabido, o modelo do aparelho ainda serve', () {
@@ -42,7 +42,7 @@ void main() {
   test('um pedido aprovado dá o nome da empresa, limpo', () {
     final c = ctx(
       nomes: {
-        maquina: const NomeDoTerminalPunho(
+        maquina: const NomeDoTerminalFist(
           nome: 'DepilConcept',
           aprovado: true,
         ),
@@ -59,7 +59,7 @@ void main() {
     // o pedido decide-o no ecrã dos pedidos, não numa lista de instalações.
     final c = ctx(
       nomes: {
-        maquina: const NomeDoTerminalPunho(
+        maquina: const NomeDoTerminalFist(
           nome: 'DepilConcept',
           aprovado: false,
         ),
@@ -72,8 +72,8 @@ void main() {
   test('aprovado continua a distinguir a ficha da declaração', () {
     // O sinal não desapareceu, só deixou de ser decoração: é ele que faz a
     // RPC preferir o nome de `punho_empresas` ao que o requerente escreveu.
-    const declarado = NomeDoTerminalPunho(nome: 'X', aprovado: false);
-    const confirmado = NomeDoTerminalPunho(nome: 'X', aprovado: true);
+    const declarado = NomeDoTerminalFist(nome: 'X', aprovado: false);
+    const confirmado = NomeDoTerminalFist(nome: 'X', aprovado: true);
 
     expect(declarado.aprovado, isFalse);
     expect(confirmado.aprovado, isTrue);
@@ -86,7 +86,7 @@ void main() {
     final c = ctx(
       lic: licenca(nome: 'DepilConcept Braga', nif: '509442129'),
       nomes: {
-        maquina: const NomeDoTerminalPunho(
+        maquina: const NomeDoTerminalFist(
           nome: 'DepilConcept',
           aprovado: true,
         ),
@@ -99,7 +99,7 @@ void main() {
   test('um terminal sem pedido nenhum não herda o nome de outro', () {
     final c = ctx(
       nomes: {
-        'outra-maquina': const NomeDoTerminalPunho(
+        'outra-maquina': const NomeDoTerminalFist(
           nome: 'DepilConcept',
           aprovado: true,
         ),

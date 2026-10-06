@@ -8,23 +8,23 @@ import '../../../repositories/providers.dart';
 import '../../../repositories/punho_admin_repository.dart';
 import 'punho_editar_limite_modal.dart';
 
-/// Empresas do Punho e o limite de colaboradores activos de cada uma —
-/// alcançado a partir de "Pedidos Punho" (botão na AppBar), não é um
-/// separador próprio: é a mesma administração de Punho, só noutra vista.
+/// Empresas do Fist e o limite de colaboradores activos de cada uma —
+/// alcançado a partir de "Pedidos Fist" (botão na AppBar), não é um
+/// separador próprio: é a mesma administração de Fist, só noutra vista.
 ///
 /// A criação de empresa continua a acontecer só ao aprovar um pedido livre
-/// (`PunhoDecidirModal`); este ecrã serve só para reajustar o limite depois,
+/// (`FistDecidirModal`); este ecrã serve só para reajustar o limite depois,
 /// sem passar por um pedido novo.
-class PunhoEmpresasScreen extends ConsumerStatefulWidget {
-  const PunhoEmpresasScreen({super.key});
+class FistEmpresasScreen extends ConsumerStatefulWidget {
+  const FistEmpresasScreen({super.key});
 
   @override
-  ConsumerState<PunhoEmpresasScreen> createState() =>
-      _PunhoEmpresasScreenState();
+  ConsumerState<FistEmpresasScreen> createState() =>
+      _FistEmpresasScreenState();
 }
 
-class _PunhoEmpresasScreenState extends ConsumerState<PunhoEmpresasScreen> {
-  late Future<List<PunhoEmpresa>> _future;
+class _FistEmpresasScreenState extends ConsumerState<FistEmpresasScreen> {
+  late Future<List<FistEmpresa>> _future;
   bool _aGravar = false;
 
   @override
@@ -37,10 +37,10 @@ class _PunhoEmpresasScreenState extends ConsumerState<PunhoEmpresasScreen> {
     _future = ref.read(punhoAdminRepoProvider).listarEmpresas();
   }
 
-  Future<void> _editarLimite(PunhoEmpresa empresa) async {
+  Future<void> _editarLimite(FistEmpresa empresa) async {
     final escolha = await showDialog<NovoLimite>(
       context: context,
-      builder: (_) => PunhoEditarLimiteModal(empresa: empresa),
+      builder: (_) => FistEditarLimiteModal(empresa: empresa),
     );
     if (escolha == null) return;
 
@@ -67,7 +67,7 @@ class _PunhoEmpresasScreenState extends ConsumerState<PunhoEmpresasScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Empresas Punho'),
+        title: const Text('Empresas Fist'),
         actions: [
           IconButton(
             tooltip: 'Recarregar',
@@ -80,7 +80,7 @@ class _PunhoEmpresasScreenState extends ConsumerState<PunhoEmpresasScreen> {
         children: [
           if (_aGravar) const LinearProgressIndicator(minHeight: 2),
           Expanded(
-            child: FutureBuilder<List<PunhoEmpresa>>(
+            child: FutureBuilder<List<FistEmpresa>>(
               future: _future,
               builder: (context, snap) {
                 if (snap.hasError) {
@@ -97,7 +97,7 @@ class _PunhoEmpresasScreenState extends ConsumerState<PunhoEmpresasScreen> {
                   return const Center(
                     child: Padding(
                       padding: EdgeInsets.all(AppSpacing.xxl),
-                      child: Text('Ainda não há empresas Punho.'),
+                      child: Text('Ainda não há empresas Fist.'),
                     ),
                   );
                 }
@@ -132,7 +132,7 @@ class _EmpresaCard extends StatelessWidget {
     required this.onEditar,
   });
 
-  final PunhoEmpresa empresa;
+  final FistEmpresa empresa;
   final bool ocupado;
   final VoidCallback onEditar;
 

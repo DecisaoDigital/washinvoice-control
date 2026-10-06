@@ -12,11 +12,11 @@ import '../confirmar_apagar_pedido.dart';
 import 'punho_decidir_modal.dart';
 import 'punho_empresas_screen.dart';
 
-/// Ticker que pede ao [PunhoPedidosScreen] para ir buscar os dados outra vez.
+/// Ticker que pede ao [FistPedidosScreen] para ir buscar os dados outra vez.
 ///
 /// Existe por causa do `IndexedStack` do `HomeShell`: as páginas dos separadores
 /// ficam montadas para sempre, o `initState` corre uma única vez e mudar de
-/// separador não desmonta nada. Sem este sinal, entrar em "Punho" mostrava a
+/// separador não desmonta nada. Sem este sinal, entrar em "Fist" mostrava a
 /// lista tal como estava na primeira montagem — pedidos já decididos ou até
 /// já apagados continuavam à vista.
 ///
@@ -24,22 +24,22 @@ import 'punho_empresas_screen.dart';
 /// ao entrar no separador e ao aterrar aqui vindo de um push.
 final punhoPedidosRefreshProvider = StateProvider<int>((_) => 0);
 
-/// Pedidos de acesso à app **Punho**, decididos à mão pelo admin global.
+/// Pedidos de acesso à app **Fist**, decididos à mão pelo admin global.
 ///
 /// Distinto de `PedidosAcessoScreen`, que trata dos acessos ao próprio Control:
 /// aqui são utilizadores de uma app cliente, com empresas e convites próprios.
 ///
 /// O selector multi-app da AppBar (`appFilterProvider`) **não se aplica** a este
-/// ecrã: é sempre Punho, por definição. Por isso não é observado em lado nenhum
+/// ecrã: é sempre Fist, por definição. Por isso não é observado em lado nenhum
 /// deste ficheiro.
-class PunhoPedidosScreen extends ConsumerStatefulWidget {
-  const PunhoPedidosScreen({super.key});
+class FistPedidosScreen extends ConsumerStatefulWidget {
+  const FistPedidosScreen({super.key});
 
   @override
-  ConsumerState<PunhoPedidosScreen> createState() => _PunhoPedidosScreenState();
+  ConsumerState<FistPedidosScreen> createState() => _FistPedidosScreenState();
 }
 
-class _PunhoPedidosScreenState extends ConsumerState<PunhoPedidosScreen>
+class _FistPedidosScreenState extends ConsumerState<FistPedidosScreen>
     with WidgetsBindingObserver {
   String _estado = 'pendente';
   late Future<_Dados> _future;
@@ -82,26 +82,26 @@ class _PunhoPedidosScreenState extends ConsumerState<PunhoPedidosScreen>
       repo.listarPedidos(estado: _estado),
       repo.listarEmpresas(),
     ]);
-    return _Dados(r[0] as List<PunhoPedido>, r[1] as List<PunhoEmpresa>);
+    return _Dados(r[0] as List<FistPedido>, r[1] as List<FistEmpresa>);
   }
 
-  Future<void> _abrirDecisao(PunhoPedido pedido, List<PunhoEmpresa> empresas) async {
-    final escolha = await showDialog<DecisaoPunho>(
+  Future<void> _abrirDecisao(FistPedido pedido, List<FistEmpresa> empresas) async {
+    final escolha = await showDialog<DecisaoFist>(
       context: context,
-      builder: (_) => PunhoDecidirModal(pedido: pedido, empresas: empresas),
+      builder: (_) => FistDecidirModal(pedido: pedido, empresas: empresas),
     );
     if (escolha != null) await _aplicar(pedido, escolha);
   }
 
-  Future<void> _abrirRevogacao(PunhoPedido pedido) async {
-    final escolha = await showDialog<DecisaoPunho>(
+  Future<void> _abrirRevogacao(FistPedido pedido) async {
+    final escolha = await showDialog<DecisaoFist>(
       context: context,
-      builder: (_) => PunhoRevogarModal(pedido: pedido),
+      builder: (_) => FistRevogarModal(pedido: pedido),
     );
     if (escolha != null) await _aplicar(pedido, escolha);
   }
 
-  Future<void> _apagar(PunhoPedido pedido) async {
+  Future<void> _apagar(FistPedido pedido) async {
     final confirmado = await confirmarApagarPedido(
       context,
       quem: pedido.nomeApresentavel,
@@ -127,7 +127,7 @@ class _PunhoPedidosScreenState extends ConsumerState<PunhoPedidosScreen>
     }
   }
 
-  Future<void> _aplicar(PunhoPedido pedido, DecisaoPunho escolha) async {
+  Future<void> _aplicar(FistPedido pedido, DecisaoFist escolha) async {
     // Feedback visível enquanto a RPC corre — a decisão escreve em várias
     // tabelas e pode demorar.
     setState(() => _aDecidir = true);
@@ -166,13 +166,13 @@ class _PunhoPedidosScreenState extends ConsumerState<PunhoPedidosScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Pedidos Punho'),
+        title: const Text('Pedidos Fist'),
         actions: [
           IconButton(
             tooltip: 'Empresas',
             icon: const Icon(Icons.apartment),
             onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const PunhoEmpresasScreen()),
+              MaterialPageRoute(builder: (_) => const FistEmpresasScreen()),
             ),
           ),
           IconButton(
@@ -266,8 +266,8 @@ String _rotuloEstado(String estado) => switch (estado) {
 };
 
 class _Dados {
-  final List<PunhoPedido> pedidos;
-  final List<PunhoEmpresa> empresas;
+  final List<FistPedido> pedidos;
+  final List<FistEmpresa> empresas;
   _Dados(this.pedidos, this.empresas);
 }
 
@@ -280,7 +280,7 @@ class _PedidoCard extends StatelessWidget {
     required this.onApagar,
   });
 
-  final PunhoPedido pedido;
+  final FistPedido pedido;
   final bool ocupado;
   final VoidCallback onDecidir, onRevogar, onApagar;
 

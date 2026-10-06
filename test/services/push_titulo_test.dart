@@ -3,9 +3,9 @@ import 'package:washinvoice_control/services/push_titulo.dart';
 
 void main() {
   group('tituloComApp', () {
-    test('app punho → prefixo [PUNHO]', () {
+    test('app punho → prefixo [FIST]', () {
       expect(tituloComApp('Novo terminal XYZ', 'punho'),
-          '[PUNHO] Novo terminal XYZ');
+          '[FIST] Novo terminal XYZ');
     });
 
     test('app pos → prefixo [POS]', () {

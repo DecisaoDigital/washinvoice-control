@@ -1,7 +1,7 @@
 # versao-mais-recente
 
 Diz a uma instalação se há build novo disponível. Usada pelo auto-update do
-Control e do Punho (e, no futuro, do POS — reutiliza esta mesma function e a
+Control e do Fist (e, no futuro, do POS — reutiliza esta mesma function e a
 tabela `versoes_apps`).
 
 - **Método:** `POST /functions/v1/versao-mais-recente`
@@ -38,7 +38,7 @@ do `PackageInfo` (o número depois do `+` no `pubspec.yaml`).
 
 `sha256` vem directo da coluna `versoes_apps.sha256` e pode ser `null` — uma
 versão catalogada sem hash publicado. É o que o instalador automático (Control
-e Punho) usa para confirmar o APK descarregado antes de o instalar; sem ele o
+e Fist) usa para confirmar o APK descarregado antes de o instalar; sem ele o
 cliente cai sempre para o browser.
 
 ## Resposta — já actualizado

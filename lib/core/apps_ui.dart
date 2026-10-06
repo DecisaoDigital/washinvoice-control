@@ -10,7 +10,7 @@ import 'app_colors.dart';
 /// este mapeamento (mesma regra do [EstadoLicencaUi] em `estado_ui.dart`).
 ///
 /// Cores saem dos tokens (`docs/design/tokens.md` §1) — azul de marca para o
-/// POS, verde para o Punho, com os pares pastel/forte já validados para
+/// POS, verde para o Fist, com os pares pastel/forte já validados para
 /// contraste. Uma app desconhecida **não é erro**: pode aparecer na BD antes de
 /// o Control saber dela, e nesse caso mostra-se o próprio valor a cinzento.
 class AppsUi {
@@ -25,14 +25,14 @@ class AppsUi {
   /// Sigla curta, para badges por linha (pouco espaço horizontal).
   static String sigla(String app) => switch (app) {
         pos => 'POS',
-        punho => 'PUNHO',
+        punho => 'FIST',
         _ => app.toUpperCase(),
       };
 
   /// Nome comercial, para o selector e cabeçalhos.
   static String nome(String app) => switch (app) {
         pos => 'WashInvoice',
-        punho => 'Punho',
+        punho => 'Fist',
         _ => app,
       };
 

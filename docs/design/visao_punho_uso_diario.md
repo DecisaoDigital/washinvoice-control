@@ -1,4 +1,4 @@
-# Visão de produto — Decisão Digital Punho
+# Visão de produto — Decisão Digital Fist
 
 ## Objetivo de utilização diária
 
@@ -21,7 +21,7 @@ do dia e antes de fechar. A app tem de responder rapidamente a três perguntas:
 
 ## Regra de priorização
 
-Uma funcionalidade nova só entra no Punho se tornar mais fácil tomar uma ação
+Uma funcionalidade nova só entra no Fist se tornar mais fácil tomar uma ação
 diária ou antecipar um problema operacional/financeiro.
 
 ## Próximas apostas
@@ -41,7 +41,7 @@ simular preço, reforçar capacidade ou marcar o tema para revisão.
 
 ## Pensar o negócio
 
-O Punho deve também fazer perguntas genéricas e transversais que ajudem o
+O Fist deve também fazer perguntas genéricas e transversais que ajudem o
 empresário a refletir e encontrar soluções próprias. Exemplo central:
 
 > Se fosses o teu cliente, porque escolherias a tua empresa e não a

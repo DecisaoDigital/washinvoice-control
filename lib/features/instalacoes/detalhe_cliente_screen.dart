@@ -155,7 +155,7 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
 
     // Contexto restrito à app desta licença — não ao filtro global. O
     // "Terminal 2 de 3" conta os terminais do mesmo NIF, e um cliente que
-    // tenha POS *e* Punho não deve ver os dois somados na mesma contagem.
+    // tenha POS *e* Fist não deve ver os dois somados na mesma contagem.
     final todosUltimos = await pingsRepo.ultimosPorInstalacao(app: licenca.app);
     final todasLicencas = await licencasRepo.listar(app: licenca.app);
     final clientes = await clientesRepo.listar();
@@ -190,7 +190,7 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
   /// Pergunta ao servidor o que está pendurado, mostra-o, e só depois apaga.
   ///
   /// A ordem importa: sem os números à frente, "Apagar?" é a mesma pergunta
-  /// para uma linha solta do Punho e para uma licença do POS com cadeia
+  /// para uma linha solta do Fist e para uma licença do POS com cadeia
   /// fiscal, que não são de todo a mesma coisa.
   Future<void> _apagarLicenca(String id) async {
     try {

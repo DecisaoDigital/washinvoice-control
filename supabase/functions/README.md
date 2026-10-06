@@ -6,7 +6,7 @@ Cópias versionadas das Edge Functions deployadas no Supabase `oefqbkhioncakojip
 > encontrou catorze funções em produção e sete sem ficheiro em repositório
 > nenhum; e das que cá estavam, **duas estavam desactualizadas** —
 > `versao-mais-recente` (sem `punho_op` na lista de apps: um redeploy daqui
-> teria partido o auto-update do Punho OP) e `enviar-push` (anterior à v8, sem
+> teria partido o auto-update do Fist OP) e `enviar-push` (anterior à v8, sem
 > o prefixo `[POS]`/`[PUNHO]` no título). As três do POS que faltavam —
 > `sincronizar-empresa`, `guardar-credenciais-wse-pos`, `comunicar-serie-pos` —
 > foram recuperadas de produção e estão agora aqui.
@@ -14,7 +14,7 @@ Cópias versionadas das Edge Functions deployadas no Supabase `oefqbkhioncakojip
 > O inventário completo das catorze, com quem serve cada uma e onde vive o
 > código, está em `punho/supabase/functions/README.md`. As funções multi-app
 > (`validar-licenca`, `registar-terminal`, `enviar-sugestao`) vivem no
-> repositório do Punho, não neste.
+> repositório do Fist, não neste.
 
 ## Funções
 

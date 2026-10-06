@@ -6,11 +6,11 @@ import 'package:washinvoice_control/repositories/providers.dart';
 
 import 'fake_punho_admin_repository.dart';
 
-Future<void> _montar(WidgetTester tester, FakePunhoAdmin fake) async {
+Future<void> _montar(WidgetTester tester, FakeFistAdmin fake) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [punhoAdminRepoProvider.overrideWithValue(fake)],
-      child: const MaterialApp(home: PunhoPedidosScreen()),
+      child: const MaterialApp(home: FistPedidosScreen()),
     ),
   );
   await tester.pumpAndSettle();
@@ -22,11 +22,11 @@ void main() {
   ) async {
     await _montar(
       tester,
-      FakePunhoAdmin(
+      FakeFistAdmin(
         porEstado: {
           'pendente': [
-            pedidoPunho(),
-            pedidoPunho(
+            pedidoFist(),
+            pedidoFist(
               id: 'p2',
               nome: 'Bruno Costa',
               email: 'bruno@exemplo.pt',
@@ -38,7 +38,7 @@ void main() {
             ),
           ],
         },
-        empresas: [empresaPunho()],
+        empresas: [empresaFist()],
       ),
     );
 
@@ -61,11 +61,11 @@ void main() {
   testWidgets('um pedido aprovado oferece Revogar, não Decidir', (tester) async {
     await _montar(
       tester,
-      FakePunhoAdmin(
+      FakeFistAdmin(
         porEstado: {
           'pendente': const [],
           'aprovado': [
-            pedidoPunho(
+            pedidoFist(
               estado: 'aprovado',
               empresaId: 'e1',
               empresaNome: 'Terraplanagens Ana',
@@ -86,10 +86,10 @@ void main() {
   testWidgets('um pedido recusado pode ser reaberto', (tester) async {
     await _montar(
       tester,
-      FakePunhoAdmin(
+      FakeFistAdmin(
         porEstado: {
           'pendente': const [],
-          'recusado': [pedidoPunho(estado: 'recusado')],
+          'recusado': [pedidoFist(estado: 'recusado')],
         },
       ),
     );
@@ -101,23 +101,23 @@ void main() {
   });
 
   testWidgets('estado vazio explica qual é o filtro activo', (tester) async {
-    await _montar(tester, FakePunhoAdmin());
+    await _montar(tester, FakeFistAdmin());
     expect(find.text('Não há pedidos pendentes.'), findsOneWidget);
   });
 
   testWidgets('erro do servidor mostra retentativa em vez de lista vazia', (
     tester,
   ) async {
-    await _montar(tester, FakePunhoAdmin(erro: Exception('sem rede')));
+    await _montar(tester, FakeFistAdmin(erro: Exception('sem rede')));
     expect(find.text('Tentar de novo'), findsOneWidget);
   });
 
   testWidgets('aprovar um pedido livre chama a RPC e recarrega', (tester) async {
-    final fake = FakePunhoAdmin(
+    final fake = FakeFistAdmin(
       porEstado: {
-        'pendente': [pedidoPunho()],
+        'pendente': [pedidoFist()],
       },
-      empresas: [empresaPunho()],
+      empresas: [empresaFist()],
     );
     await _montar(tester, fake);
 
@@ -134,11 +134,11 @@ void main() {
   });
 
   testWidgets('cancelar o diálogo não decide nada', (tester) async {
-    final fake = FakePunhoAdmin(
+    final fake = FakeFistAdmin(
       porEstado: {
-        'pendente': [pedidoPunho()],
+        'pendente': [pedidoFist()],
       },
-      empresas: [empresaPunho()],
+      empresas: [empresaFist()],
     );
     await _montar(tester, fake);
 

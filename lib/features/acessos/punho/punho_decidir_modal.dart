@@ -5,11 +5,11 @@ import '../../../core/app_spacing.dart';
 import '../../../repositories/punho_admin_repository.dart';
 
 /// O que o admin escolheu no diálogo de decisão.
-class DecisaoPunho {
+class DecisaoFist {
   final String decisao;
   final String? empresaId;
   final int limiteUtilizadores;
-  const DecisaoPunho(this.decisao, {this.empresaId, this.limiteUtilizadores = 1});
+  const DecisaoFist(this.decisao, {this.empresaId, this.limiteUtilizadores = 1});
 }
 
 /// Diálogo de decisão de um pedido pendente.
@@ -17,21 +17,21 @@ class DecisaoPunho {
 /// Público e sem dependências de rede: recebe o pedido e as empresas já
 /// carregadas e devolve a escolha por `Navigator.pop`. Quem chama a RPC é o
 /// ecrã — assim isto é montável num teste sem Supabase.
-class PunhoDecidirModal extends StatefulWidget {
-  const PunhoDecidirModal({
+class FistDecidirModal extends StatefulWidget {
+  const FistDecidirModal({
     super.key,
     required this.pedido,
     required this.empresas,
   });
 
-  final PunhoPedido pedido;
-  final List<PunhoEmpresa> empresas;
+  final FistPedido pedido;
+  final List<FistEmpresa> empresas;
 
   @override
-  State<PunhoDecidirModal> createState() => _PunhoDecidirModalState();
+  State<FistDecidirModal> createState() => _FistDecidirModalState();
 }
 
-class _PunhoDecidirModalState extends State<PunhoDecidirModal> {
+class _FistDecidirModalState extends State<FistDecidirModal> {
   /// `true` = criar empresa nova com o nome indicado no registo.
   bool _criarNova = true;
   String? _empresaId;
@@ -77,7 +77,7 @@ class _PunhoDecidirModalState extends State<PunhoDecidirModal> {
         ),
         OutlinedButton(
           onPressed: () =>
-              Navigator.pop(context, const DecisaoPunho('recusar')),
+              Navigator.pop(context, const DecisaoFist('recusar')),
           style: OutlinedButton.styleFrom(foregroundColor: AppColors.vermelho),
           child: const Text('Recusar'),
         ),
@@ -85,7 +85,7 @@ class _PunhoDecidirModalState extends State<PunhoDecidirModal> {
           onPressed: _podeAprovar
               ? () => Navigator.pop(
                   context,
-                  DecisaoPunho(
+                  DecisaoFist(
                     'aprovar',
                     empresaId: p.porConvite || _criarNova ? null : _empresaId,
                     limiteUtilizadores: _limiteValido,
@@ -99,7 +99,7 @@ class _PunhoDecidirModalState extends State<PunhoDecidirModal> {
   }
 
   /// Por convite a empresa é a do convite e não se escolhe nada.
-  List<Widget> _porConvite(PunhoPedido p) => [
+  List<Widget> _porConvite(FistPedido p) => [
     const Text('Entrada por convite.'),
     const SizedBox(height: AppSpacing.sm),
     Text(
@@ -114,7 +114,7 @@ class _PunhoDecidirModalState extends State<PunhoDecidirModal> {
   ];
 
   /// Pedido livre: criar empresa nova ou anexar a uma existente.
-  List<Widget> _livre(PunhoPedido p) => [
+  List<Widget> _livre(FistPedido p) => [
     const Text('Pedido livre. Escolha a empresa de destino.'),
     const SizedBox(height: AppSpacing.sm),
     // `RadioGroup` e não `groupValue`/`onChanged` em cada tile: a partir do
@@ -205,9 +205,9 @@ class _PunhoDecidirModalState extends State<PunhoDecidirModal> {
 }
 
 /// Confirmação de revogação, com o impacto à vista.
-class PunhoRevogarModal extends StatelessWidget {
-  const PunhoRevogarModal({super.key, required this.pedido});
-  final PunhoPedido pedido;
+class FistRevogarModal extends StatelessWidget {
+  const FistRevogarModal({super.key, required this.pedido});
+  final FistPedido pedido;
 
   @override
   Widget build(BuildContext context) => AlertDialog(
@@ -217,7 +217,7 @@ class PunhoRevogarModal extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '${pedido.nomeApresentavel} (${pedido.email}) perde o acesso ao Punho '
+          '${pedido.nomeApresentavel} (${pedido.email}) perde o acesso ao Fist '
           'no próximo arranque da app.',
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -235,7 +235,7 @@ class PunhoRevogarModal extends StatelessWidget {
       ),
       FilledButton(
         style: FilledButton.styleFrom(backgroundColor: AppColors.vermelho),
-        onPressed: () => Navigator.pop(context, const DecisaoPunho('revogar')),
+        onPressed: () => Navigator.pop(context, const DecisaoFist('revogar')),
         child: const Text('Revogar'),
       ),
     ],

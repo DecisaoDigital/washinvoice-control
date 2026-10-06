@@ -16,9 +16,9 @@ class ContextoInstalacoes {
   final Map<String, Ping> _pingPorMachine;
   final Map<String, (int ordem, int total)> _ordem;
 
-  /// Nome da empresa por `machine_id`, vindo dos pedidos de acesso do Punho.
+  /// Nome da empresa por `machine_id`, vindo dos pedidos de acesso do Fist.
   /// Vazio nos ecrãs que não o carregam — aí a cascata segue como sempre.
-  final Map<String, NomeDoTerminalPunho> _nomesPunho;
+  final Map<String, NomeDoTerminalFist> _nomesFist;
 
   ContextoInstalacoes._(
     this._clientePorId,
@@ -26,14 +26,14 @@ class ContextoInstalacoes {
     this._licencaPorMachine,
     this._pingPorMachine,
     this._ordem,
-    this._nomesPunho,
+    this._nomesFist,
   );
 
   factory ContextoInstalacoes.build({
     required List<Cliente> clientes,
     required List<Licenca> licencas,
     required List<Ping> pings,
-    Map<String, NomeDoTerminalPunho> nomesPunho = const {},
+    Map<String, NomeDoTerminalFist> nomesFist = const {},
   }) {
     final porId = {for (final c in clientes) c.id: c};
     final porNif = {for (final c in clientes) c.nif: c};
@@ -53,7 +53,7 @@ class ContextoInstalacoes {
       licPorMachine,
       pingPorMachine,
       Exibicao.ordemTerminais(licencas),
-      nomesPunho,
+      nomesFist,
     );
   }
 
@@ -117,16 +117,16 @@ class ContextoInstalacoes {
       // (ex.: `PC-LOJA`, do `info_host`) identifica melhor o terminal do que um
       // NIF que ainda pode ser o placeholder do auto-onboarding. O `machineId`
       // continua fora disto — é um hash, não serve para reconhecer nada.
-      // O que o Punho já sabe sobre este terminal ganha ao modelo do aparelho.
+      // O que o Fist já sabe sobre este terminal ganha ao modelo do aparelho.
       //
       // `M2101K6G` é um substituto para quando não se sabe nada. Assim que
       // alguém escreve o nome da empresa no pedido de acesso, sabe-se — e isso
       // acontece antes de haver NIF, ficha ou aprovação, porque o ecrã de pedir
       // acesso não pede NIF nenhum. Sai limpo: se o pedido ainda está pendente,
-      // isso é um facto sobre o pedido e vive no ecrã de Pedidos Punho, não
+      // isso é um facto sobre o pedido e vive no ecrã de Pedidos Fist, não
       // colado ao nome numa lista onde ninguém decide nada.
-      final doPunho = _nomesPunho[machineId];
-      if (doPunho != null) return doPunho.paraMostrar;
+      final doFist = _nomesFist[machineId];
+      if (doFist != null) return doFist.paraMostrar;
 
       final host = lic?.hostname;
       if (host != null) return host;

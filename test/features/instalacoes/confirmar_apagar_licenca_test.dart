@@ -4,7 +4,7 @@ import 'package:washinvoice_control/features/instalacoes/confirmar_apagar_licenc
 
 /// A mesma pergunta não serve para as duas apps.
 ///
-/// Uma licença do Punho é uma linha solta e apaga-se sem consequência. Uma do
+/// Uma licença do Fist é uma linha solta e apaga-se sem consequência. Uma do
 /// POS pode ter séries e credenciais que vão junto, ou guias comunicadas à AT
 /// que não deixam apagar nada. A caixa tem de mostrar essa diferença — é para
 /// isso que existe.

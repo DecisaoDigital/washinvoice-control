@@ -1,4 +1,4 @@
--- Punho — o trigger da empresa deixa de fabricar instalações
+-- Fist — o trigger da empresa deixa de fabricar instalações
 -- Correr uma vez no SQL Editor do Supabase.
 --
 -- ## O que estava mal
@@ -14,7 +14,7 @@
 -- um terminal do cliente.
 --
 -- Existia por uma razão real: era assim que o Control passava a ver uma empresa
--- Punho, porque a lista dele lê `licencas` e não `punho_empresas`. Resolvia o
+-- Fist, porque a lista dele lê `licencas` e não `punho_empresas`. Resolvia o
 -- sintoma inventando dados.
 --
 -- ## O que passa a fazer
@@ -69,7 +69,7 @@ end;
 $$;
 
 comment on function public.punho_sync_licenca_from_empresa() is
-  'Mantém o nome das instalações Punho de uma empresa em dia. NÃO cria '
+  'Mantém o nome das instalações Fist de uma empresa em dia. NÃO cria '
   'licenças: até 1 ago 2026 fabricava uma linha por empresa (machine_id '
   '"punho:<id>") que aparecia no Control como um terminal instalado sem o ser.';
 

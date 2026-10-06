@@ -6,11 +6,11 @@ import 'package:washinvoice_control/repositories/providers.dart';
 
 import 'fake_punho_admin_repository.dart';
 
-Future<void> _montar(WidgetTester tester, FakePunhoAdmin fake) async {
+Future<void> _montar(WidgetTester tester, FakeFistAdmin fake) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [punhoAdminRepoProvider.overrideWithValue(fake)],
-      child: const MaterialApp(home: PunhoEmpresasScreen()),
+      child: const MaterialApp(home: FistEmpresasScreen()),
     ),
   );
   await tester.pumpAndSettle();
@@ -20,10 +20,10 @@ void main() {
   testWidgets('lista as empresas com a ocupação actual', (tester) async {
     await _montar(
       tester,
-      FakePunhoAdmin(
+      FakeFistAdmin(
         empresas: [
-          empresaPunho(nome: 'Terraplanagens Ana', limite: 3, ativos: 1),
-          empresaPunho(id: 'e2', nome: 'Empresa do Convite', limite: 2, ativos: 2),
+          empresaFist(nome: 'Terraplanagens Ana', limite: 3, ativos: 1),
+          empresaFist(id: 'e2', nome: 'Empresa do Convite', limite: 2, ativos: 2),
         ],
       ),
     );
@@ -40,22 +40,22 @@ void main() {
   });
 
   testWidgets('estado vazio quando não há empresas', (tester) async {
-    await _montar(tester, FakePunhoAdmin());
-    expect(find.text('Ainda não há empresas Punho.'), findsOneWidget);
+    await _montar(tester, FakeFistAdmin());
+    expect(find.text('Ainda não há empresas Fist.'), findsOneWidget);
   });
 
   testWidgets('erro do servidor mostra retentativa em vez de lista vazia', (
     tester,
   ) async {
-    await _montar(tester, FakePunhoAdmin(erro: Exception('sem rede')));
+    await _montar(tester, FakeFistAdmin(erro: Exception('sem rede')));
     expect(find.text('Tentar de novo'), findsOneWidget);
   });
 
   testWidgets('editar o limite chama a RPC com o novo valor e recarrega', (
     tester,
   ) async {
-    final fake = FakePunhoAdmin(
-      empresas: [empresaPunho(id: 'e1', nome: 'Terraplanagens Ana', limite: 3, ativos: 1)],
+    final fake = FakeFistAdmin(
+      empresas: [empresaFist(id: 'e1', nome: 'Terraplanagens Ana', limite: 3, ativos: 1)],
     );
     await _montar(tester, fake);
 
@@ -75,7 +75,7 @@ void main() {
   });
 
   testWidgets('cancelar o diálogo não muda nada', (tester) async {
-    final fake = FakePunhoAdmin(empresas: [empresaPunho()]);
+    final fake = FakeFistAdmin(empresas: [empresaFist()]);
     await _montar(tester, fake);
 
     await tester.tap(find.text('Editar limite'));
@@ -87,7 +87,7 @@ void main() {
   });
 
   testWidgets('limite inválido deixa Guardar desactivado', (tester) async {
-    final fake = FakePunhoAdmin(empresas: [empresaPunho()]);
+    final fake = FakeFistAdmin(empresas: [empresaFist()]);
     await _montar(tester, fake);
 
     await tester.tap(find.text('Editar limite'));

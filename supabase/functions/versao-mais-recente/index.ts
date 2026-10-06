@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
     return json(400, { erro: 'build_number_local tem de ser um número' });
   }
 
-  // Um --split-per-abi (deliberado no Punho; aconteceu por engano pelo menos
+  // Um --split-per-abi (deliberado no Fist; aconteceu por engano pelo menos
   // uma vez no Control, na 1.8.5) faz o Flutter prefixar o versionCode com
   // 1000/2000/4000 conforme a arquitectura, embora todos pertençam ao mesmo
   // build lógico (por exemplo, 1009/2009/4009 = 9). Isto não é específico de

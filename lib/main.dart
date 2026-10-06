@@ -173,7 +173,7 @@ final _fcmSincSessaoProvider = Provider<void>((ref) {
 /// **O regresso do background conta como momento de verificar.** Sem isto há
 /// só dois momentos: o arranque de raiz e o temporizador de 24 horas. Quem
 /// deixa a app em segundo plano e alterna para ela nunca apanha uma versão
-/// publicada entretanto — foi exactamente esta lacuna que, no Punho, deixou
+/// publicada entretanto — foi exactamente esta lacuna que, no Fist, deixou
 /// duas versões seguidas por avisar a quem já tinha a app aberta.
 final _verificadorActualizacaoProvider = Provider<void>((ref) {
   Timer? timer;
@@ -350,7 +350,7 @@ class _FcmForegroundListenerState
     );
 
     _sub = FirebaseMessaging.onMessage.listen((mensagem) {
-      // `data['app']` distingue de que app veio o push (POS / Punho). Só o
+      // `data['app']` distingue de que app veio o push (POS / Fist). Só o
       // SnackBar de foreground é prefixado — a notificação nativa é desenhada
       // pelo SO e tem de trazer o prefixo já da Edge Function.
       final titulo = tituloComApp(

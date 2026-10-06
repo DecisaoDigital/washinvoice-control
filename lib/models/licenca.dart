@@ -151,7 +151,7 @@ class Licenca {
   /// Se um número de dias dado a esta licença é uma **janela a contar de hoje**
   /// (`true`) ou um **acréscimo** à validade actual (`false`).
   ///
-  /// Só nos trials do Punho. Regra do César, 5/8/2026: «se eu não dou tempo, o
+  /// Só nos trials do Fist. Regra do César, 5/8/2026: «se eu não dou tempo, o
   /// trial é dos 40 dias; mas se eu falo em 5 dias ou 10, é sempre a contar de
   /// hoje». O botão fazia o contrário — somava 5 aos 40 do auto-onboarding e
   /// devolvia 45 dias.

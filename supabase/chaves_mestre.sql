@@ -1,7 +1,7 @@
--- WashInvoice / Punho — chave mestre da empresa
+-- WashInvoice / Fist — chave mestre da empresa
 -- Correr uma vez no SQL Editor do Supabase.
 --
--- Desenho: docs/design/chaves_empresa_e_dispositivo.md (repo do Punho).
+-- Desenho: docs/design/chaves_empresa_e_dispositivo.md (repo do Fist).
 --
 -- O par que identifica um posto de trabalho é `chave mestre + chave de
 -- dispositivo`. A chave de dispositivo já existe e já funciona nas duas apps

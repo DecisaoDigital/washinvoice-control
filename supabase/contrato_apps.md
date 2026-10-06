@@ -71,9 +71,9 @@ Feita **inteiramente no cliente** (`licenca_emissao.dart`): assina com HMAC (mes
 
 ### 3.4 Chave mestre da empresa (par `mestre + dispositivo`)
 
-Desenho: `docs/design/chaves_empresa_e_dispositivo.md` (repo do Punho). Implementado a 1 ago 2026.
+Desenho: `docs/design/chaves_empresa_e_dispositivo.md` (repo do Fist). Implementado a 1 ago 2026.
 
-O `machine_id` já dizia **que máquina é**; faltava dizer **de que empresa é**. Essa metade é a **chave mestre**: uma por NIF, partilhada por todos os terminais e aparelhos do cliente — POS e Punho.
+O `machine_id` já dizia **que máquina é**; faltava dizer **de que empresa é**. Essa metade é a **chave mestre**: uma por NIF, partilhada por todos os terminais e aparelhos do cliente — POS e Fist.
 
 | onde | o quê |
 |---|---|
@@ -81,7 +81,7 @@ O `machine_id` já dizia **que máquina é**; faltava dizer **de que empresa é*
 | `obter_ou_criar_chave_mestre()` | idempotente: cria na primeira associação, devolve a mesma daí em diante. É o que faz o 2º terminal do mesmo NIF entrar na empresa que já existe |
 | `licencas.chave_mestre` | coluna nova, `NULL` nas licenças anteriores |
 | `gerir-licenca`, acção `atribuir_chave_mestre` | único caminho do Control para a obter. Auditada como qualquer outra mutação |
-| `validar-licenca` | passa a devolvê-la — é assim que o Punho, que não tem `licenca.json` assinado, sabe a que empresa pertence |
+| `validar-licenca` | passa a devolvê-la — é assim que o Fist, que não tem `licenca.json` assinado, sabe a que empresa pertence |
 | `licenca.json` | campo `chave_mestre`, **dentro do que é assinado** |
 
 Base assinada, com a série a ganhar lugar fixo assim que há chave mestre:

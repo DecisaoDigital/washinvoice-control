@@ -29,9 +29,9 @@ final auditLicencasRepoProvider = Provider((_) => AuditLicencasRepository());
 final seriesRepoProvider = Provider((_) => SeriesRepository());
 final acessosRepoProvider = Provider((_) => AcessosRepository());
 
-/// Administração dos pedidos de acesso ao **Punho** (RPCs `punho_*_admin`).
+/// Administração dos pedidos de acesso ao **Fist** (RPCs `punho_*_admin`).
 /// Separado do [acessosRepoProvider], que trata dos acessos ao próprio Control.
-final punhoAdminRepoProvider = Provider((_) => PunhoAdminRepository());
+final punhoAdminRepoProvider = Provider((_) => FistAdminRepository());
 
 /// Acções remotas sobre licenças (via Edge Function `gerir-licenca`).
 final gerirLicencaProvider =

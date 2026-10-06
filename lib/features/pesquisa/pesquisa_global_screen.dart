@@ -64,7 +64,7 @@ class _PesquisaGlobalScreenState extends ConsumerState<PesquisaGlobalScreen> {
 
   Future<_PesquisaData> _carregar() async {
     // **Sem filtro de app de propósito.** A pesquisa global é o escape à
-    // vista filtrada: se o Cesar tem o selector em Punho e procura um cliente
+    // vista filtrada: se o Cesar tem o selector em Fist e procura um cliente
     // POS, quer encontrá-lo, não receber "sem resultados". Os badges de app
     // nos resultados dizem de onde é cada linha.
     final clientesF = ref.read(clientesRepoProvider).listar();

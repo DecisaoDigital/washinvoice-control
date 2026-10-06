@@ -108,7 +108,7 @@ class GerirLicencaService {
   /// Dar tempo a uma licença — e o que "dar 5 dias" quer dizer depende de que
   /// licença é.
   ///
-  /// **Trial do Punho**: o número é uma *janela a contar de hoje*. "5 dias"
+  /// **Trial do Fist**: o número é uma *janela a contar de hoje*. "5 dias"
   /// quer dizer que caduca daqui a cinco, mesmo que encurte o que lá estava.
   /// É a regra do César, 5/8/2026 — ver [Licenca.diasContamDeHoje].
   ///

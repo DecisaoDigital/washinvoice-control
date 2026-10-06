@@ -6,22 +6,22 @@ import 'package:washinvoice_control/repositories/punho_admin_repository.dart';
 import 'fake_punho_admin_repository.dart';
 
 /// Monta o diálogo isolado e devolve o que ele decidiu.
-Future<DecisaoPunho?> _abrir(
+Future<DecisaoFist?> _abrir(
   WidgetTester tester, {
-  required PunhoPedido pedido,
-  List<PunhoEmpresa> empresas = const [],
+  required FistPedido pedido,
+  List<FistEmpresa> empresas = const [],
 }) async {
-  DecisaoPunho? resultado;
+  DecisaoFist? resultado;
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
         body: Builder(
           builder: (context) => ElevatedButton(
             onPressed: () async {
-              resultado = await showDialog<DecisaoPunho>(
+              resultado = await showDialog<DecisaoFist>(
                 context: context,
                 builder: (_) =>
-                    PunhoDecidirModal(pedido: pedido, empresas: empresas),
+                    FistDecidirModal(pedido: pedido, empresas: empresas),
               );
             },
             child: const Text('abrir'),
@@ -40,13 +40,13 @@ void main() {
     testWidgets('não oferece escolha de empresa', (tester) async {
       await _abrir(
         tester,
-        pedido: pedidoPunho(
+        pedido: pedidoFist(
           origem: 'convite',
           perfil: 'colaborador',
           conviteEmpresaId: 'e1',
           conviteEmpresaNome: 'Empresa do Convite',
         ),
-        empresas: [empresaPunho(), empresaPunho(id: 'e2', nome: 'Outra')],
+        empresas: [empresaFist(), empresaFist(id: 'e2', nome: 'Outra')],
       );
 
       expect(find.textContaining('Empresa do Convite'), findsOneWidget);
@@ -64,17 +64,17 @@ void main() {
       tester,
     ) async {
       await tester.runAsync(() async {});
-      DecisaoPunho? escolhido;
+      DecisaoFist? escolhido;
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: Builder(
               builder: (context) => ElevatedButton(
                 onPressed: () async {
-                  escolhido = await showDialog<DecisaoPunho>(
+                  escolhido = await showDialog<DecisaoFist>(
                     context: context,
-                    builder: (_) => PunhoDecidirModal(
-                      pedido: pedidoPunho(
+                    builder: (_) => FistDecidirModal(
+                      pedido: pedidoFist(
                         origem: 'convite',
                         conviteEmpresaId: 'e1',
                         conviteEmpresaNome: 'Empresa do Convite',
@@ -105,8 +105,8 @@ void main() {
     ) async {
       await _abrir(
         tester,
-        pedido: pedidoPunho(),
-        empresas: [empresaPunho()],
+        pedido: pedidoFist(),
+        empresas: [empresaFist()],
       );
 
       expect(find.text('Criar nova "Terraplanagens Ana"'), findsOneWidget);
@@ -121,8 +121,8 @@ void main() {
     ) async {
       await _abrir(
         tester,
-        pedido: pedidoPunho(),
-        empresas: [empresaPunho(nome: 'Empresa A', limite: 3, ativos: 2)],
+        pedido: pedidoFist(),
+        empresas: [empresaFist(nome: 'Empresa A', limite: 3, ativos: 2)],
       );
 
       await tester.tap(find.text('Anexar a empresa existente'));
@@ -141,8 +141,8 @@ void main() {
     ) async {
       await _abrir(
         tester,
-        pedido: pedidoPunho(),
-        empresas: [empresaPunho()],
+        pedido: pedidoFist(),
+        empresas: [empresaFist()],
       );
 
       await tester.tap(find.text('Anexar a empresa existente'));
@@ -159,8 +159,8 @@ void main() {
     ) async {
       await _abrir(
         tester,
-        pedido: pedidoPunho(),
-        empresas: [empresaPunho(nome: 'Cheia', limite: 2, ativos: 2)],
+        pedido: pedidoFist(),
+        empresas: [empresaFist(nome: 'Cheia', limite: 2, ativos: 2)],
       );
 
       await tester.tap(find.text('Anexar a empresa existente'));
@@ -176,7 +176,7 @@ void main() {
     testWidgets('sem empresas existentes não deixa escolher anexar', (
       tester,
     ) async {
-      await _abrir(tester, pedido: pedidoPunho(), empresas: const []);
+      await _abrir(tester, pedido: pedidoFist(), empresas: const []);
 
       final opcao = tester.widget<RadioListTile<bool>>(
         find.widgetWithText(RadioListTile<bool>, 'Anexar a empresa existente'),
@@ -197,17 +197,17 @@ void main() {
 
   group('Limite de utilizadores', () {
     testWidgets('o valor escrito é o que segue na decisão', (tester) async {
-      DecisaoPunho? escolhido;
+      DecisaoFist? escolhido;
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: Builder(
               builder: (context) => ElevatedButton(
                 onPressed: () async {
-                  escolhido = await showDialog<DecisaoPunho>(
+                  escolhido = await showDialog<DecisaoFist>(
                     context: context,
-                    builder: (_) => PunhoDecidirModal(
-                      pedido: pedidoPunho(),
+                    builder: (_) => FistDecidirModal(
+                      pedido: pedidoFist(),
                       empresas: const [],
                     ),
                   );
@@ -233,17 +233,17 @@ void main() {
     });
 
     testWidgets('lixo no campo cai em 1 em vez de rebentar', (tester) async {
-      DecisaoPunho? escolhido;
+      DecisaoFist? escolhido;
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: Builder(
               builder: (context) => ElevatedButton(
                 onPressed: () async {
-                  escolhido = await showDialog<DecisaoPunho>(
+                  escolhido = await showDialog<DecisaoFist>(
                     context: context,
-                    builder: (_) => PunhoDecidirModal(
-                      pedido: pedidoPunho(),
+                    builder: (_) => FistDecidirModal(
+                      pedido: pedidoFist(),
                       empresas: const [],
                     ),
                   );
@@ -269,17 +269,17 @@ void main() {
   });
 
   testWidgets('recusar devolve a decisão sem empresa', (tester) async {
-    DecisaoPunho? escolhido;
+    DecisaoFist? escolhido;
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
           body: Builder(
             builder: (context) => ElevatedButton(
               onPressed: () async {
-                escolhido = await showDialog<DecisaoPunho>(
+                escolhido = await showDialog<DecisaoFist>(
                   context: context,
-                  builder: (_) => PunhoDecidirModal(
-                    pedido: pedidoPunho(),
+                  builder: (_) => FistDecidirModal(
+                    pedido: pedidoFist(),
                     empresas: const [],
                   ),
                 );

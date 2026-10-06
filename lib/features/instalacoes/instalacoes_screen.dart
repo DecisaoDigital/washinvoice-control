@@ -140,18 +140,18 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
     // build (mesmo padrão do Dashboard).
     final app = ref.read(appFilterProvider).valorApp;
 
-    // Os nomes que o Punho já sabe. Falham em silêncio: uma instalação sem
-    // nome do Punho continua a resolver-se como sempre, e o ecrã não deixa de
+    // Os nomes que o Fist já sabe. Falham em silêncio: uma instalação sem
+    // nome do Fist continua a resolver-se como sempre, e o ecrã não deixa de
     // abrir por causa disto.
-    final nomesPunhoF = ref
+    final nomesFistF = ref
         .read(punhoAdminRepoProvider)
         .nomesPorTerminal()
-        .catchError((_) => <String, NomeDoTerminalPunho>{});
+        .catchError((_) => <String, NomeDoTerminalFist>{});
 
     final licencasF = licencasRepo.listar(app: app);
     final pingsF = pingsRepo.ultimosPorInstalacao(app: app);
     final clientesF = clientesRepo.listar();
-    await Future.wait([licencasF, pingsF, clientesF, nomesPunhoF]);
+    await Future.wait([licencasF, pingsF, clientesF, nomesFistF]);
 
     final licencas = await licencasF;
     final pings = await pingsF;
@@ -164,7 +164,7 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
           clientes: clientes,
           licencas: licencas,
           pings: pings,
-          nomesPunho: await nomesPunhoF),
+          nomesFist: await nomesFistF),
     );
   }
 

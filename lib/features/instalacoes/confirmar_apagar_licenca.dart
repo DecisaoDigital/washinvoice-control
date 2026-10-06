@@ -6,7 +6,7 @@ import '../../core/app_spacing.dart';
 /// Pergunta antes de apagar uma licença, com os números à frente.
 ///
 /// A tabela é partilhada pelas duas apps e as consequências não são as mesmas.
-/// Uma licença do Punho é uma linha solta: apagá-la não arrasta nada, e o
+/// Uma licença do Fist é uma linha solta: apagá-la não arrasta nada, e o
 /// terminal volta a registar-se no arranque seguinte. Uma do POS pode ter
 /// cadeia fiscal pendurada — e é por isso que a caixa mostra contagens em vez
 /// de um aviso genérico que ninguém lê.

@@ -6,7 +6,7 @@ import '../app_filter/app_filter_provider.dart';
 import '../app_spacing.dart';
 import '../apps_ui.dart';
 
-/// Selector de app para a AppBar do Dashboard: Todas | WashInvoice | Punho.
+/// Selector de app para a AppBar do Dashboard: Todas | WashInvoice | Fist.
 ///
 /// Fechado mostra ícone + [AppFiltroExt.etiquetaCurta] a branco (a AppBar é
 /// azul900). O rótulo está lá de propósito e não só o ícone: um dashboard
@@ -114,7 +114,7 @@ class WiAppSelector extends ConsumerWidget {
   ///
   /// O que lá estava eram 48 — o alvo de toque mínimo, não uma largura. A
   /// pastilha ficava do tamanho do texto: `sm` à esquerda (8) + ícone (18) +
-  /// `xs` (4) + rótulo + seta (24). Com "POS" isso dava uns 80, com "Punho"
+  /// `xs` (4) + rótulo + seta (24). Com "POS" isso dava uns 80, com "Fist"
   /// uns 92, e a pastilha mudava de largura conforme a app escolhida — a
   /// AppBar mexia sozinha a cada troca, sem nada ter mudado à volta.
   ///

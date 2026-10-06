@@ -1,4 +1,4 @@
--- Extensão do catálogo de atualizações para o Punho.
+-- Extensão do catálogo de atualizações para o Fist.
 -- Executar depois de versoes_apps.sql no mesmo projeto Supabase do Control.
 
 alter table public.versoes_apps
@@ -21,10 +21,10 @@ create unique index if not exists versoes_apps_app_plataforma_build_unique
   on public.versoes_apps (app, plataforma, build_number);
 
 comment on table public.versoes_apps is
-  'Catálogo de versões do POS, WashInvoice Control e Punho. A Edge Function versao-mais-recente compara build_number.';
+  'Catálogo de versões do POS, WashInvoice Control e Fist. A Edge Function versao-mais-recente compara build_number.';
 
 -- Antes da primeira distribuição, inserir a versão real e URL de download:
 -- insert into public.versoes_apps
 --   (app, versao, build_number, url_download, obrigatoria, notas_lancamento, activa)
 -- values
---   ('punho', '1.0.0', 1, 'https://.../PunhoSetup.exe', false, 'Primeira versão', true);
+--   ('punho', '1.0.0', 1, 'https://.../FistSetup.exe', false, 'Primeira versão', true);

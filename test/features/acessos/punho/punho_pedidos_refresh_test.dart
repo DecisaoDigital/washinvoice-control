@@ -10,7 +10,7 @@ import 'fake_punho_admin_repository.dart';
 /// como o HomeShell mexe.
 Future<ProviderContainer> _montar(
   WidgetTester tester,
-  FakePunhoAdmin fake,
+  FakeFistAdmin fake,
 ) async {
   final container = ProviderContainer(
     overrides: [punhoAdminRepoProvider.overrideWithValue(fake)],
@@ -19,7 +19,7 @@ Future<ProviderContainer> _montar(
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: const MaterialApp(home: PunhoPedidosScreen()),
+      child: const MaterialApp(home: FistPedidosScreen()),
     ),
   );
   await tester.pumpAndSettle();
@@ -30,9 +30,9 @@ void main() {
   testWidgets('voltar à app recarrega a lista', (tester) async {
     // O ecrã fica montado no IndexedStack do HomeShell: se não reagir ao
     // lifecycle, o Cesar volta de ler um push e vê o que lá estava antes.
-    final fake = FakePunhoAdmin(
+    final fake = FakeFistAdmin(
       porEstado: {
-        'pendente': [pedidoPunho()],
+        'pendente': [pedidoFist()],
       },
     );
     await _montar(tester, fake);
@@ -46,7 +46,7 @@ void main() {
   });
 
   testWidgets('sair da app sem voltar não recarrega', (tester) async {
-    final fake = FakePunhoAdmin(porEstado: {'pendente': [pedidoPunho()]});
+    final fake = FakeFistAdmin(porEstado: {'pendente': [pedidoFist()]});
     await _montar(tester, fake);
 
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
@@ -58,11 +58,11 @@ void main() {
   testWidgets('entrar no separador recarrega (ticker do HomeShell)', (
     tester,
   ) async {
-    final fake = FakePunhoAdmin(porEstado: {'pendente': [pedidoPunho()]});
+    final fake = FakeFistAdmin(porEstado: {'pendente': [pedidoFist()]});
     final container = await _montar(tester, fake);
     expect(fake.listagens, 1);
 
-    // É isto que o HomeShell faz no onTap do separador Punho.
+    // É isto que o HomeShell faz no onTap do separador Fist.
     container.read(punhoPedidosRefreshProvider.notifier).state++;
     await tester.pumpAndSettle();
 
@@ -74,9 +74,9 @@ void main() {
   ) async {
     // O sintoma que o Cesar viu: uma linha que já não existia na base.
     final porEstado = {
-      'pendente': [pedidoPunho(nome: 'Ana Silva')],
+      'pendente': [pedidoFist(nome: 'Ana Silva')],
     };
-    final fake = FakePunhoAdmin(porEstado: porEstado);
+    final fake = FakeFistAdmin(porEstado: porEstado);
     await _montar(tester, fake);
     expect(find.text('Ana Silva'), findsOneWidget);
 

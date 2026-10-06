@@ -25,11 +25,11 @@ void main() {
       expect(texto.style?.color, AppColors.azul900);
     });
 
-    testWidgets('punho → "PUNHO" em verde', (tester) async {
+    testWidgets('punho → "FIST" em verde', (tester) async {
       await tester.pumpWidget(_envolver(const WiAppBadge('punho')));
-      expect(find.text('PUNHO'), findsOneWidget);
+      expect(find.text('FIST'), findsOneWidget);
 
-      final texto = tester.widget<Text>(find.text('PUNHO'));
+      final texto = tester.widget<Text>(find.text('FIST'));
       expect(texto.style?.color, AppColors.verde900);
     });
 
@@ -44,7 +44,7 @@ void main() {
     testWidgets('com filtro em "todas" mostra o badge', (tester) async {
       await tester.pumpWidget(_envolver(const WiAppBadgeAuto('punho')));
       await tester.pumpAndSettle();
-      expect(find.text('PUNHO'), findsOneWidget);
+      expect(find.text('FIST'), findsOneWidget);
     });
 
     testWidgets('com o filtro fixo numa app esconde-se (seria redundante)',
@@ -52,7 +52,7 @@ void main() {
       SharedPreferences.setMockInitialValues({kPrefFiltroApp: 'punho'});
       await tester.pumpWidget(_envolver(const WiAppBadgeAuto('punho')));
       await tester.pumpAndSettle();
-      expect(find.text('PUNHO'), findsNothing);
+      expect(find.text('FIST'), findsNothing);
     });
   });
 
@@ -104,7 +104,7 @@ void main() {
 
       await tester.tap(find.byType(WiAppSelector));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Punho').last);
+      await tester.tap(find.text('Fist').last);
       await tester.pumpAndSettle();
 
       expect(refCapturada.read(appFilterProvider), AppFiltro.punho);
@@ -133,7 +133,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Cascata aberta: as etiquetas longas de todas as opções estão no ecrã.
-      expect(find.text('Punho').last, findsOneWidget);
+      expect(find.text('Fist').last, findsOneWidget);
     });
   });
 }

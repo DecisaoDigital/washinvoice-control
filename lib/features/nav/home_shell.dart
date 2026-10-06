@@ -23,10 +23,10 @@ class HomeShell extends ConsumerStatefulWidget {
     GestaoAcessosScreen(),
   ];
 
-  /// "Pedidos Punho" é exclusivo do admin global — as RPCs `punho_*_admin`
+  /// "Pedidos Fist" é exclusivo do admin global — as RPCs `punho_*_admin`
   /// recusam qualquer outra conta. Um gerente de organização não vê o
   /// separador, em vez de lhe bater com um erro.
-  static const _paginaPunho = PunhoPedidosScreen();
+  static const _paginaFist = FistPedidosScreen();
 
   /// As páginas da barra, na ordem dos separadores.
   ///
@@ -34,20 +34,20 @@ class HomeShell extends ConsumerStatefulWidget {
   /// o mesmo [admin]. Ver [itensDe] para o que acontece quando não anda.
   static List<Widget> paginasDe(bool admin) => [
     ..._paginas,
-    if (admin) _paginaPunho,
+    if (admin) _paginaFist,
   ];
 
   /// Os separadores da barra de baixo.
   ///
-  /// O item do Punho faltava aqui, e as duas listas ficaram com comprimentos
-  /// diferentes: cinco páginas, quatro botões. Ao entrar no Punho,
+  /// O item do Fist faltava aqui, e as duas listas ficaram com comprimentos
+  /// diferentes: cinco páginas, quatro botões. Ao entrar no Fist,
   /// `currentIndex` valia 4 numa barra de 0..3 e o `BottomNavigationBar`
   /// rebentava com `RangeError` dentro do `didUpdateWidget` — a cada frame. O
   /// ecrã ficava pintado mas morto: nenhum toque chegava a lado nenhum e o
   /// botão "Decidir" parecia não fazer nada. Visto no Redmi a 5/8/2026.
   ///
   /// O ícone é deliberadamente diferente do de "Acessos": são coisas distintas
-  /// — equipa do escritório vs. clientes da app Punho.
+  /// — equipa do escritório vs. clientes da app Fist.
   static List<BottomNavigationBarItem> itensDe(bool admin) => [
     const BottomNavigationBarItem(
       icon: Icon(Icons.dashboard),
@@ -65,7 +65,7 @@ class HomeShell extends ConsumerStatefulWidget {
     if (admin)
       const BottomNavigationBarItem(
         icon: Icon(Icons.how_to_reg_outlined),
-        label: 'Pedidos Punho',
+        label: 'Pedidos Fist',
       ),
   ];
 
@@ -93,9 +93,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     });
   }
 
-  /// Índice do separador "Punho", ou `null` se não for admin global (nesse caso
+  /// Índice do separador "Fist", ou `null` se não for admin global (nesse caso
   /// o separador não existe).
-  int? get _indicePunho => _admin ? HomeShell._paginas.length : null;
+  int? get _indiceFist => _admin ? HomeShell._paginas.length : null;
   bool _admin = false;
 
   /// Executa o destino trazido por um push e limpa-o, para o mesmo toque não
@@ -109,10 +109,10 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         _seleccionar(0);
       case DestinoPush.instalacoes:
         _seleccionar(1);
-      case DestinoPush.pedidosPunho:
-        // Sem separador Punho (não é admin global) não há nada para mostrar:
+      case DestinoPush.pedidosFist:
+        // Sem separador Fist (não é admin global) não há nada para mostrar:
         // fica no Dashboard em vez de um índice inválido.
-        _seleccionar(_indicePunho ?? 0);
+        _seleccionar(_indiceFist ?? 0);
       case DestinoPush.pedidosAjuda:
         // Não é separador — vive por cima do Dashboard, como quando se lá
         // chega pelo card de KPI.
@@ -122,10 +122,10 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     }
   }
 
-  /// Muda de separador. Aterrar no Punho pede sempre dados frescos: o
+  /// Muda de separador. Aterrar no Fist pede sempre dados frescos: o
   /// `IndexedStack` manteve o ecrã montado desde a primeira vez.
   void _seleccionar(int i) {
-    if (i == _indicePunho) {
+    if (i == _indiceFist) {
       ref.read(punhoPedidosRefreshProvider.notifier).state++;
     }
     setState(() => _index = i);
@@ -183,12 +183,12 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         type: BottomNavigationBarType.fixed,
         items: HomeShell.itensDe(admin),
       ),
-      floatingActionButton: admin && indice != _indicePunho
+      floatingActionButton: admin && indice != _indiceFist
           ? FloatingActionButton.small(
-              tooltip: 'Pedidos Punho',
+              tooltip: 'Pedidos Fist',
               backgroundColor: AppColors.azul,
               foregroundColor: Colors.white,
-              onPressed: () => _seleccionar(_indicePunho!),
+              onPressed: () => _seleccionar(_indiceFist!),
               child: const Icon(Icons.approval),
             )
           : null,

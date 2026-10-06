@@ -22,7 +22,7 @@ extension AppFiltroExt on AppFiltro {
   String get etiquetaCurta => switch (this) {
         AppFiltro.todas => 'Todas',
         AppFiltro.pos => 'POS',
-        AppFiltro.punho => 'Punho',
+        AppFiltro.punho => 'Fist',
       };
 
   /// Valor a passar a `.eq('app', …)`, ou `null` quando não se filtra.

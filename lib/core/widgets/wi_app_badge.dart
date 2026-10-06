@@ -6,7 +6,7 @@ import '../app_radius.dart';
 import '../app_spacing.dart';
 import '../apps_ui.dart';
 
-/// Pill com a sigla da app (`POS`, `PUNHO`) — para identificar a origem de uma
+/// Pill com a sigla da app (`POS`, `FIST`) — para identificar a origem de uma
 /// linha quando o filtro está em "Todas as apps".
 ///
 /// Mesma anatomia do [WiBadgeEstado]: fundo pastel (tom 100) + texto forte

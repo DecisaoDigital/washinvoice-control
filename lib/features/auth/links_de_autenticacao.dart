@@ -7,7 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 ///
 /// O `supabase_flutter` traz um observador de deep links próprio
 /// (`detectSessionInUri`, ligado por omissão): subscreve o `app_links` e chama
-/// o `getSessionFromUrl` sozinho. No Punho funciona. No Control, não.
+/// o `getSessionFromUrl` sozinho. No Fist funciona. No Control, não.
 ///
 /// A 5 de Agosto de 2026, no Redmi, com o percurso todo feito à mão: o pedido
 /// saiu com o esquema certo (`/recover` com `referer:
@@ -20,7 +20,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 ///
 /// Que o problema é a **entrega** e não a troca provou-se com um link só de
 /// erro (`?error=access_denied&error_description=…`), que rebenta dentro do
-/// `getSessionFromUrl` sem tocar em rede nem em armazenamento: o Punho
+/// `getSessionFromUrl` sem tocar em rede nem em armazenamento: o Fist
 /// respondeu com mensagem, o Control ficou mudo. A frio e a quente.
 ///
 /// Por isso aqui não se confia no observador de origem — fica desligado no
