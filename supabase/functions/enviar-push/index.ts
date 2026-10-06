@@ -3,7 +3,7 @@
 // ----------------------------------------------------------------------------
 // Envia notificações FCM para os dispositivos registados de um admin.
 // v8: aceita `body.app` opcional ('pos' | 'punho'). Se presente, prefixa o
-// título com `[POS] ` ou `[PUNHO] ` — assim o prefixo aparece na barra de
+// título com `[POS] ` ou `[FIST] ` — assim o prefixo aparece na barra de
 // notificações do SO em background (não só com a app aberta).
 //
 // Autenticação: header Authorization: Bearer <EDGE_INVOKE_SECRET>.
@@ -84,7 +84,7 @@ async function obterAccessToken(sa: {
 /** Prefixo por app no título para aparecer na notificação do SO. */
 function prefixarTituloPorApp(title: string, app: string | undefined): string {
   if (!app) return title;
-  const tag = app === "pos" ? "[POS]" : app === "punho" ? "[PUNHO]" : null;
+  const tag = app === "pos" ? "[POS]" : app === "punho" ? "[FIST]" : null;
   if (!tag) return title;
   // Evitar duplo prefixo se o caller já o incluiu.
   if (title.startsWith(tag)) return title;
