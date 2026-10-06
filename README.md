@@ -1,4 +1,4 @@
-# WashInvoice Control
+# Control
 
 Aplicação Flutter de administração do WashInvoice. Serve para acompanhar instalações, licenças, pedidos de renovação, últimos acessos, versões instaladas, localização das máquinas e emissão manual do `licenca.json`.
 
@@ -148,7 +148,7 @@ O modelo de acesso (ver [`supabase/rls_policies.sql`](supabase/rls_policies.sql)
 
 1. Correr `supabase/acessos_organizacoes.sql` no SQL Editor depois de
    `supabase/rls_policies.sql`.
-2. O primeiro utilizador do WashInvoice Control continua a ter de ser marcado
+2. O primeiro utilizador do Control continua a ter de ser marcado
    como admin global em `public.admins` (secção anterior). É esse utilizador
    que aprova, recusa e revoga pedidos no separador **Acessos**.
 3. Todas as contas criadas pela app ficam pendentes. O pedido guarda a origem

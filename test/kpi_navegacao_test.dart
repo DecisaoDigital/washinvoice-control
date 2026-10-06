@@ -72,7 +72,7 @@ class _FakeSugestoes extends SugestoesRepository {
 void main() {
   setUpAll(() {
     PackageInfo.setMockInitialValues(
-      appName: 'WashInvoice Control',
+      appName: 'Control',
       packageName: 'com.washcontrol.washinvoice_control',
       version: '1.5.0',
       buildNumber: '19',

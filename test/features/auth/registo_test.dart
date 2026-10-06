@@ -6,7 +6,7 @@ import 'package:washinvoice_control/features/auth/login_screen.dart';
 void main() {
   setUpAll(() {
     PackageInfo.setMockInitialValues(
-      appName: 'WashInvoice Control',
+      appName: 'Control',
       packageName: 'com.washcontrol.washinvoice_control',
       version: '1.8.0',
       buildNumber: '25',

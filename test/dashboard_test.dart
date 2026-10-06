@@ -76,7 +76,7 @@ Widget _app({
 void main() {
   setUpAll(() {
     PackageInfo.setMockInitialValues(
-      appName: 'WashInvoice Control',
+      appName: 'Control',
       packageName: 'com.washcontrol.washinvoice_control',
       version: '1.4.1',
       buildNumber: '15',

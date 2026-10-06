@@ -1,4 +1,4 @@
-# WashInvoice Control — Estado e Roadmap
+# Control — Estado e Roadmap
 
 > Documento vivo. Actualizar sempre que uma ronda fechar ou uma decisão de arquitectura mudar.
 > Última actualização: 2026-08-02 (notificação Fist ponta-a-ponta confirmada + campainha tempo real por broadcast + limite de colaboradores por decidir).
@@ -98,7 +98,7 @@ Próximas apps a integrar: nenhuma prevista a curto prazo.
 
 ## 1. O que é isto
 
-**WashInvoice Control** — app Android (Flutter + Riverpod + Supabase) usada só pelo Cesar (admin único) para:
+**Control** — app Android (Flutter + Riverpod + Supabase) usada só pelo Cesar (admin único) para:
 
 - Emitir e gerir licenças do POS WashInvoice/WashFactura (Windows).
 - Ver terminais a comunicar (pings) em tempo próximo do real.

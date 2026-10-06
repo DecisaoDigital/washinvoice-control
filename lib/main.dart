@@ -138,7 +138,7 @@ Future<void> main() async {
     // falta ou inválido) a app continua a funcionar sem push.
     await FcmService.inicializar(backgroundHandler: fcmBackgroundHandler);
 
-    runApp(const ProviderScope(child: WashInvoiceControlApp()));
+    runApp(const ProviderScope(child: ControlApp()));
   }, (erro, stack) => mostrarErro(erro, stack: stack));
 }
 
@@ -232,8 +232,8 @@ class _ObservadorDeRegresso extends WidgetsBindingObserver {
   }
 }
 
-class WashInvoiceControlApp extends ConsumerWidget {
-  const WashInvoiceControlApp({super.key});
+class ControlApp extends ConsumerWidget {
+  const ControlApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -250,7 +250,7 @@ class WashInvoiceControlApp extends ConsumerWidget {
     // app é sempre `loading`. Aqui subscreve ao mesmo tempo que a sessão.
     final aRecuperar = ref.watch(modoRecuperacaoProvider).value ?? false;
     return MaterialApp(
-      title: 'WashInvoice Control',
+      title: 'Control',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       scaffoldMessengerKey: messengerKey,
@@ -288,7 +288,7 @@ class _AcessoInicial extends ConsumerWidget {
       // preso no splash.
       error: (erro, _) => Scaffold(
         appBar: AppBar(
-          title: const Text('WashInvoice Control'),
+          title: const Text('Control'),
           actions: [
             // Escape para não ficar preso num erro persistente.
             IconButton(

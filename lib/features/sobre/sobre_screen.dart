@@ -390,7 +390,7 @@ class _BlocoIdentidade extends StatelessWidget {
               color: Colors.white, size: 30),
         ),
         const SizedBox(height: AppSpacing.md),
-        const Text('WashInvoice Control',
+        const Text('Control',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
         const SizedBox(height: 2),
         Text('GESTOR DE LICENÇAS',

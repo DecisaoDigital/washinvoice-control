@@ -8,7 +8,7 @@
     <!-- Auto-update: instalar a própria actualização sem passar pelo browser. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <application
-        android:label="WashInvoice Control"
+        android:label="Control"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <meta-data

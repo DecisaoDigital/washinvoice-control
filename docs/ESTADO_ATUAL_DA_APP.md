@@ -1,4 +1,4 @@
-# Estado actual — WashInvoice Control
+# Estado actual — Control
 
 Actualizado: 2026-08-02
 Versão pubspec (branch `master`): **1.8.4+29**
