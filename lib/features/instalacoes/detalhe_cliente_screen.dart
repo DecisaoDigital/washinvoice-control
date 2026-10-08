@@ -29,6 +29,7 @@ import '../../services/licenca/gerir_licenca_service.dart';
 import '../../services/licenca_emissao.dart';
 import 'card_series_widget.dart';
 import 'confirmar_apagar_licenca.dart';
+import 'renovar_licenca.dart';
 import 'controlo_remoto_widgets.dart';
 
 class _DetalheData {
@@ -119,16 +120,7 @@ class _DetalheData {
 
 class DetalheClienteScreen extends ConsumerStatefulWidget {
   final String machineId;
-
-  /// Abre logo o selector de nova validade («Renovar»), em vez de deixar o
-  /// Cesar procurar o botão na ficha. É o atalho da fila «Agora».
-  final bool renovarAoAbrir;
-
-  const DetalheClienteScreen({
-    super.key,
-    required this.machineId,
-    this.renovarAoAbrir = false,
-  });
+  const DetalheClienteScreen({super.key, required this.machineId});
 
   @override
   ConsumerState<DetalheClienteScreen> createState() =>
@@ -146,13 +138,6 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
   void initState() {
     super.initState();
     _future = _carregar();
-    if (widget.renovarAoAbrir) {
-      _future.then((d) {
-        if (mounted) _marcarRenovacao(d.licenca, d.pedidoPendente);
-      }).catchError((_) {
-        // Falha a carregar: o FutureBuilder já mostra o erro com retentativa.
-      });
-    }
   }
 
   Future<_DetalheData> _carregar() async {
@@ -241,34 +226,19 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
     }
   }
 
-  Future<void> _marcarRenovacao(Licenca l, PedidoRenovacao? pedido) async {
-    final agora = DateTime.now();
-    final novaData = await showDatePicker(
-      context: context,
-      initialDate: l.expirada ? agora.add(const Duration(days: 30)) : l.validade,
-      firstDate: agora.subtract(const Duration(days: 1)),
-      lastDate: agora.add(const Duration(days: 365 * 5)),
-      helpText: 'Nova data de validade',
-    );
-    if (novaData == null) return;
-
-    try {
-      final pedidosRepo = ref.read(pedidosRepoProvider);
-      // Via Edge Function, como todas as mutações de licença: fica auditado
-      // quem renovou e continua a funcionar quando a RLS fechar.
-      await ref.read(gerirLicencaProvider).definirValidade(l.machineId, novaData);
-      if (pedido != null) {
-        await pedidosRepo.confirmar(pedido.id);
-      }
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Licença renovada até ${Dates.data(novaData)}')),
+  /// «Renovar»: a mesma bottom sheet da fila «Agora» (+30 dias, +3 meses,
+  /// +1 ano, Outra data), com «Anular».
+  Future<void> _marcarRenovacao(Licenca l, PedidoRenovacao? pedido) =>
+      renovarLicencaComSheet(
+        context,
+        ref,
+        l,
+        pedido: pedido,
+        quem: _quem(l),
+        depois: () async {
+          if (mounted) _recarregar();
+        },
       );
-      _recarregar();
-    } catch (e, st) {
-      mostrarErro(e, stack: st);
-    }
-  }
 
   // ── Controlo remoto ────────────────────────────────────────────────────────
   // Todas as acções passam pela Edge Function `gerir-licenca`: é ela que corre

@@ -17,6 +17,7 @@ import '../acessos/punho/decidir_pedido_fist.dart';
 import '../acessos/punho/punho_pedidos_screen.dart';
 import '../ativacao/ativar_instalacao_screen.dart';
 import '../instalacoes/detalhe_cliente_screen.dart';
+import '../instalacoes/renovar_licenca.dart';
 import '../pedidos_ajuda/detalhe_pedido_ajuda_screen.dart';
 import '../pedidos_ajuda/resolver_pedido_ajuda.dart';
 import '../sugestoes/detalhe_sugestao_screen.dart';
@@ -114,9 +115,7 @@ class _AgoraScreenState extends ConsumerState<AgoraScreen>
   void _accaoPrimaria(ItemAgora i) => switch (i.tipo) {
     // «Renovar» abre a ficha já com o selector da nova validade.
     TipoAgora.expirada ||
-    TipoAgora.aExpirar => _abrir(
-      DetalheClienteScreen(machineId: i.machineId!, renovarAoAbrir: true),
-    ),
+    TipoAgora.aExpirar => _comTrava(i, () => _renovar(i)),
     TipoAgora.acessoFist => _comTrava(i, () => _decidirFist(i)),
     TipoAgora.terminalNovo => _abrir(AtivarInstalacaoScreen(ping: i.ping!)),
     TipoAgora.renovacao => _abrir(DetalheClienteScreen(machineId: i.machineId!)),
@@ -124,6 +123,30 @@ class _AgoraScreenState extends ConsumerState<AgoraScreen>
     // O ajuda tem dois botões (Ligar, Resolvido): ver `_Cartao`.
     TipoAgora.ajuda => null,
   };
+
+  /// «Renovar» sem abrir a ficha: bottom sheet com as durações habituais.
+  Future<void> _renovar(ItemAgora i) async {
+    final l = i.licenca!;
+    try {
+      // Se o cliente também pediu renovação, fica confirmado com esta.
+      final pedido = await ref
+          .read(pedidosRepoProvider)
+          .pendentePorNif(l.nif, app: l.app);
+      if (!mounted) return;
+      await renovarLicencaComSheet(
+        context,
+        ref,
+        l,
+        pedido: pedido,
+        quem: i.titulo,
+        depois: () async {
+          if (mounted) await _recarregar();
+        },
+      );
+    } catch (e, st) {
+      mostrarErro(e, stack: st);
+    }
+  }
 
   Future<void> _decidirFist(ItemAgora i) async {
     try {

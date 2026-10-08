@@ -99,6 +99,9 @@ class FakeRen extends PedidosRepository {
   final List<PedidoRenovacao> lista;
   @override
   Future<List<PedidoRenovacao>> pendentes({String? app}) async => lista;
+  @override
+  Future<PedidoRenovacao?> pendentePorNif(String nif, {String? app}) async =>
+      null;
 }
 
 class FakeAjuda extends PedidosAjudaRepository {
