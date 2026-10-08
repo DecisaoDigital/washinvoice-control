@@ -628,7 +628,7 @@ class _CartaoInstalacao extends StatelessWidget {
                     Expanded(
                       child: Text(
                         '${ctx.sinalLocalidadeDe(machineId: licenca.machineId, nif: licenca.nif)}'
-                        '${ping != null ? ' · há ${timeago.format(ping!.criadoEm, locale: 'pt')}' : ''}',
+                        '${ping != null ? ' · ${timeago.format(ping!.criadoEm, locale: 'pt')}' : ''}',
                         style: AppText.caption,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

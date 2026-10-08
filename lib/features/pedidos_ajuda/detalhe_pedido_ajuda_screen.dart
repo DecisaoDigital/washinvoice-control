@@ -259,7 +259,7 @@ class _DetalhePedidoAjudaScreenState
           WiLinhaKV(
             rotulo: 'Criado em',
             valor:
-                '${Dates.dataHora(_pedido.criadoEm)} · há ${timeago.format(_pedido.criadoEm, locale: 'pt')}',
+                '${Dates.dataHora(_pedido.criadoEm)} · ${timeago.format(_pedido.criadoEm, locale: 'pt')}',
           ),
           if (_pedido.resolvido)
             WiLinhaKV(
