@@ -49,8 +49,18 @@ void main() {
 
     testWidgets('com o filtro fixo numa app esconde-se (seria redundante)',
         (tester) async {
-      SharedPreferences.setMockInitialValues({kPrefFiltroApp: 'punho'});
-      await tester.pumpWidget(_envolver(const WiAppBadgeAuto('punho')));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            appFilterProvider.overrideWith(
+              (_) => AppFilterNotifier(AppFiltro.punho),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(body: WiAppBadgeAuto('punho')),
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(find.text('FIST'), findsNothing);
     });
@@ -108,8 +118,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(refCapturada.read(appFilterProvider), AppFiltro.punho);
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getString(kPrefFiltroApp), 'punho');
     });
 
     testWidgets('a pastilha inteira abre a cascata, não só a seta',

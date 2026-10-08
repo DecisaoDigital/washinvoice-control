@@ -189,7 +189,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Future<void> _recarregar() async {
-    setState(() { _future = _carregar(); });
+    setState(() {
+      _future = _carregar();
+    });
     await _future;
   }
 
@@ -225,17 +227,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   void _abrirPorEstado(FiltroKpi filtro) {
     Navigator.of(context)
-        .push(MaterialPageRoute(
-          builder: (_) => InstalacoesPorEstadoScreen(filtro: filtro),
-        ))
+        .push(
+          MaterialPageRoute(
+            builder: (_) => InstalacoesPorEstadoScreen(filtro: filtro),
+          ),
+        )
         .then((_) => _recarregar());
   }
 
   void _abrirDetalhePedido(PedidoAjuda p) {
     Navigator.of(context)
-        .push(MaterialPageRoute(
-          builder: (_) => DetalhePedidoAjudaScreen(pedido: p),
-        ))
+        .push(
+          MaterialPageRoute(
+            builder: (_) => DetalhePedidoAjudaScreen(pedido: p),
+          ),
+        )
         .then((_) => _recarregar());
   }
 
@@ -323,180 +329,186 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
         ),
       ),
-      body: FutureBuilder<_DashboardData>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return ErroView(erro: snapshot.error!, onRetry: _recarregar);
-          }
-          final data = snapshot.data!;
-          final classV = ClassificadorVersoes(
-            data.actividade.map((p) => p.versao),
-          );
-          return RefreshIndicator(
-            onRefresh: _recarregar,
-            child: ListView(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              children: [
-                _KpiRow(data: data, onAbrir: _abrirPorEstado),
-                if (ref.watch(appFilterProvider) == AppFiltro.todas &&
-                    data.totaisPorApp.length > 1) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  _BreakdownPorApp(totais: data.totaisPorApp),
-                ],
-                const SizedBox(height: AppSpacing.lg),
+      body: WiComPastilhaApp(
+        corpo: FutureBuilder<_DashboardData>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return ErroView(erro: snapshot.error!, onRetry: _recarregar);
+            }
+            final data = snapshot.data!;
+            final classV = ClassificadorVersoes(
+              data.actividade.map((p) => p.versao),
+            );
+            return RefreshIndicator(
+              onRefresh: _recarregar,
+              child: ListView(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                children: [
+                  _KpiRow(data: data, onAbrir: _abrirPorEstado),
+                  if (ref.watch(appFilterProvider) == AppFiltro.todas &&
+                      data.totaisPorApp.length > 1) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    _BreakdownPorApp(totais: data.totaisPorApp),
+                  ],
+                  const SizedBox(height: AppSpacing.lg),
 
-                if (data.novasInstalacoes.isNotEmpty) ...[
-                  WiSeccaoTitulo(
-                    titulo:
-                        'Início de actividade (${data.novasInstalacoes.length})',
-                    icone: Icons.fiber_new_outlined,
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  ...data.novasInstalacoes.map(
-                    (p) => Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                      child: _CardNovaInstalacao(
-                        ping: p,
-                        ctx: data.ctx,
-                        onAtivar: () => _abrirAtivacao(p),
+                  if (data.novasInstalacoes.isNotEmpty) ...[
+                    WiSeccaoTitulo(
+                      titulo:
+                          'Início de actividade (${data.novasInstalacoes.length})',
+                      icone: Icons.fiber_new_outlined,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    ...data.novasInstalacoes.map(
+                      (p) => Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                        child: _CardNovaInstalacao(
+                          ping: p,
+                          ctx: data.ctx,
+                          onAtivar: () => _abrirAtivacao(p),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                ],
+                    const SizedBox(height: AppSpacing.lg),
+                  ],
 
-                if (data.pedidosAjuda.isNotEmpty) ...[
-                  WiSeccaoTitulo(
-                    titulo: 'Pedidos de ajuda (${data.pedidosAjuda.length})',
-                    icone: Icons.help_outline,
-                    comChevron: true,
-                    onTap: _abrirPedidosAjuda,
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  ...data.pedidosAjuda
-                      .take(2)
-                      .map(
-                        (p) => Padding(
-                          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                          child: _CardPedidoAjuda(
-                            pedido: p,
-                            ctx: data.ctx,
-                            onAbrir: () => _abrirDetalhePedido(p),
+                  if (data.pedidosAjuda.isNotEmpty) ...[
+                    WiSeccaoTitulo(
+                      titulo: 'Pedidos de ajuda (${data.pedidosAjuda.length})',
+                      icone: Icons.help_outline,
+                      comChevron: true,
+                      onTap: _abrirPedidosAjuda,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    ...data.pedidosAjuda
+                        .take(2)
+                        .map(
+                          (p) => Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: AppSpacing.sm,
+                            ),
+                            child: _CardPedidoAjuda(
+                              pedido: p,
+                              ctx: data.ctx,
+                              onAbrir: () => _abrirDetalhePedido(p),
+                            ),
                           ),
                         ),
-                      ),
-                  if (data.pedidosAjuda.length > 2)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton(
-                        onPressed: _abrirPedidosAjuda,
-                        child: Text('Ver todos (${data.pedidosAjuda.length})'),
-                      ),
-                    ),
-                  const SizedBox(height: AppSpacing.lg),
-                ],
-
-                if (data.sugestoesPorLer > 0) ...[
-                  WiSeccaoTitulo(
-                    titulo: 'Sugestões (${data.sugestoesPorLer})',
-                    icone: Icons.lightbulb_outline,
-                    comChevron: true,
-                    onTap: _abrirSugestoes,
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  WiCardDestaque(
-                    cor: AppColors.roxo500,
-                    onTap: _abrirSugestoes,
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.lightbulb,
-                          color: AppColors.roxo700,
-                          size: 22,
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
+                    if (data.pedidosAjuda.length > 2)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          onPressed: _abrirPedidosAjuda,
                           child: Text(
-                            '${data.sugestoesPorLer} sugestão(ões) por ler',
-                            style: AppText.bodyStrong,
+                            'Ver todos (${data.pedidosAjuda.length})',
                           ),
                         ),
-                        const Icon(
-                          Icons.chevron_right,
-                          size: 20,
-                          color: AppColors.textTertiary,
+                      ),
+                    const SizedBox(height: AppSpacing.lg),
+                  ],
+
+                  if (data.sugestoesPorLer > 0) ...[
+                    WiSeccaoTitulo(
+                      titulo: 'Sugestões (${data.sugestoesPorLer})',
+                      icone: Icons.lightbulb_outline,
+                      comChevron: true,
+                      onTap: _abrirSugestoes,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    WiCardDestaque(
+                      cor: AppColors.roxo500,
+                      onTap: _abrirSugestoes,
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.lightbulb,
+                            color: AppColors.roxo700,
+                            size: 22,
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: Text(
+                              '${data.sugestoesPorLer} sugestão(ões) por ler',
+                              style: AppText.bodyStrong,
+                            ),
+                          ),
+                          const Icon(
+                            Icons.chevron_right,
+                            size: 20,
+                            color: AppColors.textTertiary,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                  ],
+
+                  if (data.aExpirar.isNotEmpty) ...[
+                    const WiSeccaoTitulo(
+                      titulo: 'A expirar nos próximos 15 dias',
+                      icone: Icons.warning_amber_rounded,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    ...data.aExpirar.map(
+                      (l) => Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                        child: _CardLicenca(
+                          licenca: l,
+                          ctx: data.ctx,
+                          onTap: () => _abrirDetalhe(l.machineId),
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                ],
-
-                if (data.aExpirar.isNotEmpty) ...[
-                  const WiSeccaoTitulo(
-                    titulo: 'A expirar nos próximos 15 dias',
-                    icone: Icons.warning_amber_rounded,
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  ...data.aExpirar.map(
-                    (l) => Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                      child: _CardLicenca(
-                        licenca: l,
-                        ctx: data.ctx,
-                        onTap: () => _abrirDetalhe(l.machineId),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                ],
+                    const SizedBox(height: AppSpacing.lg),
+                  ],
 
-                if (data.pedidosPendentes.isNotEmpty) ...[
-                  const WiSeccaoTitulo(
-                    titulo: 'Pedidos de renovação',
-                    icone: Icons.autorenew,
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  ...data.pedidosPendentes.map(
-                    (p) => Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                      child: _CardPedidoRenovacao(
-                        pedido: p,
-                        onVer: () => _abrirDetalhe(p.machineId),
+                  if (data.pedidosPendentes.isNotEmpty) ...[
+                    const WiSeccaoTitulo(
+                      titulo: 'Pedidos de renovação',
+                      icone: Icons.autorenew,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    ...data.pedidosPendentes.map(
+                      (p) => Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                        child: _CardPedidoRenovacao(
+                          pedido: p,
+                          onVer: () => _abrirDetalhe(p.machineId),
+                        ),
                       ),
                     ),
+                    const SizedBox(height: AppSpacing.lg),
+                  ],
+
+                  const WiSeccaoTitulo(
+                    titulo: 'Actividade recente',
+                    comChevron: true,
                   ),
-                  const SizedBox(height: AppSpacing.lg),
+                  const SizedBox(height: AppSpacing.sm),
+                  _CardActividade(
+                    pings: data.actividade.take(5).toList(),
+                    ctx: data.ctx,
+                    classV: classV,
+                    onTap: _abrirDetalhe,
+                  ),
+
+                  const SizedBox(height: AppSpacing.xl),
+                  Center(
+                    child: Text(
+                      '${Config.marca} Control · v${data.versaoApp}',
+                      style: AppText.caption,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
                 ],
-
-                const WiSeccaoTitulo(
-                  titulo: 'Actividade recente',
-                  comChevron: true,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _CardActividade(
-                  pings: data.actividade.take(5).toList(),
-                  ctx: data.ctx,
-                  classV: classV,
-                  onTap: _abrirDetalhe,
-                ),
-
-                const SizedBox(height: AppSpacing.xl),
-                Center(
-                  child: Text(
-                    '${Config.marca} Control · v${data.versaoApp}',
-                    style: AppText.caption,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-              ],
-            ),
-          );
-        },
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -606,8 +618,11 @@ class _CardNovaInstalacao extends StatelessWidget {
   final Ping ping;
   final ContextoInstalacoes ctx;
   final VoidCallback onAtivar;
-  const _CardNovaInstalacao(
-      {required this.ping, required this.ctx, required this.onAtivar});
+  const _CardNovaInstalacao({
+    required this.ping,
+    required this.ctx,
+    required this.onAtivar,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -697,7 +712,9 @@ class _CardPedidoAjuda extends StatelessWidget {
                     Expanded(
                       child: Text(
                         ctx.nomeDe(
-                            machineId: pedido.machineId, nif: pedido.nif),
+                          machineId: pedido.machineId,
+                          nif: pedido.nif,
+                        ),
                         style: AppText.bodyStrong,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -773,7 +790,9 @@ class _CardLicenca extends StatelessWidget {
                     Expanded(
                       child: Text(
                         ctx.nomeDe(
-                            machineId: licenca.machineId, nif: licenca.nif),
+                          machineId: licenca.machineId,
+                          nif: licenca.nif,
+                        ),
                         style: AppText.bodyStrong,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -820,8 +839,10 @@ class _CardPedidoRenovacao extends StatelessWidget {
                   children: [
                     WiAppBadgeAuto(pedido.app),
                     Expanded(
-                      child: Text('NIF ${pedido.nif}',
-                          style: AppText.bodyStrong),
+                      child: Text(
+                        'NIF ${pedido.nif}',
+                        style: AppText.bodyStrong,
+                      ),
                     ),
                   ],
                 ),

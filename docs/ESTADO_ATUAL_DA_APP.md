@@ -24,7 +24,7 @@ Marca comercial: **WashInvoice** — "WashControl" continua nome interno para di
 
 ### Multi-app (v1.8.0)
 - Coluna `app text NOT NULL` (sem default) em `licencas`, `pings`, `pedidos_ajuda`, `pedidos_renovacao`, `sugestoes`, `aceites_termos`. Linhas pré-existentes migradas para `'pos'`.
-- Selector na AppBar (Dashboard, Instalações, Mapa, Pedidos de Ajuda, Sugestões): Todas | WashInvoice | Fist. Persistido em SharedPreferences (`app_filtro`).
+- Selector na AppBar (Dashboard, Instalações, Mapa, Pedidos de Ajuda, Sugestões): Todas | WashInvoice | Fist. Só em memória: cada arranque volta a «Todas»; fora de «Todas» aparece a pastilha «a ver só: POS/Fist» (toque = «Todas»).
 - Dashboard com repartição por app quando o filtro está em "Todas".
 - Badges `POS` (azul) e `FIST` (verde) por linha, só com filtro "Todas". Excepção: ficha do cliente e pesquisa global mostram sempre.
 - Badge `PRO` (#177) antes do nome do cliente para `tier` pro e legado.

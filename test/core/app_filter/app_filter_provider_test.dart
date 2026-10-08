@@ -1,7 +1,9 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:washinvoice_control/core/app_filter/app_filter_provider.dart';
+import 'package:washinvoice_control/core/widgets/widgets.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -28,46 +30,76 @@ void main() {
     });
   });
 
-  group('appFilterProvider (persistência)', () {
-    test('sem preferência guardada arranca em "todas"', () async {
-      SharedPreferences.setMockInitialValues({});
+  group('appFilterProvider (só em memória)', () {
+    test('arranca sempre em "todas", mesmo com preferência antiga guardada',
+        () async {
+      // Versões anteriores guardavam o filtro entre arranques.
+      SharedPreferences.setMockInitialValues({'app_filtro': 'punho'});
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      await container.read(appFilterProvider.notifier).carregado;
+      expect(container.read(appFilterProvider), AppFiltro.todas);
+      await Future<void>.delayed(Duration.zero);
       expect(container.read(appFilterProvider), AppFiltro.todas);
     });
 
-    test('lê a preferência guardada no arranque', () async {
-      SharedPreferences.setMockInitialValues({kPrefFiltroApp: 'punho'});
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-
-      await container.read(appFilterProvider.notifier).carregado;
-      expect(container.read(appFilterProvider), AppFiltro.punho);
-    });
-
-    test('definir muda o estado e escreve em SharedPreferences', () async {
+    test('definir muda o estado enquanto a app está aberta, sem gravar nada',
+        () async {
       SharedPreferences.setMockInitialValues({});
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      await container.read(appFilterProvider.notifier).carregado;
       await container.read(appFilterProvider.notifier).definir(AppFiltro.pos);
-
       expect(container.read(appFilterProvider), AppFiltro.pos);
+
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getString(kPrefFiltroApp), 'pos');
+      expect(prefs.getString('app_filtro'), isNull);
     });
 
-    test('valor guardado inválido não rebenta — cai em "todas"', () async {
-      // Defesa contra uma app removida do enum depois de alguém a ter escolhido.
-      SharedPreferences.setMockInitialValues({kPrefFiltroApp: 'app_extinta'});
+    test('um novo arranque (novo container) volta a "todas"', () async {
+      final a = ProviderContainer();
+      await a.read(appFilterProvider.notifier).definir(AppFiltro.punho);
+      a.dispose();
+
+      final b = ProviderContainer();
+      addTearDown(b.dispose);
+      expect(b.read(appFilterProvider), AppFiltro.todas);
+    });
+  });
+
+  group('WiPastilhaFiltroApp', () {
+    testWidgets('«Todas»: não aparece', (tester) async {
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: MaterialApp(home: Scaffold(body: WiPastilhaFiltroApp())),
+        ),
+      );
+      expect(find.textContaining('a ver só'), findsNothing);
+    });
+
+    testWidgets('filtrado: mostra «a ver só: Fist» e tocar volta a «Todas»',
+        (tester) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
+      await container.read(appFilterProvider.notifier).definir(AppFiltro.punho);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: Scaffold(body: WiPastilhaFiltroApp()),
+          ),
+        ),
+      );
+      expect(find.text('a ver só: Fist'), findsOneWidget);
+      expect(
+        tester.getSize(find.byType(InkWell).first).height,
+        greaterThanOrEqualTo(48),
+      );
 
-      await container.read(appFilterProvider.notifier).carregado;
+      await tester.tap(find.text('a ver só: Fist'));
+      await tester.pump();
       expect(container.read(appFilterProvider), AppFiltro.todas);
+      expect(find.textContaining('a ver só'), findsNothing);
     });
   });
 }

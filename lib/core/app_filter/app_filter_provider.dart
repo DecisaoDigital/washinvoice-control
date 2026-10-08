@@ -1,13 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../apps_ui.dart';
 
 /// Que app o Control está a mostrar. [todas] = sem filtro — o Cesar vê o parque
 /// inteiro da Decisão Digital de uma vez.
 enum AppFiltro { todas, pos, punho }
-
-const kPrefFiltroApp = 'app_filtro';
 
 extension AppFiltroExt on AppFiltro {
   String get etiqueta => switch (this) {
@@ -36,35 +33,19 @@ extension AppFiltroExt on AppFiltro {
   bool aceita(String app) => valorApp == null || valorApp == app;
 }
 
-/// Filtro global de app, persistido em SharedPreferences.
+/// Filtro global de app, **só em memória**.
 ///
-/// Arranca sempre em [AppFiltro.todas] e só depois lê a preferência guardada —
-/// a leitura é assíncrona. Os ecrãs reagem à mudança via `ref.listen`, por isso
-/// o estado inicial "errado" durante alguns milissegundos apenas provoca um
-/// recarregamento extra, não uma vista errada persistente.
+/// Arranca sempre em [AppFiltro.todas]: o filtro deixou de sobreviver ao
+/// arranque. Ficava guardado de uma sessão para a seguinte e a app abria a
+/// mostrar só uma das apps — um caso real (licença do Fist expirada) passou
+/// despercebido por isso. Enquanto a app está aberta a escolha mantém-se;
+/// fechar e abrir volta a «Todas».
 class AppFilterNotifier extends StateNotifier<AppFiltro> {
-  AppFilterNotifier() : super(AppFiltro.todas) {
-    carregado = _carregar();
-  }
+  AppFilterNotifier([super.inicial = AppFiltro.todas]);
 
-  /// Completa quando a preferência guardada já foi aplicada ao estado. Existe
-  /// para os testes poderem esperar sem `pumpAndSettle` arbitrário.
-  late final Future<void> carregado;
-
-  Future<void> _carregar() async {
-    final prefs = await SharedPreferences.getInstance();
-    final guardado = prefs.getString(kPrefFiltroApp);
-    if (!mounted) return;
-    state = AppFiltro.values.firstWhere(
-      (f) => f.name == guardado,
-      orElse: () => AppFiltro.todas,
-    );
-  }
-
+  /// Mantém-se assíncrono por compatibilidade com quem já fazia `await`.
   Future<void> definir(AppFiltro filtro) async {
     if (mounted) state = filtro;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(kPrefFiltroApp, filtro.name);
   }
 }
 

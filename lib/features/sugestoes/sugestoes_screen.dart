@@ -71,7 +71,9 @@ class _SugestoesScreenState extends ConsumerState<SugestoesScreen> {
   }
 
   Future<void> _recarregar() async {
-    setState(() { _future = _carregar(); });
+    setState(() {
+      _future = _carregar();
+    });
     await _future;
   }
 
@@ -87,9 +89,9 @@ class _SugestoesScreenState extends ConsumerState<SugestoesScreen> {
 
   void _abrirDetalhe(Sugestao s) {
     Navigator.of(context)
-        .push(MaterialPageRoute(
-          builder: (_) => DetalheSugestaoScreen(sugestao: s),
-        ))
+        .push(
+          MaterialPageRoute(builder: (_) => DetalheSugestaoScreen(sugestao: s)),
+        )
         .then((_) => _recarregar());
   }
 
@@ -125,43 +127,45 @@ class _SugestoesScreenState extends ConsumerState<SugestoesScreen> {
           },
         ),
       ),
-      body: FutureBuilder<_SugestoesData>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return ErroView(erro: snapshot.error!, onRetry: _recarregar);
-          }
-          final data = snapshot.data!;
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: _Toggle(
-                  porLer: data.porLer.length,
-                  arquivo: data.arquivo.length,
-                  mostrarArquivo: _mostrarArquivo,
-                  onChanged: (v) => setState(() => _mostrarArquivo = v),
+      body: WiComPastilhaApp(
+        corpo: FutureBuilder<_SugestoesData>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return ErroView(erro: snapshot.error!, onRetry: _recarregar);
+            }
+            final data = snapshot.data!;
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: _Toggle(
+                    porLer: data.porLer.length,
+                    arquivo: data.arquivo.length,
+                    mostrarArquivo: _mostrarArquivo,
+                    onChanged: (v) => setState(() => _mostrarArquivo = v),
+                  ),
                 ),
-              ),
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: _recarregar,
-                  child: _mostrarArquivo
-                      ? _ListaArquivo(data, onAbrir: _abrirDetalhe)
-                      : _ListaPorLer(
-                          data,
-                          onMarcar: _toggleMarcar,
-                          onArquivar: _arquivar,
-                          onAbrir: _abrirDetalhe,
-                        ),
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _recarregar,
+                    child: _mostrarArquivo
+                        ? _ListaArquivo(data, onAbrir: _abrirDetalhe)
+                        : _ListaPorLer(
+                            data,
+                            onMarcar: _toggleMarcar,
+                            onArquivar: _arquivar,
+                            onAbrir: _abrirDetalhe,
+                          ),
+                  ),
                 ),
-              ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -229,10 +233,12 @@ class _ListaPorLer extends StatelessWidget {
   final Future<void> Function(Sugestao) onMarcar;
   final Future<void> Function(Sugestao) onArquivar;
   final void Function(Sugestao) onAbrir;
-  const _ListaPorLer(this.data,
-      {required this.onMarcar,
-      required this.onArquivar,
-      required this.onAbrir});
+  const _ListaPorLer(
+    this.data, {
+    required this.onMarcar,
+    required this.onArquivar,
+    required this.onAbrir,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -250,7 +256,11 @@ class _ListaPorLer extends StatelessWidget {
     }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
+        AppSpacing.lg,
+        0,
+        AppSpacing.lg,
+        AppSpacing.lg,
+      ),
       itemCount: data.porLer.length,
       separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
       itemBuilder: (_, i) {
@@ -363,7 +373,11 @@ class _ListaArquivo extends StatelessWidget {
     }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
+        AppSpacing.lg,
+        0,
+        AppSpacing.lg,
+        AppSpacing.lg,
+      ),
       itemCount: data.arquivo.length,
       separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
       itemBuilder: (_, i) {
@@ -382,14 +396,19 @@ class _CardArquivo extends StatelessWidget {
   final Sugestao sugestao;
   final String nome;
   final VoidCallback onAbrir;
-  const _CardArquivo(
-      {required this.sugestao, required this.nome, required this.onAbrir});
+  const _CardArquivo({
+    required this.sugestao,
+    required this.nome,
+    required this.onAbrir,
+  });
 
   @override
   Widget build(BuildContext context) {
     return WiCard(
       padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md, vertical: AppSpacing.md),
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.md,
+      ),
       onTap: onAbrir,
       child: Row(
         children: [
@@ -409,20 +428,29 @@ class _CardArquivo extends StatelessWidget {
                   children: [
                     WiAppBadgeAuto(sugestao.app),
                     Expanded(
-                      child: Text(nome, style: AppText.bodyStrong, maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
+                      child: Text(
+                        nome,
+                        style: AppText.bodyStrong,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),
-                Text(sugestao.texto,
-                    style: AppText.caption,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                Text(
+                  sugestao.texto,
+                  style: AppText.caption,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
           ),
-          const Icon(Icons.chevron_right,
-              size: 20, color: AppColors.textTertiary),
+          const Icon(
+            Icons.chevron_right,
+            size: 20,
+            color: AppColors.textTertiary,
+          ),
         ],
       ),
     );

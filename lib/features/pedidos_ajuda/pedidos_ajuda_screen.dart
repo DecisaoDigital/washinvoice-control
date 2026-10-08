@@ -81,25 +81,29 @@ class _PedidosAjudaScreenState extends ConsumerState<PedidosAjudaScreen> {
   }
 
   Future<void> _recarregar() async {
-    setState(() { _future = _carregar(); });
+    setState(() {
+      _future = _carregar();
+    });
     await _future;
   }
 
   /// «Resolvido» (+ «Anular») vive em `resolver_pedido_ajuda.dart`, partilhado
   /// com a fila «Agora». Recarrega no fim, se o ecrã ainda existir.
   Future<void> _resolver(PedidoAjuda p) => resolverPedidoAjuda(
-        ref,
-        p,
-        depois: () async {
-          if (mounted) await _recarregar();
-        },
-      );
+    ref,
+    p,
+    depois: () async {
+      if (mounted) await _recarregar();
+    },
+  );
 
   void _abrirDetalhe(PedidoAjuda p) {
     Navigator.of(context)
-        .push(MaterialPageRoute(
-          builder: (_) => DetalhePedidoAjudaScreen(pedido: p),
-        ))
+        .push(
+          MaterialPageRoute(
+            builder: (_) => DetalhePedidoAjudaScreen(pedido: p),
+          ),
+        )
         .then((_) => _recarregar());
   }
 
@@ -115,42 +119,44 @@ class _PedidosAjudaScreenState extends ConsumerState<PedidosAjudaScreen> {
           SizedBox(width: AppSpacing.sm),
         ],
       ),
-      body: FutureBuilder<_PedidosData>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return ErroView(erro: snapshot.error!, onRetry: _recarregar);
-          }
-          final data = snapshot.data!;
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: _Toggle(
-                  abertos: data.abertos.length,
-                  historico: data.historico.length,
-                  mostrarHistorico: _mostrarHistorico,
-                  onChanged: (v) => setState(() => _mostrarHistorico = v),
+      body: WiComPastilhaApp(
+        corpo: FutureBuilder<_PedidosData>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return ErroView(erro: snapshot.error!, onRetry: _recarregar);
+            }
+            final data = snapshot.data!;
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: _Toggle(
+                    abertos: data.abertos.length,
+                    historico: data.historico.length,
+                    mostrarHistorico: _mostrarHistorico,
+                    onChanged: (v) => setState(() => _mostrarHistorico = v),
+                  ),
                 ),
-              ),
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: _recarregar,
-                  child: _mostrarHistorico
-                      ? _ListaHistorico(data, onAbrir: _abrirDetalhe)
-                      : _ListaAbertos(
-                          data,
-                          onResolver: _resolver,
-                          onAbrir: _abrirDetalhe,
-                        ),
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _recarregar,
+                    child: _mostrarHistorico
+                        ? _ListaHistorico(data, onAbrir: _abrirDetalhe)
+                        : _ListaAbertos(
+                            data,
+                            onResolver: _resolver,
+                            onAbrir: _abrirDetalhe,
+                          ),
+                  ),
                 ),
-              ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -164,9 +170,7 @@ class _TituloAppBar extends StatelessWidget {
     return const Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
-      children: [
-        Text('Pedidos de ajuda', style: TextStyle(fontSize: 18)),
-      ],
+      children: [Text('Pedidos de ajuda', style: TextStyle(fontSize: 18))],
     );
   }
 }
@@ -196,7 +200,11 @@ class _Toggle extends StatelessWidget {
       child: Row(
         children: [
           _seg('Abertos ($abertos)', !mostrarHistorico, () => onChanged(false)),
-          _seg('Histórico ($historico)', mostrarHistorico, () => onChanged(true)),
+          _seg(
+            'Histórico ($historico)',
+            mostrarHistorico,
+            () => onChanged(true),
+          ),
         ],
       ),
     );
@@ -232,8 +240,11 @@ class _ListaAbertos extends StatelessWidget {
   final _PedidosData data;
   final Future<void> Function(PedidoAjuda) onResolver;
   final void Function(PedidoAjuda) onAbrir;
-  const _ListaAbertos(this.data,
-      {required this.onResolver, required this.onAbrir});
+  const _ListaAbertos(
+    this.data, {
+    required this.onResolver,
+    required this.onAbrir,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -251,18 +262,27 @@ class _ListaAbertos extends StatelessWidget {
     }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
+        AppSpacing.lg,
+        0,
+        AppSpacing.lg,
+        AppSpacing.lg,
+      ),
       itemCount: data.abertos.length,
       separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
       itemBuilder: (_, i) {
         final p = data.abertos[i];
-        final cliente =
-            data.ctx.clienteDe(clienteId: p.clienteId, machineId: p.machineId, nif: p.nif);
+        final cliente = data.ctx.clienteDe(
+          clienteId: p.clienteId,
+          machineId: p.machineId,
+          nif: p.nif,
+        );
         return _CardAberto(
           pedido: p,
           nome: data.ctx.nomeDe(machineId: p.machineId, nif: p.nif),
-          sinalLocalidade:
-              data.ctx.sinalLocalidadeDe(machineId: p.machineId, nif: p.nif),
+          sinalLocalidade: data.ctx.sinalLocalidadeDe(
+            machineId: p.machineId,
+            nif: p.nif,
+          ),
           telefone: cliente?.telemovel,
           onResolver: () => onResolver(p),
           onAbrir: () => onAbrir(p),
@@ -385,7 +405,11 @@ class _ListaHistorico extends StatelessWidget {
     }
     return ListView(
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
+        AppSpacing.lg,
+        0,
+        AppSpacing.lg,
+        AppSpacing.lg,
+      ),
       children: [
         Padding(
           padding: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -394,14 +418,16 @@ class _ListaHistorico extends StatelessWidget {
             style: AppText.label,
           ),
         ),
-        ...data.historico.map((p) => Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: _CardHistorico(
-                pedido: p,
-                nome: data.ctx.nomeDe(machineId: p.machineId, nif: p.nif),
-                onAbrir: () => onAbrir(p),
-              ),
-            )),
+        ...data.historico.map(
+          (p) => Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: _CardHistorico(
+              pedido: p,
+              nome: data.ctx.nomeDe(machineId: p.machineId, nif: p.nif),
+              onAbrir: () => onAbrir(p),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -411,8 +437,11 @@ class _CardHistorico extends StatelessWidget {
   final PedidoAjuda pedido;
   final String nome;
   final VoidCallback onAbrir;
-  const _CardHistorico(
-      {required this.pedido, required this.nome, required this.onAbrir});
+  const _CardHistorico({
+    required this.pedido,
+    required this.nome,
+    required this.onAbrir,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -421,7 +450,9 @@ class _CardHistorico extends StatelessWidget {
         : timeago.format(pedido.resolvidoEm!, locale: 'pt');
     return WiCard(
       padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md, vertical: AppSpacing.md),
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.md,
+      ),
       onTap: onAbrir,
       child: Row(
         children: [
@@ -435,8 +466,12 @@ class _CardHistorico extends StatelessWidget {
                   children: [
                     WiAppBadgeAuto(pedido.app),
                     Expanded(
-                      child: Text(nome, style: AppText.bodyStrong, maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
+                      child: Text(
+                        nome,
+                        style: AppText.bodyStrong,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),
@@ -447,8 +482,11 @@ class _CardHistorico extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.chevron_right,
-              size: 20, color: AppColors.textTertiary),
+          const Icon(
+            Icons.chevron_right,
+            size: 20,
+            color: AppColors.textTertiary,
+          ),
         ],
       ),
     );

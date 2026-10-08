@@ -101,9 +101,9 @@ class _AgoraScreenState extends ConsumerState<AgoraScreen>
 
   // ── Corpo do cartão: abre o detalhe que já existe ─────────────────────────
   void _abrirDetalhe(ItemAgora i) => switch (i.tipo) {
-    TipoAgora.expirada ||
-    TipoAgora.aExpirar ||
-    TipoAgora.renovacao => _abrir(DetalheClienteScreen(machineId: i.machineId!)),
+    TipoAgora.expirada || TipoAgora.aExpirar || TipoAgora.renovacao => _abrir(
+      DetalheClienteScreen(machineId: i.machineId!),
+    ),
     // Um terminal novo ainda não tem licença: não há ficha, só a activação.
     TipoAgora.terminalNovo => _abrir(AtivarInstalacaoScreen(ping: i.ping!)),
     TipoAgora.ajuda => _abrir(DetalhePedidoAjudaScreen(pedido: i.pedidoAjuda!)),
@@ -114,11 +114,12 @@ class _AgoraScreenState extends ConsumerState<AgoraScreen>
   // ── Botão primário ────────────────────────────────────────────────────────
   void _accaoPrimaria(ItemAgora i) => switch (i.tipo) {
     // «Renovar» abre a ficha já com o selector da nova validade.
-    TipoAgora.expirada ||
-    TipoAgora.aExpirar => _comTrava(i, () => _renovar(i)),
+    TipoAgora.expirada || TipoAgora.aExpirar => _comTrava(i, () => _renovar(i)),
     TipoAgora.acessoFist => _comTrava(i, () => _decidirFist(i)),
     TipoAgora.terminalNovo => _abrir(AtivarInstalacaoScreen(ping: i.ping!)),
-    TipoAgora.renovacao => _abrir(DetalheClienteScreen(machineId: i.machineId!)),
+    TipoAgora.renovacao => _abrir(
+      DetalheClienteScreen(machineId: i.machineId!),
+    ),
     TipoAgora.sugestao => _abrir(DetalheSugestaoScreen(sugestao: i.sugestao!)),
     // O ajuda tem dois botões (Ligar, Resolvido): ver `_Cartao`.
     TipoAgora.ajuda => null,
@@ -193,72 +194,77 @@ class _AgoraScreenState extends ConsumerState<AgoraScreen>
             ),
           ],
         ),
-        actions: const [WiAppSelector(), SizedBox(width: AppSpacing.sm)],
+        actions: const [
+          WiAppSelector(),
+          SizedBox(width: AppSpacing.sm),
+        ],
       ),
-      body: agora.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => ErroView(erro: e, onRetry: _recarregar),
-        data: (data) {
-          final contagem = data.contagem;
-          // Se o tipo escolhido esvaziou (resolveu-se o último), volta a
-          // mostrar tudo em vez de uma lista vazia que parece um erro.
-          final tipo = (escolhido != null && (contagem[escolhido] ?? 0) > 0)
-              ? escolhido
-              : null;
-          final visiveis = tipo == null
-              ? data.itens
-              : data.itens.where((i) => i.tipo == tipo).toList();
-          return Column(
-            children: [
-              if (data.itens.isNotEmpty)
-                _Chips(
-                  total: data.itens.length,
-                  contagem: contagem,
-                  escolhido: tipo,
-                  onEscolher: (t) =>
-                      ref.read(agoraTipoFiltroProvider.notifier).state = t,
-                ),
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: _recarregar,
-                  child: visiveis.isEmpty
-                      ? ListView(
-                          children: const [
-                            SizedBox(height: 80),
-                            WiEmptyState(
-                              icone: Icons.check_circle_outline,
-                              titulo: 'Nada pendente',
-                              mensagem: 'Nenhum cliente está à tua espera.',
+      body: WiComPastilhaApp(
+        corpo: agora.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => ErroView(erro: e, onRetry: _recarregar),
+          data: (data) {
+            final contagem = data.contagem;
+            // Se o tipo escolhido esvaziou (resolveu-se o último), volta a
+            // mostrar tudo em vez de uma lista vazia que parece um erro.
+            final tipo = (escolhido != null && (contagem[escolhido] ?? 0) > 0)
+                ? escolhido
+                : null;
+            final visiveis = tipo == null
+                ? data.itens
+                : data.itens.where((i) => i.tipo == tipo).toList();
+            return Column(
+              children: [
+                if (data.itens.isNotEmpty)
+                  _Chips(
+                    total: data.itens.length,
+                    contagem: contagem,
+                    escolhido: tipo,
+                    onEscolher: (t) =>
+                        ref.read(agoraTipoFiltroProvider.notifier).state = t,
+                  ),
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _recarregar,
+                    child: visiveis.isEmpty
+                        ? ListView(
+                            children: const [
+                              SizedBox(height: 80),
+                              WiEmptyState(
+                                icone: Icons.check_circle_outline,
+                                titulo: 'Nada pendente',
+                                mensagem: 'Nenhum cliente está à tua espera.',
+                              ),
+                            ],
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.lg,
+                              AppSpacing.sm,
+                              AppSpacing.lg,
+                              AppSpacing.lg,
                             ),
-                          ],
-                        )
-                      : ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(
-                            AppSpacing.lg,
-                            AppSpacing.sm,
-                            AppSpacing.lg,
-                            AppSpacing.lg,
+                            itemCount: visiveis.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: AppSpacing.sm),
+                            itemBuilder: (_, n) {
+                              final i = visiveis[n];
+                              return _Cartao(
+                                key: ValueKey(i.chave),
+                                item: i,
+                                ocupado: _ocupados.contains(i.chave),
+                                onAbrir: () => _abrirDetalhe(i),
+                                onPrimaria: () => _accaoPrimaria(i),
+                                onResolver: () => _resolver(i),
+                              );
+                            },
                           ),
-                          itemCount: visiveis.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: AppSpacing.sm),
-                          itemBuilder: (_, n) {
-                            final i = visiveis[n];
-                            return _Cartao(
-                              key: ValueKey(i.chave),
-                              item: i,
-                              ocupado: _ocupados.contains(i.chave),
-                              onAbrir: () => _abrirDetalhe(i),
-                              onPrimaria: () => _accaoPrimaria(i),
-                              onResolver: () => _resolver(i),
-                            );
-                          },
-                        ),
+                  ),
                 ),
-              ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -333,7 +339,8 @@ class _Cartao extends StatelessWidget {
 
   /// Texto do botão primário (e ícone) de cada tipo.
   (String, IconData) get _primaria => switch (item.tipo) {
-    TipoAgora.expirada || TipoAgora.aExpirar => ('Renovar', Icons.event_available),
+    TipoAgora.expirada ||
+    TipoAgora.aExpirar => ('Renovar', Icons.event_available),
     TipoAgora.acessoFist => ('Decidir', Icons.how_to_reg_outlined),
     TipoAgora.terminalNovo => ('Activar', Icons.play_circle_outline),
     TipoAgora.renovacao => ('Ver pedido', Icons.autorenew),

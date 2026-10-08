@@ -68,11 +68,14 @@ List<Licenca> ordenarInstalacoes(
         return pb.compareTo(pa); // mais recente primeiro
       });
     case OrdenacaoInstalacoes.nome:
-      l.sort((a, b) => ctx
-          .nomeDe(machineId: a.machineId, nif: a.nif)
-          .toLowerCase()
-          .compareTo(
-              ctx.nomeDe(machineId: b.machineId, nif: b.nif).toLowerCase()));
+      l.sort(
+        (a, b) => ctx
+            .nomeDe(machineId: a.machineId, nif: a.nif)
+            .toLowerCase()
+            .compareTo(
+              ctx.nomeDe(machineId: b.machineId, nif: b.nif).toLowerCase(),
+            ),
+      );
     case OrdenacaoInstalacoes.validade:
       l.sort((a, b) => a.validade.compareTo(b.validade)); // fim mais próximo
     case OrdenacaoInstalacoes.localidade:
@@ -81,8 +84,9 @@ List<Licenca> ordenarInstalacoes(
         if (c?.localidade != null && c!.localidade!.trim().isNotEmpty) {
           return c.localidade!.trim().toLowerCase();
         }
-        return Localidades.traduzir(pingPorMachine[x.machineId]?.cidade)
-            .toLowerCase();
+        return Localidades.traduzir(
+          pingPorMachine[x.machineId]?.cidade,
+        ).toLowerCase();
       }
 
       l.sort((a, b) => loc(a).compareTo(loc(b)));
@@ -123,13 +127,18 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
 
   void _mudarOrdenacao(OrdenacaoInstalacoes o) {
     setState(() => _ordenacao = o);
-    SharedPreferences.getInstance()
-        .then((prefs) => prefs.setString(_kPrefOrdenacao, o.name));
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setString(_kPrefOrdenacao, o.name),
+    );
   }
 
   List<Licenca> _ordenar(List<Licenca> lista, _InstalacoesData data) =>
-      ordenarInstalacoes(lista, _ordenacao,
-          ctx: data.ctx, pingPorMachine: data.pingPorMachine);
+      ordenarInstalacoes(
+        lista,
+        _ordenacao,
+        ctx: data.ctx,
+        pingPorMachine: data.pingPorMachine,
+      );
 
   Future<_InstalacoesData> _carregar() async {
     final licencasRepo = ref.read(licencasRepoProvider);
@@ -161,23 +170,28 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
       licencas,
       mapa,
       ContextoInstalacoes.build(
-          clientes: clientes,
-          licencas: licencas,
-          pings: pings,
-          nomesFist: await nomesFistF),
+        clientes: clientes,
+        licencas: licencas,
+        pings: pings,
+        nomesFist: await nomesFistF,
+      ),
     );
   }
 
   Future<void> _recarregar() async {
-    setState(() { _future = _carregar(); });
+    setState(() {
+      _future = _carregar();
+    });
     await _future;
   }
 
   void _abrirDetalhe(String machineId) {
     Navigator.of(context)
-        .push(MaterialPageRoute(
-          builder: (_) => DetalheClienteScreen(machineId: machineId),
-        ))
+        .push(
+          MaterialPageRoute(
+            builder: (_) => DetalheClienteScreen(machineId: machineId),
+          ),
+        )
         .then((_) => _recarregar());
   }
 
@@ -238,12 +252,14 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancelar')),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
             FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
               style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.vermelho),
+                backgroundColor: AppColors.vermelho,
+              ),
               child: const Text('Suspender'),
             ),
           ],
@@ -255,22 +271,28 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
     final servico = ref.read(gerirLicencaProvider);
     try {
       final mensagem = switch (escolha) {
-        'dias' => await servico.darDias(l, 5).then(
-              (r) => l.diasContamDeHoje
-                  ? '5 dias a contar de hoje — validade ${Dates.data(r.validade)}.'
-                  : 'Prolongada 5 dias — validade ${Dates.data(r.validade)}.',
-            ),
-        'suspender' => await servico
-            .suspender(l.machineId)
-            .then((_) => 'Licença suspensa. O POS tranca em ≤5 min.'),
-        'reactivar' => await servico
-            .reactivar(l.machineId)
-            .then((_) => 'Licença reactivada. O POS destranca em ≤5 min.'),
+        'dias' =>
+          await servico
+              .darDias(l, 5)
+              .then(
+                (r) => l.diasContamDeHoje
+                    ? '5 dias a contar de hoje — validade ${Dates.data(r.validade)}.'
+                    : 'Prolongada 5 dias — validade ${Dates.data(r.validade)}.',
+              ),
+        'suspender' =>
+          await servico
+              .suspender(l.machineId)
+              .then((_) => 'Licença suspensa. O POS tranca em ≤5 min.'),
+        'reactivar' =>
+          await servico
+              .reactivar(l.machineId)
+              .then((_) => 'Licença reactivada. O POS destranca em ≤5 min.'),
         _ => null,
       };
       if (!mounted || mensagem == null) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(mensagem)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(mensagem)));
       await _recarregar();
     } catch (e, st) {
       mostrarErro(e, stack: st);
@@ -282,7 +304,8 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
     final agora = DateTime.now();
     return data.licencas.where((l) {
       if (q.isNotEmpty) {
-        final bate = (l.nome?.toLowerCase().contains(q) ?? false) ||
+        final bate =
+            (l.nome?.toLowerCase().contains(q) ?? false) ||
             l.nif.toLowerCase().contains(q) ||
             l.machineId.toLowerCase().contains(q);
         if (!bate) return false;
@@ -293,7 +316,8 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
       if (_versao != null && ping?.versao != _versao) return false;
       if (_cidade != null && ping?.cidade != _cidade) return false;
       if (_semPingDias != null) {
-        final semPing = ping == null ||
+        final semPing =
+            ping == null ||
             agora.difference(ping.criadoEm).inDays >= _semPingDias!;
         if (!semPing) return false;
       }
@@ -377,92 +401,108 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
           const SizedBox(width: AppSpacing.sm),
         ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: SearchBar(
-              hintText: 'Procurar por nome, NIF ou machine ID',
-              leading: const Icon(Icons.search, color: AppColors.textTertiary),
-              backgroundColor:
-                  const WidgetStatePropertyAll(AppColors.surface),
-              elevation: const WidgetStatePropertyAll(1),
-              shape: WidgetStatePropertyAll(
-                RoundedRectangleBorder(borderRadius: AppRadius.mdAll),
+      body: WiComPastilhaApp(
+        corpo: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: SearchBar(
+                hintText: 'Procurar por nome, NIF ou machine ID',
+                leading: const Icon(
+                  Icons.search,
+                  color: AppColors.textTertiary,
+                ),
+                backgroundColor: const WidgetStatePropertyAll(
+                  AppColors.surface,
+                ),
+                elevation: const WidgetStatePropertyAll(1),
+                shape: WidgetStatePropertyAll(
+                  RoundedRectangleBorder(borderRadius: AppRadius.mdAll),
+                ),
+                onChanged: (v) => setState(() => _filtro = v),
               ),
-              onChanged: (v) => setState(() => _filtro = v),
             ),
-          ),
-          Expanded(
-            child: FutureBuilder<_InstalacoesData>(
-              future: _future,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return ErroView(erro: snapshot.error!, onRetry: _recarregar);
-                }
-                final data = snapshot.data!;
-                final classV = ClassificadorVersoes(
-                  data.pingPorMachine.values.map((p) => p.versao),
-                );
-                final versoes = data.pingPorMachine.values
-                    .map((p) => p.versao)
-                    .whereType<String>()
-                    .toSet()
-                    .toList()
-                  ..sort();
-                final cidades = data.pingPorMachine.values
-                    .map((p) => p.cidade)
-                    .whereType<String>()
-                    .toSet()
-                    .toList()
-                  ..sort();
-                final licencas = _ordenar(_filtrar(data), data);
-                return Column(
-                  children: [
-                    _barraFiltros(versoes, cidades),
-                    const SizedBox(height: AppSpacing.sm),
-                    Expanded(
-                      child: licencas.isEmpty
-                          ? const WiEmptyState(
-                              icone: Icons.search_off,
-                              titulo: 'Sem resultados',
-                              mensagem:
-                                  'Nenhuma instalação corresponde aos filtros.',
-                            )
-                          : RefreshIndicator(
-                              onRefresh: _recarregar,
-                              child: ListView.separated(
-                                padding: const EdgeInsets.fromLTRB(
-                                    AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
-                                itemCount: licencas.length,
-                                separatorBuilder: (_, __) =>
-                                    const SizedBox(height: AppSpacing.sm),
-                                itemBuilder: (context, i) {
-                                  final l = licencas[i];
-                                  final ping =
-                                      data.pingPorMachine[l.machineId];
-                                  return _CartaoInstalacao(
-                                    licenca: l,
-                                    ping: ping,
-                                    ctx: data.ctx,
-                                    estadoVersao: classV.estadoDe(ping?.versao),
-                                    onTap: () => _abrirDetalhe(l.machineId),
-                                    onAccoesRapidas: () =>
-                                        _accoesRapidas(l),
-                                  );
-                                },
+            Expanded(
+              child: FutureBuilder<_InstalacoesData>(
+                future: _future,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return ErroView(
+                      erro: snapshot.error!,
+                      onRetry: _recarregar,
+                    );
+                  }
+                  final data = snapshot.data!;
+                  final classV = ClassificadorVersoes(
+                    data.pingPorMachine.values.map((p) => p.versao),
+                  );
+                  final versoes =
+                      data.pingPorMachine.values
+                          .map((p) => p.versao)
+                          .whereType<String>()
+                          .toSet()
+                          .toList()
+                        ..sort();
+                  final cidades =
+                      data.pingPorMachine.values
+                          .map((p) => p.cidade)
+                          .whereType<String>()
+                          .toSet()
+                          .toList()
+                        ..sort();
+                  final licencas = _ordenar(_filtrar(data), data);
+                  return Column(
+                    children: [
+                      _barraFiltros(versoes, cidades),
+                      const SizedBox(height: AppSpacing.sm),
+                      Expanded(
+                        child: licencas.isEmpty
+                            ? const WiEmptyState(
+                                icone: Icons.search_off,
+                                titulo: 'Sem resultados',
+                                mensagem:
+                                    'Nenhuma instalação corresponde aos filtros.',
+                              )
+                            : RefreshIndicator(
+                                onRefresh: _recarregar,
+                                child: ListView.separated(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    AppSpacing.lg,
+                                    0,
+                                    AppSpacing.lg,
+                                    AppSpacing.lg,
+                                  ),
+                                  itemCount: licencas.length,
+                                  separatorBuilder: (_, __) =>
+                                      const SizedBox(height: AppSpacing.sm),
+                                  itemBuilder: (context, i) {
+                                    final l = licencas[i];
+                                    final ping =
+                                        data.pingPorMachine[l.machineId];
+                                    return _CartaoInstalacao(
+                                      licenca: l,
+                                      ping: ping,
+                                      ctx: data.ctx,
+                                      estadoVersao: classV.estadoDe(
+                                        ping?.versao,
+                                      ),
+                                      onTap: () => _abrirDetalhe(l.machineId),
+                                      onAccoesRapidas: () => _accoesRapidas(l),
+                                    );
+                                  },
+                                ),
                               ),
-                            ),
-                    ),
-                  ],
-                );
-              },
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -490,8 +530,9 @@ class _ChipMenu<T> extends StatelessWidget {
       onSelected: onChanged,
       itemBuilder: (_) => [
         PopupMenuItem<T?>(value: null, child: Text(labelBase)),
-        ...opcoes.map((o) =>
-            PopupMenuItem<T?>(value: o, child: Text(labelOpcao(o)))),
+        ...opcoes.map(
+          (o) => PopupMenuItem<T?>(value: o, child: Text(labelOpcao(o))),
+        ),
       ],
       position: PopupMenuPosition.under,
       child: WiChipFiltro(
@@ -536,7 +577,9 @@ class _CartaoInstalacao extends StatelessWidget {
     final expirada = licenca.estado == EstadoLicenca.expirada;
     final card = WiCard(
       padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md, vertical: AppSpacing.md),
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.md,
+      ),
       onTap: onTap,
       child: Row(
         children: [
@@ -560,7 +603,9 @@ class _CartaoInstalacao extends StatelessWidget {
                     Expanded(
                       child: Text(
                         ctx.nomeDe(
-                            machineId: licenca.machineId, nif: licenca.nif),
+                          machineId: licenca.machineId,
+                          nif: licenca.nif,
+                        ),
                         style: AppText.bodyStrong,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -574,8 +619,11 @@ class _CartaoInstalacao extends StatelessWidget {
                 ),
                 Row(
                   children: [
-                    Icon(Exibicao.iconeSinal(ping?.metodoGeo),
-                        size: 13, color: Exibicao.corSinal(ping?.metodoGeo)),
+                    Icon(
+                      Exibicao.iconeSinal(ping?.metodoGeo),
+                      size: 13,
+                      color: Exibicao.corSinal(ping?.metodoGeo),
+                    ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(

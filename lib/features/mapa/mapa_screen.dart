@@ -65,18 +65,21 @@ class _MapaScreenState extends ConsumerState<MapaScreen> {
       pings,
       mapa,
       ContextoInstalacoes.build(
-          clientes: clientes, licencas: licencas, pings: pings),
+        clientes: clientes,
+        licencas: licencas,
+        pings: pings,
+      ),
       await iconesF,
     );
   }
 
   Future<Map<EstadoLicenca, BitmapDescriptor>> _carregarIcones() async {
     Future<BitmapDescriptor> load(String nome) => BitmapDescriptor.asset(
-          const ImageConfiguration(size: Size(40, 40)),
-          'assets/markers/$nome',
-          width: 40,
-          height: 40,
-        );
+      const ImageConfiguration(size: Size(40, 40)),
+      'assets/markers/$nome',
+      width: 40,
+      height: 40,
+    );
     return {
       EstadoLicenca.activa: await load('activa.png'),
       EstadoLicenca.aExpirar: await load('a_expirar.png'),
@@ -88,8 +91,7 @@ class _MapaScreenState extends ConsumerState<MapaScreen> {
   Set<Marker> _markers(_MapaData data) {
     return data.pings.where((p) => p.lat != null && p.lon != null).map((p) {
       final licenca = data.licencaPorMachine[p.machineId];
-      final icone =
-          data.icones[licenca?.estado ?? EstadoLicenca.suspensa]!;
+      final icone = data.icones[licenca?.estado ?? EstadoLicenca.suspensa]!;
       return Marker(
         markerId: MarkerId(p.machineId),
         position: LatLng(p.lat!, p.lon!),
@@ -107,7 +109,9 @@ class _MapaScreenState extends ConsumerState<MapaScreen> {
   Widget build(BuildContext context) {
     ref.listen(
       appFilterProvider,
-      (_, __) => setState(() { _future = _carregar(); }),
+      (_, __) => setState(() {
+        _future = _carregar();
+      }),
     );
 
     return Scaffold(
@@ -118,24 +122,28 @@ class _MapaScreenState extends ConsumerState<MapaScreen> {
           SizedBox(width: AppSpacing.sm),
         ],
       ),
-      body: FutureBuilder<_MapaData>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return ErroView(
-              erro: snapshot.error!,
-              onRetry: () => setState(() { _future = _carregar(); }),
+      body: WiComPastilhaApp(
+        corpo: FutureBuilder<_MapaData>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return ErroView(
+                erro: snapshot.error!,
+                onRetry: () => setState(() {
+                  _future = _carregar();
+                }),
+              );
+            }
+            return GoogleMap(
+              initialCameraPosition: _portugal,
+              markers: _markers(snapshot.data!),
+              myLocationButtonEnabled: false,
             );
-          }
-          return GoogleMap(
-            initialCameraPosition: _portugal,
-            markers: _markers(snapshot.data!),
-            myLocationButtonEnabled: false,
-          );
-        },
+          },
+        ),
       ),
     );
   }
