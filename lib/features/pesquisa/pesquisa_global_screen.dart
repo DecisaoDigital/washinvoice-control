@@ -74,8 +74,13 @@ class _PesquisaGlobalScreenState extends ConsumerState<PesquisaGlobalScreen> {
     final histF = ref.read(pedidosAjudaRepoProvider).listarHistorico();
     final porLerF = ref.read(sugestoesRepoProvider).listarPorLer();
     final arquivoF = ref.read(sugestoesRepoProvider).listarArquivo();
-    await Future.wait(
-        [clientesF, licencasF, pingsF, abertosF, histF, porLerF, arquivoF]);
+    final nomesFistF = ContextoInstalacoes.carregarNomesFist(
+      ref.read(punhoAdminRepoProvider),
+    );
+    await Future.wait([
+      clientesF, licencasF, pingsF, abertosF, histF, porLerF, arquivoF,
+      nomesFistF,
+    ]);
 
     final clientes = await clientesF;
     final licencas = await licencasF;
@@ -87,7 +92,10 @@ class _PesquisaGlobalScreenState extends ConsumerState<PesquisaGlobalScreen> {
       [...await abertosF, ...await histF],
       [...await porLerF, ...await arquivoF],
       ContextoInstalacoes.build(
-          clientes: clientes, licencas: licencas, pings: pings),
+          clientes: clientes,
+          licencas: licencas,
+          pings: pings,
+          nomesFist: await nomesFistF),
     );
   }
 

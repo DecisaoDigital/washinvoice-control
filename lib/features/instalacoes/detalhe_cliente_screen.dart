@@ -42,6 +42,10 @@ class _DetalheData {
   final Cliente? cliente;
   final int ordem;
   final int total;
+
+  /// Nome que a cascata única (`ContextoInstalacoes.nomeDe`) dá a este
+  /// terminal — o que se mostra quando não há nome comercial nem designação.
+  final String nomeDaCascata;
   _DetalheData(
     this.licenca,
     this.ultimoPing,
@@ -52,6 +56,7 @@ class _DetalheData {
     this.cliente,
     this.ordem,
     this.total,
+    this.nomeDaCascata,
   );
 
   /// Designação social (nome legal). O cliente sincronizado manda; a licença é
@@ -80,13 +85,9 @@ class _DetalheData {
   String get nomeCliente {
     if (nomeComercial.isNotEmpty) return nomeComercial;
     if (designacaoSocial.isNotEmpty) return designacaoSocial;
-    // Instalação nova: o nome da máquina é o que identifica o terminal. Um NIF
-    // placeholder não identifica ninguém, e o `machineId` é um hash ilegível.
-    final host = licenca.hostname;
-    if (host != null) return host;
-    final nif = licenca.nif.trim();
-    if (nif.isNotEmpty && nif != '000000000') return 'NIF $nif';
-    return 'Sem NIF ainda';
+    // Instalação nova: a cascata única decide (empresa que o Fist conhece →
+    // nome da máquina → NIF real → «Fist · terminal xxxxxx»).
+    return nomeDaCascata;
   }
 
   /// Região que o ping reporta (cidade do GPS ou do fornecedor de internet).
@@ -168,8 +169,14 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
     final classV = ClassificadorVersoes(todosUltimos.map((p) => p.versao));
     final ultimoPing = historico.isNotEmpty ? historico.first : null;
 
+    final nomesFist = await ContextoInstalacoes.carregarNomesFist(
+      ref.read(punhoAdminRepoProvider),
+    );
     final ctx = ContextoInstalacoes.build(
-        clientes: clientes, licencas: todasLicencas, pings: todosUltimos);
+        clientes: clientes,
+        licencas: todasLicencas,
+        pings: todosUltimos,
+        nomesFist: nomesFist);
     final ordemTotal = ctx.ordemDe(licenca.machineId);
     final cliente = ctx.clienteDe(
         clienteId: licenca.clienteId,
@@ -186,6 +193,11 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
       cliente,
       ordemTotal?.$1 ?? 1,
       ordemTotal?.$2 ?? 1,
+      ctx.nomeDe(
+        machineId: licenca.machineId,
+        nif: licenca.nif,
+        comTerminal: false,
+      ),
     );
     _nomeCliente = dados.nomeCliente;
     return dados;

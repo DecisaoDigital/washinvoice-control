@@ -45,10 +45,9 @@ final agoraProvider = FutureProvider<AgoraData>((ref) async {
   final clientes = ref.read(clientesRepoProvider).listar();
   // Os nomes que o Fist já sabe dos seus terminais. Falha em silêncio, como no
   // Resumo: sem eles a cascata de nomes resolve-se na mesma.
-  final nomesFist = ref
-      .read(punhoAdminRepoProvider)
-      .nomesPorTerminal()
-      .catchError((_) => <String, NomeDoTerminalFist>{});
+  final nomesFist = ContextoInstalacoes.carregarNomesFist(
+    ref.read(punhoAdminRepoProvider),
+  );
   // Erro aqui NÃO se engole: sem os pedidos Fist a fila mentiria («Nada
   // pendente»). Propaga-se e o ecrã mostra o erro com «Tentar de novo».
   final acessosFist = filtro.aceita(AppsUi.punho)

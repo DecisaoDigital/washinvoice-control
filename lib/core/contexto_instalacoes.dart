@@ -2,6 +2,7 @@ import '../models/cliente.dart';
 import '../repositories/punho_admin_repository.dart';
 import '../models/licenca.dart';
 import '../models/ping.dart';
+import 'apps_ui.dart';
 import 'exibicao.dart';
 
 /// Índice partilhado que cruza licenças, clientes e pings por `machine_id`/`nif`.
@@ -57,6 +58,16 @@ class ContextoInstalacoes {
     );
   }
 
+  /// Os nomes que o Fist já sabe dos seus terminais (empresa aprovada ou o que
+  /// o requerente declarou no pedido de acesso). **Falha em silêncio**: sem
+  /// eles a cascata resolve-se na mesma (com o fallback «Fist · terminal xxxxxx»),
+  /// e nenhum ecrã deixa de abrir por causa de um nome.
+  static Future<Map<String, NomeDoTerminalFist>> carregarNomesFist(
+    FistAdminRepository repo,
+  ) => repo.nomesPorTerminal().catchError(
+    (_) => <String, NomeDoTerminalFist>{},
+  );
+
   Licenca? licencaDe(String machineId) => _licencaPorMachine[machineId];
   Ping? pingDe(String machineId) => _pingPorMachine[machineId];
 
@@ -92,7 +103,14 @@ class ContextoInstalacoes {
   /// (mesma etiqueta que o card de Início de actividade, para o mesmo terminal
   /// aparecer igual em todo o lado). **Nunca** o machine_id (hash) — esse vive
   /// só na secção "Máquina" do DetalheCliente.
-  String nomeDe({required String machineId, String? nif}) {
+  String nomeDe({
+    required String machineId,
+    String? nif,
+
+    /// `false` tira o « · T2» dos clientes com vários terminais — para a ficha,
+    /// que já diz «Terminal 2 de 3» na linha por baixo.
+    bool comTerminal = true,
+  }) {
     final lic = _licencaPorMachine[machineId];
     final cliente = clienteDe(machineId: machineId, nif: nif);
 
@@ -131,6 +149,17 @@ class ContextoInstalacoes {
       final host = lic?.hostname;
       if (host != null) return host;
 
+      // Terminal do Fist sem nome nenhum que se saiba: nunca vazio e nunca só o
+      // NIF (que no Fist é o placeholder do auto-onboarding). Os 6 primeiros
+      // caracteres do `machine_id` distinguem um terminal de outro.
+      final app = lic?.app ?? _pingPorMachine[machineId]?.app;
+      if (app == AppsUi.punho) {
+        final m = machineId.trim();
+        return m.isEmpty
+            ? 'Fist · terminal'
+            : 'Fist · terminal ${m.length > 6 ? m.substring(0, 6) : m}';
+      }
+
       final nifEfectivo = (nif != null && nif.trim().isNotEmpty)
           ? nif.trim()
           : (lic != null && lic.nif.trim().isNotEmpty ? lic.nif.trim() : null);
@@ -143,7 +172,7 @@ class ContextoInstalacoes {
     }
 
     final o = lic == null ? null : _ordem[lic.id];
-    if (o != null && o.$2 >= 2) return '$base · T${o.$1}';
+    if (comTerminal && o != null && o.$2 >= 2) return '$base · T${o.$1}';
     return base;
   }
 

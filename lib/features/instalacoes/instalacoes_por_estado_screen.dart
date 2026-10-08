@@ -87,7 +87,10 @@ class _InstalacoesPorEstadoScreenState
     final pingsF =
         ref.read(pingsRepoProvider).ultimosPorInstalacao(app: app);
     final pendentesF = ref.read(pedidosRepoProvider).pendentes(app: app);
-    await Future.wait([licencasF, clientesF, pingsF, pendentesF]);
+    final nomesFistF = ContextoInstalacoes.carregarNomesFist(
+      ref.read(punhoAdminRepoProvider),
+    );
+    await Future.wait([licencasF, clientesF, pingsF, pendentesF, nomesFistF]);
 
     final licencas = await licencasF;
     final pings = await pingsF;
@@ -95,7 +98,10 @@ class _InstalacoesPorEstadoScreenState
       licencas,
       await pendentesF,
       ContextoInstalacoes.build(
-          clientes: await clientesF, licencas: licencas, pings: pings),
+          clientes: await clientesF,
+          licencas: licencas,
+          pings: pings,
+          nomesFist: await nomesFistF),
       ClassificadorVersoes(pings.map((p) => p.versao)),
     );
   }
