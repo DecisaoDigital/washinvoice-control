@@ -86,10 +86,44 @@ class _DetalhePedidoAjudaScreenState
     await _future;
   }
 
+  /// `true` enquanto «Marcar como resolvido» decorre (trava o duplo toque).
+  bool _aResolver = false;
+
   Future<void> _resolver() async {
-    await ref.read(pedidosAjudaRepoProvider).marcarResolvido(_pedido.id);
-    setState(() => _pedido = _pedido.copyWith(resolvidoEm: DateTime.now()));
-    await _recarregar();
+    if (_aResolver) return;
+    setState(() => _aResolver = true);
+    try {
+      await ref.read(pedidosAjudaRepoProvider).marcarResolvido(_pedido.id);
+      if (!mounted) return;
+      setState(() => _pedido = _pedido.copyWith(resolvidoEm: DateTime.now()));
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(
+          SnackBar(
+            content: const Text('Pedido marcado como resolvido.'),
+            duration: const Duration(seconds: 8),
+            action: SnackBarAction(label: 'Anular', onPressed: _reabrir),
+          ),
+        );
+      await _recarregar();
+    } catch (e, st) {
+      mostrarErro(e, stack: st);
+    } finally {
+      if (mounted) setState(() => _aResolver = false);
+    }
+  }
+
+  /// «Anular» do Resolvido: volta a abrir o pedido.
+  Future<void> _reabrir() async {
+    try {
+      await ref.read(pedidosAjudaRepoProvider).reabrir(_pedido.id);
+      if (!mounted) return;
+      setState(() => _pedido = _pedido.reaberto());
+      mostrarMensagem('Pedido reaberto.');
+      await _recarregar();
+    } catch (e, st) {
+      mostrarErro(e, stack: st);
+    }
   }
 
   Future<void> _copiar(String machineId) async {
@@ -175,13 +209,19 @@ class _DetalhePedidoAjudaScreenState
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
-                    icon: const Icon(Icons.check),
+                    icon: _aResolver
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.check),
                     label: const Text('Marcar como resolvido'),
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.verde700,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    onPressed: _resolver,
+                    onPressed: _aResolver ? null : _resolver,
                   ),
                 ),
               ],

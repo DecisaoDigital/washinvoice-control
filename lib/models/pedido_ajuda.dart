@@ -41,6 +41,19 @@ class PedidoAjuda {
         notas: json['notas'] as String?,
       );
 
+  /// O mesmo pedido, outra vez em aberto (`resolvidoEm` a nulo — o
+  /// [copyWith] não consegue pôr a nulo).
+  PedidoAjuda reaberto() => PedidoAjuda(
+    id: id,
+    app: app,
+    machineId: machineId,
+    nif: nif,
+    clienteId: clienteId,
+    criadoEm: criadoEm,
+    resolvidoEm: null,
+    notas: notas,
+  );
+
   PedidoAjuda copyWith({DateTime? resolvidoEm, String? notas}) => PedidoAjuda(
         id: id,
         app: app,

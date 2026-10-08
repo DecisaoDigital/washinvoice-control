@@ -38,4 +38,13 @@ class PedidosAjudaRepository {
         .update({'resolvido_em': DateTime.now().toUtc().toIso8601String()})
         .eq('id', id);
   }
+
+  /// Volta a abrir um pedido resolvido (resolvido_em = nulo). É o «Anular» do
+  /// «Resolvido»: um update igual ao de [marcarResolvido], pela mesma política.
+  Future<void> reabrir(String id) async {
+    await _client
+        .from('pedidos_ajuda')
+        .update({'resolvido_em': null})
+        .eq('id', id);
+  }
 }

@@ -84,9 +84,44 @@ class _PedidosAjudaScreenState extends ConsumerState<PedidosAjudaScreen> {
     await _future;
   }
 
+  /// Pedidos com «Resolvido» a decorrer — trava o duplo toque no mesmo cartão.
+  final Set<String> _aResolver = {};
+
   Future<void> _resolver(PedidoAjuda p) async {
-    await ref.read(pedidosAjudaRepoProvider).marcarResolvido(p.id);
-    await _recarregar();
+    if (!_aResolver.add(p.id)) return;
+    final repo = ref.read(pedidosAjudaRepoProvider);
+    try {
+      await repo.marcarResolvido(p.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(
+          SnackBar(
+            content: const Text('Pedido marcado como resolvido.'),
+            duration: const Duration(seconds: 8),
+            action: SnackBarAction(
+              label: 'Anular',
+              onPressed: () => _reabrir(p),
+            ),
+          ),
+        );
+    } catch (e, st) {
+      mostrarErro(e, stack: st);
+    } finally {
+      _aResolver.remove(p.id);
+    }
+    if (mounted) await _recarregar();
+  }
+
+  /// «Anular» do Resolvido: volta a abrir o pedido.
+  Future<void> _reabrir(PedidoAjuda p) async {
+    try {
+      await ref.read(pedidosAjudaRepoProvider).reabrir(p.id);
+      mostrarMensagem('Pedido reaberto.');
+    } catch (e, st) {
+      mostrarErro(e, stack: st);
+    }
+    if (mounted) await _recarregar();
   }
 
   void _abrirDetalhe(PedidoAjuda p) {
