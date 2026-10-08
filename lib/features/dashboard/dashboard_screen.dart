@@ -717,7 +717,7 @@ class _CardPedidoAjuda extends StatelessWidget {
                   ),
                 ],
                 Text(
-                  'há $tempo${telefone != null ? ' · $telefone' : ''}',
+                  '$tempo${telefone != null ? ' · $telefone' : ''}',
                   style: AppText.caption,
                 ),
               ],

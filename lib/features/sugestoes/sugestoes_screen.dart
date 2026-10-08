@@ -297,7 +297,7 @@ class _CardPorLer extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               WiAppBadgeAuto(sugestao.app),
               Expanded(child: Text(nome, style: AppText.bodyStrong)),
-              Text('há $tempo', style: AppText.caption),
+              Text(tempo, style: AppText.caption),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),

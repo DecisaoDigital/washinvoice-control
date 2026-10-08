@@ -91,6 +91,7 @@ void mostrarMensagem(String mensagem, {bool grave = false, int tentativas = 30})
         backgroundColor: grave ? AppColors.vermelho : null,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 5),
+        persist: false, // com acção, o SnackBar não fecha sozinho se não o disserem
         content: Text(mensagem),
         action: SnackBarAction(
           label: 'OK',

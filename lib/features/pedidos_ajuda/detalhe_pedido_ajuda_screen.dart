@@ -102,6 +102,7 @@ class _DetalhePedidoAjudaScreenState
           SnackBar(
             content: const Text('Pedido marcado como resolvido.'),
             duration: const Duration(seconds: 8),
+            persist: false, // com acção, o SnackBar não fecha sozinho se não o disserem
             action: SnackBarAction(label: 'Anular', onPressed: _reabrir),
           ),
         );

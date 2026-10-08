@@ -99,6 +99,7 @@ class _PedidosAjudaScreenState extends ConsumerState<PedidosAjudaScreen> {
           SnackBar(
             content: const Text('Pedido marcado como resolvido.'),
             duration: const Duration(seconds: 8),
+            persist: false, // com acção, o SnackBar não fecha sozinho se não o disserem
             action: SnackBarAction(
               label: 'Anular',
               onPressed: () => _reabrir(p),
@@ -351,7 +352,7 @@ class _CardAberto extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(sinalLocalidade, style: AppText.caption),
                     Text(
-                      'há $tempo${telefone != null ? ' · $telefone' : ''}',
+                      '$tempo${telefone != null ? ' · $telefone' : ''}',
                       style: AppText.caption,
                     ),
                   ],

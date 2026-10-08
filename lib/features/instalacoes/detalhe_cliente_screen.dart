@@ -318,6 +318,7 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
             duration: anular == null
                 ? const Duration(seconds: 4)
                 : const Duration(seconds: 8),
+            persist: false, // com acção, o SnackBar não fecha sozinho se não o disserem
             action: anular == null
                 ? null
                 : SnackBarAction(
