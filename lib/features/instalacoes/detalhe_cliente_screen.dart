@@ -360,7 +360,8 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
 
   /// Título das confirmações: cliente e série do terminal.
   String _quem(Licenca l) =>
-      quemTitulo(_nomeCliente ?? 'este cliente', serie: l.serie);
+      quemTitulo(_nomeCliente ?? 'este cliente',
+          serie: l.serie, machineId: l.machineId);
 
   Future<void> _darDias(Licenca l, int dias) => _accaoRemota(
         machineId: l.machineId,
