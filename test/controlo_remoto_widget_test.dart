@@ -34,24 +34,28 @@ Future<void> _montarControlo(
   VoidCallback? onSuspender,
   VoidCallback? onReactivar,
   VoidCallback? onCancelar,
+  VoidCallback? onApagar,
   void Function(Tier)? onMudarTier,
 }) async {
-  await tester.pumpWidget(MaterialApp(
-    home: Scaffold(
-      body: SingleChildScrollView(
-        child: CardControloRemoto(
-          licenca: l,
-          ocupado: ocupado,
-          onDarDias: onDarDias ?? (_) {},
-          onSuspender: onSuspender ?? () {},
-          onReactivar: onReactivar ?? () {},
-          onCancelar: onCancelar ?? () {},
-          onMudarTier: onMudarTier ?? (_) {},
-          onVerHistorial: () {},
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: CardControloRemoto(
+            licenca: l,
+            ocupado: ocupado,
+            onDarDias: onDarDias ?? (_) {},
+            onSuspender: onSuspender ?? () {},
+            onReactivar: onReactivar ?? () {},
+            onCancelar: onCancelar ?? () {},
+            onApagar: onApagar,
+            onMudarTier: onMudarTier ?? (_) {},
+            onVerHistorial: () {},
+          ),
         ),
       ),
     ),
-  ));
+  );
   // Com `ocupado` há um LinearProgressIndicator a animar em ciclo: o
   // `pumpAndSettle` nunca estabilizaria.
   if (ocupado) {
@@ -109,11 +113,61 @@ void main() {
       expect(find.text('Reactivar'), findsNothing);
     });
 
-    testWidgets('licença suspensa mostra Reactivar, não Suspender',
-        (tester) async {
+    testWidgets(
+      'zona de perigo: Suspender, Terminar e Apagar à parte dos dias',
+      (tester) async {
+        var suspender = 0, terminar = 0, apagar = 0;
+        await _montarControlo(
+          tester,
+          _licenca(),
+          onSuspender: () => suspender++,
+          onCancelar: () => terminar++,
+          onApagar: () => apagar++,
+        );
+
+        expect(find.text('Zona de perigo'), findsOneWidget);
+        expect(find.text('Cancelar licença'), findsNothing);
+        for (final r in ['Suspender', 'Terminar licença', 'Apagar licença']) {
+          final f = find.text(r);
+          expect(f, findsOneWidget);
+          // Alvo de toque de pelo menos 48 dp.
+          expect(
+            tester
+                .getSize(
+                  find.ancestor(
+                    of: f,
+                    matching: find.bySubtype<OutlinedButton>(),
+                  ),
+                )
+                .height,
+            greaterThanOrEqualTo(48),
+          );
+          // Abaixo do título da zona; os botões de dias ficam acima dele.
+          expect(
+            tester.getTopLeft(f).dy,
+            greaterThan(tester.getTopLeft(find.text('Zona de perigo')).dy),
+          );
+        }
+        expect(
+          tester.getTopLeft(find.text('+30 dias')).dy,
+          lessThan(tester.getTopLeft(find.text('Zona de perigo')).dy),
+        );
+
+        await tester.tap(find.text('Suspender'));
+        await tester.tap(find.text('Terminar licença'));
+        await tester.tap(find.text('Apagar licença'));
+        expect([suspender, terminar, apagar], [1, 1, 1]);
+      },
+    );
+
+    testWidgets('licença suspensa mostra Reactivar, não Suspender', (
+      tester,
+    ) async {
       await _montarControlo(tester, _licenca(activa: false));
       expect(find.text('Reactivar'), findsOneWidget);
       expect(find.text('Suspender'), findsNothing);
+      // Terminar continua disponível numa licença suspensa.
+      expect(find.text('Terminar licença'), findsOneWidget);
     });
 
     testWidgets('ocupado trava todos os botões de acção', (tester) async {

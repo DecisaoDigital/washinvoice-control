@@ -45,7 +45,12 @@ class CardControloRemoto extends StatelessWidget {
   final void Function(int dias) onDarDias;
   final VoidCallback onSuspender;
   final VoidCallback onReactivar;
+
+  /// «Terminar licença» (o valor enviado ao servidor continua a ser `cancelar`).
   final VoidCallback onCancelar;
+
+  /// Apagar a linha. Opcional: sem ele a zona de perigo não o mostra.
+  final VoidCallback? onApagar;
   final void Function(Tier) onMudarTier;
   final VoidCallback onVerHistorial;
 
@@ -57,6 +62,7 @@ class CardControloRemoto extends StatelessWidget {
     required this.onSuspender,
     required this.onReactivar,
     required this.onCancelar,
+    this.onApagar,
     required this.onMudarTier,
     required this.onVerHistorial,
   });
@@ -84,21 +90,15 @@ class CardControloRemoto extends StatelessWidget {
                 OutlinedButton(
                   onPressed: ocupado ? null : () => onDarDias(dias),
                   style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.azul700),
+                    foregroundColor: AppColors.azul700,
+                    minimumSize: const Size(48, 48),
+                  ),
                   // Sem `+` no trial: ali o número é a janela toda, a contar
                   // de hoje, e o sinal de mais prometia uma soma que não
                   // acontece. Numa licença paga é mesmo uma soma.
                   child: Text(l.diasContamDeHoje ? '$dias dias' : '+$dias dias'),
                 ),
-              if (l.activa)
-                OutlinedButton.icon(
-                  onPressed: ocupado ? null : onSuspender,
-                  icon: const Icon(Icons.block, size: 18),
-                  label: const Text('Suspender'),
-                  style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.vermelho),
-                )
-              else
+              if (!l.activa)
                 OutlinedButton.icon(
                   onPressed: ocupado ? null : onReactivar,
                   icon: const Icon(Icons.check_circle, size: 18),
@@ -130,29 +130,86 @@ class CardControloRemoto extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          const Divider(height: 1),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: onVerHistorial,
+              icon: const Icon(Icons.history, size: 18),
+              label: const Text('Ver historial'),
+              style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          // Zona de perigo: longe dos botões de dias, para um toque a pensar
+          // em «+30 dias» não cair em «Suspender». Cada botão diz o que faz.
+          const Divider(height: 1, color: AppColors.vermelho),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'Zona de perigo',
+            style: AppText.h2.copyWith(color: AppColors.vermelho),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Acções que bloqueiam ou removem o terminal.',
+            style: AppText.caption,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextButton.icon(
-                onPressed: onVerHistorial,
-                icon: const Icon(Icons.history, size: 18),
-                label: const Text('Ver historial'),
-              ),
-              TextButton(
-                onPressed: ocupado ? null : onCancelar,
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.vermelho,
-                  textStyle: const TextStyle(fontSize: 12),
+              if (l.activa) ...[
+                _BotaoPerigo(
+                  icone: Icons.block,
+                  rotulo: 'Suspender',
+                  onPressed: ocupado ? null : onSuspender,
                 ),
-                child: const Text('Cancelar licença'),
+                const SizedBox(height: AppSpacing.sm),
+              ],
+              _BotaoPerigo(
+                icone: Icons.event_busy,
+                rotulo: 'Terminar licença',
+                onPressed: ocupado ? null : onCancelar,
               ),
+              if (onApagar != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                _BotaoPerigo(
+                  icone: Icons.delete_outline,
+                  rotulo: 'Apagar licença',
+                  onPressed: ocupado ? null : onApagar,
+                ),
+              ],
             ],
           ),
         ],
       ),
     );
   }
+}
+
+/// Botão da zona de perigo: largura toda, 48 dp de alto, ícone **e** texto.
+class _BotaoPerigo extends StatelessWidget {
+  final IconData icone;
+  final String rotulo;
+  final VoidCallback? onPressed;
+  const _BotaoPerigo({
+    required this.icone,
+    required this.rotulo,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) => OutlinedButton.icon(
+    onPressed: onPressed,
+    icon: Icon(icone, size: 18),
+    label: Text(rotulo),
+    style: OutlinedButton.styleFrom(
+      foregroundColor: AppColors.vermelho,
+      minimumSize: const Size.fromHeight(48),
+      side: BorderSide(
+        color: onPressed == null ? AppColors.textTertiary : AppColors.vermelho,
+      ),
+    ),
+  );
 }
 
 /// Chip do nível comercial: Pro dourado, Base cinza, Legado só contornado

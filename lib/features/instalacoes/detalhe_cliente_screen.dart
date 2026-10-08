@@ -17,6 +17,7 @@ import '../../core/erros.dart';
 import '../../core/exibicao.dart';
 import '../../core/localidades.dart';
 import '../../core/versoes.dart';
+import '../../core/quem_titulo.dart';
 import '../../core/widgets/widgets.dart';
 import '../../models/aceite_termo.dart';
 import '../../models/cliente.dart';
@@ -128,6 +129,10 @@ class DetalheClienteScreen extends ConsumerStatefulWidget {
 class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
   late Future<_DetalheData> _future;
 
+  /// Nome do cliente já resolvido (cascata do [_DetalheData.nomeCliente]),
+  /// guardado para os títulos das confirmações.
+  String? _nomeCliente;
+
   @override
   void initState() {
     super.initState();
@@ -170,7 +175,7 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
         machineId: licenca.machineId,
         nif: licenca.nif);
 
-    return _DetalheData(
+    final dados = _DetalheData(
       licenca,
       ultimoPing,
       pedido,
@@ -181,6 +186,8 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
       ordemTotal?.$1 ?? 1,
       ordemTotal?.$2 ?? 1,
     );
+    _nomeCliente = dados.nomeCliente;
+    return dados;
   }
 
   void _recarregar() {
@@ -192,7 +199,7 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
   /// A ordem importa: sem os números à frente, "Apagar?" é a mesma pergunta
   /// para uma linha solta do Fist e para uma licença do POS com cadeia
   /// fiscal, que não são de todo a mesma coisa.
-  Future<void> _apagarLicenca(String id) async {
+  Future<void> _apagarLicenca(String id, {String? quem}) async {
     try {
       final repo = ref.read(licencasRepoProvider);
       final dependentes = await repo.dependentes(id);
@@ -201,6 +208,7 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
       final confirmado = await confirmarApagarLicenca(
         context,
         dependentes: dependentes,
+        quem: quem,
       );
       if (!confirmado || !mounted) return;
 
@@ -265,7 +273,12 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
     required Future<LicencaAtualizada> Function(GerirLicencaService s) accao,
     required String Function(LicencaAtualizada r) sucesso,
     ({String titulo, String corpo, String confirmar, bool destrutiva})?
-        confirmacao,
+    confirmacao,
+
+    /// Acção que desfaz esta (só nas reversíveis). Quando existe, o SnackBar
+    /// de sucesso dura 8 s e traz «Anular».
+    Future<LicencaAtualizada> Function(GerirLicencaService s)? anular,
+    String Function(LicencaAtualizada r)? sucessoAnular,
   }) async {
     if (_aExecutar) return;
 
@@ -278,7 +291,7 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancelar'),
+              child: const Text('Voltar'),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
@@ -297,9 +310,25 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
     try {
       final resultado = await accao(ref.read(gerirLicencaProvider));
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(sucesso(resultado))),
-      );
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(sucesso(resultado)),
+            duration: anular == null
+                ? const Duration(seconds: 4)
+                : const Duration(seconds: 8),
+            action: anular == null
+                ? null
+                : SnackBarAction(
+                    label: 'Anular',
+                    onPressed: () => _anularRemota(
+                      anular,
+                      sucessoAnular ?? (_) => 'Acção anulada.',
+                    ),
+                  ),
+          ),
+        );
       _recarregar();
     } catch (e, st) {
       mostrarErro(e, stack: st);
@@ -307,6 +336,30 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
       if (mounted) setState(() => _aExecutar = false);
     }
   }
+
+  /// Desfaz uma acção reversível (o «Anular» do SnackBar). Sem diálogo: o
+  /// próprio toque é a intenção. Usa a mesma Edge Function, por isso fica
+  /// auditado como qualquer outra acção.
+  Future<void> _anularRemota(
+    Future<LicencaAtualizada> Function(GerirLicencaService s) accao,
+    String Function(LicencaAtualizada r) sucesso,
+  ) async {
+    if (_aExecutar) return;
+    setState(() => _aExecutar = true);
+    try {
+      final r = await accao(ref.read(gerirLicencaProvider));
+      mostrarMensagem(sucesso(r));
+      if (mounted) _recarregar();
+    } catch (e, st) {
+      mostrarErro(e, stack: st);
+    } finally {
+      if (mounted) setState(() => _aExecutar = false);
+    }
+  }
+
+  /// Título das confirmações: cliente e série do terminal.
+  String _quem(Licenca l) =>
+      quemTitulo(_nomeCliente ?? 'este cliente', serie: l.serie);
 
   Future<void> _darDias(Licenca l, int dias) => _accaoRemota(
         machineId: l.machineId,
@@ -321,17 +374,21 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
       );
 
   Future<void> _suspender(Licenca l) => _accaoRemota(
-        machineId: l.machineId,
-        accao: (s) => s.suspender(l.machineId),
-        sucesso: (_) => 'Licença suspensa. O POS tranca em ≤5 min.',
-        confirmacao: (
-          titulo: 'Suspender licença?',
-          corpo: 'O terminal fica bloqueado dentro de 5 minutos. '
-              'Podes reactivar a qualquer momento.',
-          confirmar: 'Suspender',
-          destrutiva: true,
-        ),
-      );
+    machineId: l.machineId,
+    accao: (s) => s.suspender(l.machineId),
+    sucesso: (_) => 'Licença suspensa. O POS tranca em ≤5 min.',
+    // Reversível: em vez de uma pergunta a mais, um «Anular» durante 8 s.
+    anular: (s) => s.reactivar(l.machineId),
+    sucessoAnular: (_) => 'Suspensão anulada. O POS destranca em ≤5 min.',
+    confirmacao: (
+      titulo: 'Suspender ${_quem(l)}?',
+      corpo:
+          'O POS deste terminal tranca em até 5 min. '
+          'Podes reactivar a qualquer momento.',
+      confirmar: 'Suspender',
+      destrutiva: true,
+    ),
+  );
 
   Future<void> _reactivar(Licenca l) => _accaoRemota(
         machineId: l.machineId,
@@ -340,18 +397,19 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
       );
 
   Future<void> _cancelar(Licenca l) => _accaoRemota(
-        machineId: l.machineId,
-        accao: (s) => s.cancelar(l.machineId),
-        sucesso: (_) => 'Licença cancelada.',
-        confirmacao: (
-          titulo: 'Tem a certeza?',
-          corpo: 'Isto termina a licença imediatamente: fica inactiva e com '
-              'validade de hoje. A linha não é apagada (fica o histórico), '
-              'mas o terminal deixa de trabalhar.',
-          confirmar: 'Cancelar licença',
-          destrutiva: true,
-        ),
-      );
+    machineId: l.machineId,
+    accao: (s) => s.cancelar(l.machineId),
+    sucesso: (_) => 'Licença terminada.',
+    confirmacao: (
+      titulo: 'Terminar a licença de ${_quem(l)}?',
+      corpo:
+          'Termina já: fica inactiva e com validade de hoje, e o '
+          'terminal deixa de trabalhar. A linha não é apagada (fica o '
+          'histórico).',
+      confirmar: 'Terminar licença',
+      destrutiva: true,
+    ),
+  );
 
   Future<void> _mudarTier(Licenca l, Tier novo) => _accaoRemota(
         machineId: l.machineId,
@@ -555,7 +613,7 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
               final l = snapshot.data?.licenca;
               if (l == null) return const SizedBox.shrink();
               return PopupMenuButton<String>(
-                onSelected: (_) => _apagarLicenca(l.id),
+                onSelected: (_) => _apagarLicenca(l.id, quem: _quem(l)),
                 itemBuilder: (_) => const [
                   PopupMenuItem(
                     value: 'apagar',
@@ -617,6 +675,7 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
                 onSuspender: () => _suspender(l),
                 onReactivar: () => _reactivar(l),
                 onCancelar: () => _cancelar(l),
+                onApagar: () => _apagarLicenca(l.id, quem: _quem(l)),
                 onMudarTier: (t) => _mudarTier(l, t),
                 onVerHistorial: () => _verHistorial(l),
               ),

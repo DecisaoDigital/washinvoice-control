@@ -70,15 +70,20 @@ class _PedidosAcessoScreenState extends ConsumerState<PedidosAcessoScreen> {
     final confirmado = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Revogar acesso'),
-        content: Text('${p.nome} (${p.email}) perde o acesso no próximo arranque '
-            'e liberta uma vaga na organização. Confirma?'),
+        title: Text('Revogar o acesso de ${p.nome}?'),
+        content: Text(
+          '${p.nome} (${p.email}) perde o acesso no próximo arranque '
+          'e liberta uma vaga na organização.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Voltar'),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.vermelho),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Revogar'),
+            child: const Text('Revogar acesso'),
           ),
         ],
       ),

@@ -47,6 +47,8 @@ void main() {
     );
 
     expect(find.text('Revogar acesso'), findsOneWidget);
+    expect(find.text('Revogar o acesso de Ana Silva?'), findsOneWidget);
+    expect(find.text('Voltar'), findsOneWidget);
     expect(
       find.textContaining('Ana Silva (ana@exemplo.pt) perde o acesso'),
       findsOneWidget,
@@ -61,7 +63,7 @@ void main() {
   testWidgets('pede confirmação: cancelar não devolve decisão', (tester) async {
     await _abrirRevogar(tester, pedidoFist(estado: 'aprovado'));
 
-    await tester.tap(find.text('Cancelar'));
+    await tester.tap(find.text('Voltar'));
     await tester.pumpAndSettle();
     // O diálogo fecha sem decidir nada.
     expect(find.text('Revogar acesso'), findsNothing);
@@ -89,7 +91,7 @@ void main() {
     );
     await tester.tap(find.text('abrir'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Revogar'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Revogar acesso'));
     await tester.pumpAndSettle();
 
     expect(escolhido!.decisao, 'revogar');
@@ -120,13 +122,13 @@ void main() {
     // Diálogo aberto, nada decidido.
     expect(fake.decisoes, isEmpty);
 
-    await tester.tap(find.text('Cancelar'));
+    await tester.tap(find.text('Voltar'));
     await tester.pumpAndSettle();
     expect(fake.decisoes, isEmpty);
 
     await tester.tap(find.widgetWithText(OutlinedButton, 'Revogar'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Revogar'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Revogar acesso'));
     await tester.pumpAndSettle();
 
     expect(fake.decisoes, hasLength(1));

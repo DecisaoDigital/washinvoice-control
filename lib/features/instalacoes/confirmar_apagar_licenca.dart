@@ -17,6 +17,9 @@ import '../../core/app_spacing.dart';
 Future<bool> confirmarApagarLicenca(
   BuildContext context, {
   required Map<String, dynamic> dependentes,
+
+  /// Cliente e série, para o título dizer *qual* licença se apaga.
+  String? quem,
 }) async {
   int conta(String chave) =>
       int.tryParse('${dependentes[chave] ?? 0}') ?? 0;
@@ -31,7 +34,13 @@ Future<bool> confirmarApagarLicenca(
     context: context,
     builder: (ctx) => AlertDialog(
       scrollable: true,
-      title: Text(guias > 0 ? 'Esta não se apaga' : 'Apagar esta licença?'),
+      title: Text(
+        guias > 0
+            ? 'Esta não se apaga'
+            : quem == null
+            ? 'Apagar esta licença?'
+            : 'Apagar a licença de $quem?',
+      ),
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -90,13 +99,13 @@ Future<bool> confirmarApagarLicenca(
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx, false),
-          child: Text(guias > 0 ? 'Fechar' : 'Cancelar'),
+          child: Text(guias > 0 ? 'Fechar' : 'Voltar'),
         ),
         if (guias == 0)
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.vermelho),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Apagar'),
+            child: const Text('Apagar licença'),
           ),
       ],
     ),

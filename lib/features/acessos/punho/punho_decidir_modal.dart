@@ -211,7 +211,7 @@ class FistRevogarModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Revogar acesso'),
+    title: Text('Revogar o acesso de ${pedido.nomeApresentavel}?'),
     content: Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -231,12 +231,12 @@ class FistRevogarModal extends StatelessWidget {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('Cancelar'),
+        child: const Text('Voltar'),
       ),
       FilledButton(
         style: FilledButton.styleFrom(backgroundColor: AppColors.vermelho),
         onPressed: () => Navigator.pop(context, const DecisaoFist('revogar')),
-        child: const Text('Revogar'),
+        child: const Text('Revogar acesso'),
       ),
     ],
   );

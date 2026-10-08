@@ -176,13 +176,13 @@ void main() {
       // Diálogo aberto, nada decidido ainda.
       expect(fake.decisoes, isEmpty);
 
-      await tester.tap(find.text('Cancelar'));
+      await tester.tap(find.text('Voltar'));
       await tester.pumpAndSettle();
       expect(fake.decisoes, isEmpty);
 
       await tester.tap(find.text('Revogar').last);
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Revogar'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Revogar acesso'));
       await tester.pumpAndSettle();
 
       expect(fake.decisoes, [['a1', 'revogado', null]]);

@@ -9,15 +9,22 @@ import 'package:washinvoice_control/features/instalacoes/confirmar_apagar_licenc
 /// que não deixam apagar nada. A caixa tem de mostrar essa diferença — é para
 /// isso que existe.
 void main() {
-  Future<bool?> abrir(WidgetTester tester, Map<String, dynamic> deps) async {
+  Future<bool?> abrir(
+    WidgetTester tester,
+    Map<String, dynamic> deps, {
+    String? quem,
+  }) async {
     bool? resposta;
     await tester.pumpWidget(
       MaterialApp(
         home: Builder(
           builder: (ctx) => Scaffold(
             body: TextButton(
-              onPressed: () async => resposta =
-                  await confirmarApagarLicenca(ctx, dependentes: deps),
+              onPressed: () async => resposta = await confirmarApagarLicenca(
+                ctx,
+                dependentes: deps,
+                quem: quem,
+              ),
               child: const Text('abrir'),
             ),
           ),
@@ -42,7 +49,7 @@ void main() {
     await abrir(tester, punho());
 
     expect(find.text('Apagar esta licença?'), findsOneWidget);
-    expect(find.text('Apagar'), findsOneWidget);
+    expect(find.text('Apagar licença'), findsOneWidget);
     expect(find.textContaining('Vai junto com ela'), findsNothing);
     // O terminal volta a registar-se — quem apaga tem de saber isso, senão
     // apaga a mesma linha três vezes a perguntar-se porque volta.
@@ -57,7 +64,7 @@ void main() {
     await abrir(tester, punho(guias: 4));
 
     expect(find.text('Esta não se apaga'), findsOneWidget);
-    expect(find.text('Apagar'), findsNothing);
+    expect(find.text('Apagar licença'), findsNothing);
     expect(find.textContaining('4 guia(s)'), findsOneWidget);
     expect(find.textContaining('desactiva a licença'), findsOneWidget);
   });
@@ -75,9 +82,21 @@ void main() {
     expect(find.text('Sem nome'), findsOneWidget);
   });
 
+  testWidgets('o título nomeia o cliente e a série', (tester) async {
+    await abrir(tester, punho(), quem: 'Lavandaria Mare Alta · série A1');
+
+    expect(
+      find.text('Apagar a licença de Lavandaria Mare Alta · série A1?'),
+      findsOneWidget,
+    );
+    expect(find.text('Voltar'), findsOneWidget);
+    expect(find.text('Cancelar'), findsNothing);
+    expect(find.text('Apagar licença'), findsOneWidget);
+  });
+
   testWidgets('cancelar responde não', (tester) async {
     await abrir(tester, punho());
-    await tester.tap(find.text('Cancelar'));
+    await tester.tap(find.text('Voltar'));
     await tester.pumpAndSettle();
 
     expect(find.byType(AlertDialog), findsNothing);
