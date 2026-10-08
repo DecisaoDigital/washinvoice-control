@@ -10,6 +10,7 @@ import '../dashboard/dashboard_screen.dart';
 import '../instalacoes/instalacoes_screen.dart';
 import '../mapa/mapa_screen.dart';
 import '../acessos/gestao_acessos_screen.dart';
+import '../acessos/punho/fist_pendentes_provider.dart';
 import '../acessos/punho/punho_pedidos_screen.dart';
 import '../pedidos_ajuda/pedidos_ajuda_screen.dart';
 
@@ -68,6 +69,25 @@ class HomeShell extends ConsumerStatefulWidget {
         label: 'Pedidos Fist',
       ),
   ];
+
+  /// Como [itensDe], mas com a contagem de pedidos Fist pendentes em badge no
+  /// separador «Pedidos Fist» (o botão flutuante que a mostrava saiu).
+  static List<BottomNavigationBarItem> itensComBadge(
+    bool admin, {
+    required int fistPendentes,
+  }) {
+    final itens = itensDe(admin);
+    if (!admin || fistPendentes <= 0) return itens;
+    final i = itens.length - 1;
+    itens[i] = BottomNavigationBarItem(
+      icon: Badge(
+        label: Text('$fistPendentes'),
+        child: const Icon(Icons.how_to_reg_outlined),
+      ),
+      label: 'Pedidos Fist',
+    );
+    return itens;
+  }
 
   @override
   ConsumerState<HomeShell> createState() => _HomeShellState();
@@ -181,17 +201,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         // modo `shifting`, onde só o seleccionado mostra rótulo. Fixo mantém
         // os cinco legendados, como os quatro sempre estiveram.
         type: BottomNavigationBarType.fixed,
-        items: HomeShell.itensDe(admin),
+        items: HomeShell.itensComBadge(
+          admin,
+          fistPendentes: ref.watch(fistPendentesTotalProvider),
+        ),
       ),
-      floatingActionButton: admin && indice != _indiceFist
-          ? FloatingActionButton.small(
-              tooltip: 'Pedidos Fist',
-              backgroundColor: AppColors.azul,
-              foregroundColor: Colors.white,
-              onPressed: () => _seleccionar(_indiceFist!),
-              child: const Icon(Icons.approval),
-            )
-          : null,
     );
   }
 }
