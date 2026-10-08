@@ -119,7 +119,16 @@ class _DetalheData {
 
 class DetalheClienteScreen extends ConsumerStatefulWidget {
   final String machineId;
-  const DetalheClienteScreen({super.key, required this.machineId});
+
+  /// Abre logo o selector de nova validade («Renovar»), em vez de deixar o
+  /// Cesar procurar o botão na ficha. É o atalho da fila «Agora».
+  final bool renovarAoAbrir;
+
+  const DetalheClienteScreen({
+    super.key,
+    required this.machineId,
+    this.renovarAoAbrir = false,
+  });
 
   @override
   ConsumerState<DetalheClienteScreen> createState() =>
@@ -137,6 +146,13 @@ class _DetalheClienteScreenState extends ConsumerState<DetalheClienteScreen> {
   void initState() {
     super.initState();
     _future = _carregar();
+    if (widget.renovarAoAbrir) {
+      _future.then((d) {
+        if (mounted) _marcarRenovacao(d.licenca, d.pedidoPendente);
+      }).catchError((_) {
+        // Falha a carregar: o FutureBuilder já mostra o erro com retentativa.
+      });
+    }
   }
 
   Future<_DetalheData> _carregar() async {

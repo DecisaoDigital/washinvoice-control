@@ -28,7 +28,7 @@ Marca comercial: **WashInvoice** — "WashControl" continua nome interno para di
 - Dashboard com repartição por app quando o filtro está em "Todas".
 - Badges `POS` (azul) e `FIST` (verde) por linha, só com filtro "Todas". Excepção: ficha do cliente e pesquisa global mostram sempre.
 - Badge `PRO` (#177) antes do nome do cliente para `tier` pro e legado.
-- Push routing por `data.tipo` (#211): `novo_terminal` → Instalações, `novo_pedido` → Pedidos Fist, `pedido_ajuda` → Pedidos de Ajuda, `inicio_actividade` → Dashboard.
+- Push routing por `data.tipo` (#211) — destinos actuais na secção «Dashboard e navegação».
 
 ### Separador Fist (v1.8.1 / v1.8.2)
 - Aprovar, recusar e revogar pedidos de acesso ao Fist — visível só ao admin global.
@@ -47,7 +47,8 @@ Marca comercial: **WashInvoice** — "WashControl" continua nome interno para di
 
 ### Dashboard e navegação
 - AppBar responsiva (task #188) — título compacto <600 dp, `WiAppSelector` com pastilha própria, hit-target 48×48.
-- 4 separadores base + 1 exclusivo do admin: Dashboard, Instalações, Mapa, Acessos, Fist (só admin).
+- **Navegação por acção (8/10/2026, decisão do Council):** 3 separadores — «Agora» (fila única de pendentes por urgência: expirada > acesso Fist > ajuda > terminal novo > renovação > a expirar > sugestão; chips por tipo, 1 botão por cartão, badge com o total), «Clientes» (as Instalações) e «Mais» (Resumo = o antigo Dashboard, Pedidos Fist só admin, Acessos, Mapa, Sugestões, Pedidos de ajuda, Sobre). Sem botão flutuante; pedidos Fist pendentes em badge no «Mais». Código em `lib/features/agora/` e `lib/features/nav/`.
+- Push (`push_routing.dart`): `novo_terminal` → Agora/terminal novo, `pedido_ajuda` → Agora/ajuda, `novo_pedido` → Pedidos Fist (em Mais), `inicio_actividade` → Resumo.
 - KPIs clicáveis (Activas / Pendentes / A expirar / Expiradas) abrem `InstalacoesPorEstadoScreen`.
 - Pesquisa global (clientes, licenças, pings, pedidos, sugestões) com debounce 250 ms.
 - Filtros na Instalações (estado, versão, cidade, "sem ping há N dias") + ordenação persistida em SharedPreferences.

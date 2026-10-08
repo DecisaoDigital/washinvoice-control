@@ -9,6 +9,8 @@ import '../../../core/widgets/widgets.dart';
 import '../../../repositories/providers.dart';
 import '../../../repositories/punho_admin_repository.dart';
 import '../confirmar_apagar_pedido.dart';
+import 'decidir_pedido_fist.dart';
+import 'fist_pendentes_provider.dart';
 import 'punho_decidir_modal.dart';
 import 'punho_empresas_screen.dart';
 
@@ -86,11 +88,20 @@ class _FistPedidosScreenState extends ConsumerState<FistPedidosScreen>
   }
 
   Future<void> _abrirDecisao(FistPedido pedido, List<FistEmpresa> empresas) async {
-    final escolha = await showDialog<DecisaoFist>(
-      context: context,
-      builder: (_) => FistDecidirModal(pedido: pedido, empresas: empresas),
+    final ok = await abrirDecisaoFist(
+      context,
+      ref,
+      pedido,
+      empresas,
+      aOcupar: _ocupar,
     );
-    if (escolha != null) await _aplicar(pedido, escolha);
+    if (ok && mounted) setState(_recarregar);
+  }
+
+  /// Feedback visível enquanto a RPC corre — a decisão escreve em várias
+  /// tabelas e pode demorar.
+  void _ocupar(bool v) {
+    if (mounted) setState(() => _aDecidir = v);
   }
 
   Future<void> _abrirRevogacao(FistPedido pedido) async {
@@ -119,6 +130,7 @@ class _FistPedidosScreenState extends ConsumerState<FistPedidosScreen>
           content: Text('Pedido de ${pedido.nomeApresentavel} apagado.'),
         ),
       );
+      ref.invalidate(fistPendentesProvider);
       setState(_recarregar);
     } catch (e) {
       if (mounted) mostrarErro(e);
@@ -128,32 +140,8 @@ class _FistPedidosScreenState extends ConsumerState<FistPedidosScreen>
   }
 
   Future<void> _aplicar(FistPedido pedido, DecisaoFist escolha) async {
-    // Feedback visível enquanto a RPC corre — a decisão escreve em várias
-    // tabelas e pode demorar.
-    setState(() => _aDecidir = true);
-    try {
-      final resultado = await ref
-          .read(punhoAdminRepoProvider)
-          .decidir(
-            pedido.id,
-            escolha.decisao,
-            empresaId: escolha.empresaId,
-            limiteUtilizadores: escolha.limiteUtilizadores,
-          );
-      if (!mounted) return;
-      messengerKey.currentState?.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Pedido de ${pedido.nomeApresentavel}: ${resultado['estado_novo']}.',
-          ),
-        ),
-      );
-      setState(_recarregar);
-    } catch (e) {
-      if (mounted) mostrarErro(e);
-    } finally {
-      if (mounted) setState(() => _aDecidir = false);
-    }
+    final ok = await aplicarDecisaoFist(ref, pedido, escolha, aOcupar: _ocupar);
+    if (ok && mounted) setState(_recarregar);
   }
 
   @override

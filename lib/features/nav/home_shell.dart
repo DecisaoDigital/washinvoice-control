@@ -5,102 +5,87 @@ import '../../core/app_colors.dart';
 import '../../models/actualizacao_info.dart';
 import '../../repositories/providers.dart';
 import '../../services/push_routing.dart';
-import '../actualizacao/banner_actualizacao.dart';
-import '../dashboard/dashboard_screen.dart';
-import '../instalacoes/instalacoes_screen.dart';
-import '../mapa/mapa_screen.dart';
 import '../acessos/gestao_acessos_screen.dart';
 import '../acessos/punho/fist_pendentes_provider.dart';
 import '../acessos/punho/punho_pedidos_screen.dart';
-import '../pedidos_ajuda/pedidos_ajuda_screen.dart';
+import '../actualizacao/banner_actualizacao.dart';
+import '../agora/agora_modelo.dart';
+import '../agora/agora_providers.dart';
+import '../agora/agora_screen.dart';
+import '../dashboard/dashboard_screen.dart';
+import '../instalacoes/instalacoes_screen.dart';
+import 'mais_screen.dart';
 
+/// A casca da app: três separadores por **acção**, e não por entidade.
+///
+/// «Agora» (a fila do que está à espera) · «Clientes» (as instalações) ·
+/// «Mais» (Resumo, Pedidos Fist, Acessos, Mapa, Sugestões, Pedidos de ajuda,
+/// Sobre). Decisão do Council de 8/10/2026.
 class HomeShell extends ConsumerStatefulWidget {
-  const HomeShell({super.key});
+  const HomeShell({super.key, @visibleForTesting this.paginasParaTeste});
 
-  static const _paginas = [
-    DashboardScreen(),
-    InstalacoesScreen(),
-    MapaScreen(),
-    GestaoAcessosScreen(),
-  ];
+  /// Só para testes: páginas de substituição (por ex. um stub no lugar de
+  /// «Clientes», que precisa do Supabase). Em produção é sempre [paginas].
+  final List<Widget>? paginasParaTeste;
 
-  /// "Pedidos Fist" é exclusivo do admin global — as RPCs `punho_*_admin`
-  /// recusam qualquer outra conta. Um gerente de organização não vê o
-  /// separador, em vez de lhe bater com um erro.
-  static const _paginaFist = FistPedidosScreen();
+  /// Posição de cada separador. Os índices vivem num sítio só: o push routing e
+  /// a barra usam estes nomes, não números soltos.
+  static const indiceAgora = 0;
+  static const indiceClientes = 1;
+  static const indiceMais = 2;
 
   /// As páginas da barra, na ordem dos separadores.
   ///
-  /// Anda **sempre** a par de [itensDe]: mesma ordem, mesmo comprimento, para
-  /// o mesmo [admin]. Ver [itensDe] para o que acontece quando não anda.
-  static List<Widget> paginasDe(bool admin) => [
-    ..._paginas,
-    if (admin) _paginaFist,
+  /// Anda **sempre** a par de [itens]: mesma ordem, mesmo comprimento. Quando
+  /// não andou (cinco páginas, quatro botões), o `BottomNavigationBar` atirou
+  /// `RangeError` a cada frame e a app ficou pintada mas morta — Redmi,
+  /// 5/8/2026. Há um teste sobre este invariante.
+  static const paginas = <Widget>[
+    AgoraScreen(),
+    InstalacoesScreen(),
+    MaisScreen(),
   ];
 
-  /// Os separadores da barra de baixo.
+  /// Os separadores da barra de baixo, com badge numérico quando há pendentes.
   ///
-  /// O item do Fist faltava aqui, e as duas listas ficaram com comprimentos
-  /// diferentes: cinco páginas, quatro botões. Ao entrar no Fist,
-  /// `currentIndex` valia 4 numa barra de 0..3 e o `BottomNavigationBar`
-  /// rebentava com `RangeError` dentro do `didUpdateWidget` — a cada frame. O
-  /// ecrã ficava pintado mas morto: nenhum toque chegava a lado nenhum e o
-  /// botão "Decidir" parecia não fazer nada. Visto no Redmi a 5/8/2026.
-  ///
-  /// O ícone é deliberadamente diferente do de "Acessos": são coisas distintas
-  /// — equipa do escritório vs. clientes da app Fist.
-  static List<BottomNavigationBarItem> itensDe(bool admin) => [
-    const BottomNavigationBarItem(
-      icon: Icon(Icons.dashboard),
-      label: 'Dashboard',
-    ),
-    const BottomNavigationBarItem(
-      icon: Icon(Icons.devices),
-      label: 'Instalações',
-    ),
-    const BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Mapa'),
-    const BottomNavigationBarItem(
-      icon: Icon(Icons.manage_accounts_outlined),
-      label: 'Acessos',
-    ),
-    if (admin)
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.how_to_reg_outlined),
-        label: 'Pedidos Fist',
-      ),
-  ];
+  /// [agora]: total de itens na fila. [maisFist]: pedidos Fist pendentes (0 para
+  /// quem não é admin global, que nem os vê).
+  static List<BottomNavigationBarItem> itens({int agora = 0, int maisFist = 0}) =>
+      [
+        BottomNavigationBarItem(
+          icon: _comBadge(const Icon(Icons.bolt), agora),
+          label: 'Agora',
+        ),
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.devices),
+          label: 'Clientes',
+        ),
+        BottomNavigationBarItem(
+          icon: _comBadge(const Icon(Icons.more_horiz), maisFist),
+          label: 'Mais',
+        ),
+      ];
 
-  /// Como [itensDe], mas com a contagem de pedidos Fist pendentes em badge no
-  /// separador «Pedidos Fist» (o botão flutuante que a mostrava saiu).
-  static List<BottomNavigationBarItem> itensComBadge(
-    bool admin, {
-    required int fistPendentes,
-  }) {
-    final itens = itensDe(admin);
-    if (!admin || fistPendentes <= 0) return itens;
-    final i = itens.length - 1;
-    itens[i] = BottomNavigationBarItem(
-      icon: Badge(
-        label: Text('$fistPendentes'),
-        child: const Icon(Icons.how_to_reg_outlined),
-      ),
-      label: 'Pedidos Fist',
-    );
-    return itens;
-  }
+  static Widget _comBadge(Widget icone, int n) => n <= 0
+      ? icone
+      : Badge(label: Text('$n'), child: icone);
 
   @override
   ConsumerState<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends ConsumerState<HomeShell> {
-  int _index = 0;
-  bool _modalObrigatorioAberto = false;
+class _HomeShellState extends ConsumerState<HomeShell>
+    with WidgetsBindingObserver {
+  int _index = HomeShell.indiceAgora;
 
+  List<Widget> get _paginas =>
+      widget.paginasParaTeste ?? HomeShell.paginas;
+  bool _modalObrigatorioAberto = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Se a verificação terminou antes deste ecrã montar, o provider já pode
     // trazer uma actualização obrigatória — o `ref.listen` do build não a
     // apanharia (só reage a mudanças). Verificamos o estado inicial à mão.
@@ -113,41 +98,61 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     });
   }
 
-  /// Índice do separador "Fist", ou `null` se não for admin global (nesse caso
-  /// o separador não existe).
-  int? get _indiceFist => _admin ? HomeShell._paginas.length : null;
-  bool _admin = false;
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
-  /// Executa o destino trazido por um push e limpa-o, para o mesmo toque não
-  /// voltar a navegar num rebuild seguinte.
-  void _talvezIrParaDestinoDoPush(DestinoPush? destino) {
-    if (destino == null || !mounted) return;
-    ref.read(destinoPushProvider.notifier).state = null;
-
-    switch (destino) {
-      case DestinoPush.dashboard:
-        _seleccionar(0);
-      case DestinoPush.instalacoes:
-        _seleccionar(1);
-      case DestinoPush.pedidosFist:
-        // Sem separador Fist (não é admin global) não há nada para mostrar:
-        // fica no Dashboard em vez de um índice inválido.
-        _seleccionar(_indiceFist ?? 0);
-      case DestinoPush.pedidosAjuda:
-        // Não é separador — vive por cima do Dashboard, como quando se lá
-        // chega pelo card de KPI.
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const PedidosAjudaScreen()),
-        );
+  /// Voltar à app: a contagem de pedidos Fist (badge) pode ter mudado.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.invalidate(fistPendentesProvider);
     }
   }
 
-  /// Muda de separador. Aterrar no Fist pede sempre dados frescos: o
-  /// `IndexedStack` manteve o ecrã montado desde a primeira vez.
-  void _seleccionar(int i) {
-    if (i == _indiceFist) {
-      ref.read(punhoPedidosRefreshProvider.notifier).state++;
+  /// Executa o destino trazido por um push e limpa-o, para o mesmo toque não
+  /// voltar a navegar num rebuild seguinte.
+  ///
+  /// Fecha primeiro o que estiver aberto por cima dos separadores: um ecrã de
+  /// detalhe esquecido taparia o destino. Os índices passam por [_seleccionar],
+  /// que os valida.
+  void _talvezIrParaDestinoDoPush(DestinoPush? destino) {
+    if (destino == null || !mounted) return;
+    ref.read(destinoPushProvider.notifier).state = null;
+    final nav = Navigator.of(context);
+    nav.popUntil((r) => r.isFirst);
+
+    switch (destino) {
+      case DestinoPush.agoraTerminalNovo:
+        ref.read(agoraTipoFiltroProvider.notifier).state =
+            TipoAgora.terminalNovo;
+        _seleccionar(HomeShell.indiceAgora);
+      case DestinoPush.agoraAjuda:
+        ref.read(agoraTipoFiltroProvider.notifier).state = TipoAgora.ajuda;
+        _seleccionar(HomeShell.indiceAgora);
+      case DestinoPush.pedidosFist:
+        // «Pedidos Fist» é só do admin global. Sem isso não há nada para
+        // mostrar: fica na fila «Agora» em vez de bater num erro.
+        final admin = ref.read(souAdminGlobalProvider).valueOrNull ?? false;
+        if (!admin) {
+          _seleccionar(HomeShell.indiceAgora);
+          return;
+        }
+        _seleccionar(HomeShell.indiceMais);
+        ref.read(punhoPedidosRefreshProvider.notifier).state++;
+        nav.push(MaterialPageRoute(builder: (_) => const FistPedidosScreen()));
+      case DestinoPush.resumo:
+        _seleccionar(HomeShell.indiceMais);
+        nav.push(MaterialPageRoute(builder: (_) => const DashboardScreen()));
     }
+  }
+
+  /// Muda de separador. Um índice fora da barra nunca chega ao
+  /// `BottomNavigationBar` — foi isso que o fez rebentar uma vez.
+  void _seleccionar(int i) {
+    if (i < 0 || i >= _paginas.length) return;
     setState(() => _index = i);
   }
 
@@ -174,21 +179,14 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       (_, actual) => _talvezIrParaDestinoDoPush(actual),
     );
 
-    final admin = ref.watch(souAdminGlobalProvider).valueOrNull ?? false;
-    // O destino de um push pode chegar fora do build, quando já não há `admin`
-    // à mão — daí ficar guardado.
-    _admin = admin;
-    final paginas = HomeShell.paginasDe(admin);
-    // Se o separador desaparecer (perfil resolvido depois do primeiro build),
-    // o índice actual pode ficar fora do intervalo.
-    final indice = _index.clamp(0, paginas.length - 1);
+    final indice = _index.clamp(0, _paginas.length - 1);
 
     return Scaffold(
       body: Column(
         children: [
           const BannerActualizacao(),
           Expanded(
-            child: IndexedStack(index: indice, children: paginas),
+            child: IndexedStack(index: indice, children: _paginas),
           ),
         ],
       ),
@@ -197,13 +195,10 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         onTap: _seleccionar,
         selectedItemColor: AppColors.azul,
         unselectedItemColor: AppColors.textTertiary,
-        // A partir de cinco itens o `BottomNavigationBar` muda sozinho para o
-        // modo `shifting`, onde só o seleccionado mostra rótulo. Fixo mantém
-        // os cinco legendados, como os quatro sempre estiveram.
         type: BottomNavigationBarType.fixed,
-        items: HomeShell.itensComBadge(
-          admin,
-          fistPendentes: ref.watch(fistPendentesTotalProvider),
+        items: HomeShell.itens(
+          agora: ref.watch(agoraTotalProvider),
+          maisFist: ref.watch(fistPendentesTotalProvider),
         ),
       ),
     );

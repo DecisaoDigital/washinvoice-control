@@ -1,7 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Para onde levar o Cesar quando ele toca numa notificação.
-enum DestinoPush { dashboard, instalacoes, pedidosFist, pedidosAjuda }
+///
+/// - [agoraTerminalNovo]: separador «Agora», filtrado por «terminal novo».
+/// - [agoraAjuda]: separador «Agora», filtrado por «pedido de ajuda».
+/// - [pedidosFist]: «Pedidos Fist», que vive dentro de «Mais».
+/// - [resumo]: o Resumo (antigo Dashboard), também dentro de «Mais».
+enum DestinoPush { agoraTerminalNovo, agoraAjuda, pedidosFist, resumo }
 
 /// Decide o destino a partir do payload `data` do push.
 ///
@@ -18,10 +23,10 @@ enum DestinoPush { dashboard, instalacoes, pedidosFist, pedidosAjuda }
 DestinoPush? destinoDoPush(Map<String, dynamic> data) {
   final tipo = (data['tipo'] as String?)?.trim().toLowerCase();
   return switch (tipo) {
-    'novo_terminal' => DestinoPush.instalacoes,
+    'novo_terminal' => DestinoPush.agoraTerminalNovo,
     'novo_pedido' => DestinoPush.pedidosFist,
-    'pedido_ajuda' => DestinoPush.pedidosAjuda,
-    'inicio_actividade' => DestinoPush.dashboard,
+    'pedido_ajuda' => DestinoPush.agoraAjuda,
+    'inicio_actividade' => DestinoPush.resumo,
     _ => null,
   };
 }

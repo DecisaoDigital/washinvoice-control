@@ -14,6 +14,7 @@ import '../../core/widgets/widgets.dart';
 import '../../models/pedido_ajuda.dart';
 import '../../repositories/providers.dart';
 import 'detalhe_pedido_ajuda_screen.dart';
+import 'resolver_pedido_ajuda.dart';
 
 /// Formata uma duração de forma curta em PT (ex.: "2 h", "3 d", "45 min").
 String formatarDuracao(Duration? d) {
@@ -84,46 +85,15 @@ class _PedidosAjudaScreenState extends ConsumerState<PedidosAjudaScreen> {
     await _future;
   }
 
-  /// Pedidos com «Resolvido» a decorrer — trava o duplo toque no mesmo cartão.
-  final Set<String> _aResolver = {};
-
-  Future<void> _resolver(PedidoAjuda p) async {
-    if (!_aResolver.add(p.id)) return;
-    final repo = ref.read(pedidosAjudaRepoProvider);
-    try {
-      await repo.marcarResolvido(p.id);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-        ..clearSnackBars()
-        ..showSnackBar(
-          SnackBar(
-            content: const Text('Pedido marcado como resolvido.'),
-            duration: const Duration(seconds: 8),
-            persist: false, // com acção, o SnackBar não fecha sozinho se não o disserem
-            action: SnackBarAction(
-              label: 'Anular',
-              onPressed: () => _reabrir(p),
-            ),
-          ),
-        );
-    } catch (e, st) {
-      mostrarErro(e, stack: st);
-    } finally {
-      _aResolver.remove(p.id);
-    }
-    if (mounted) await _recarregar();
-  }
-
-  /// «Anular» do Resolvido: volta a abrir o pedido.
-  Future<void> _reabrir(PedidoAjuda p) async {
-    try {
-      await ref.read(pedidosAjudaRepoProvider).reabrir(p.id);
-      mostrarMensagem('Pedido reaberto.');
-    } catch (e, st) {
-      mostrarErro(e, stack: st);
-    }
-    if (mounted) await _recarregar();
-  }
+  /// «Resolvido» (+ «Anular») vive em `resolver_pedido_ajuda.dart`, partilhado
+  /// com a fila «Agora». Recarrega no fim, se o ecrã ainda existir.
+  Future<void> _resolver(PedidoAjuda p) => resolverPedidoAjuda(
+        ref,
+        p,
+        depois: () async {
+          if (mounted) await _recarregar();
+        },
+      );
 
   void _abrirDetalhe(PedidoAjuda p) {
     Navigator.of(context)

@@ -364,7 +364,7 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Instalações'),
+        title: const Text('Clientes'),
         actions: [
           const WiAppSelector(),
           const SizedBox(width: AppSpacing.xs),

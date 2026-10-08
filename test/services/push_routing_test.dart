@@ -3,12 +3,12 @@ import 'package:washinvoice_control/services/push_routing.dart';
 
 void main() {
   group('destinoDoPush', () {
-    test('novo_terminal vai aos terminais, não aos Pedidos Fist', () {
+    test('novo_terminal vai ao «Agora» filtrado por terminal novo', () {
       // O bug de 2026-07-28: a linha foi para `licencas` e o Cesar aterrou
       // numa lista de pedidos vazia.
       expect(
         destinoDoPush({'tipo': 'novo_terminal', 'app': 'punho'}),
-        DestinoPush.instalacoes,
+        DestinoPush.agoraTerminalNovo,
       );
     });
 
@@ -19,17 +19,17 @@ void main() {
       );
     });
 
-    test('pedido_ajuda vai aos Pedidos de Ajuda', () {
+    test('pedido_ajuda vai ao «Agora» filtrado por ajuda', () {
       expect(
         destinoDoPush({'tipo': 'pedido_ajuda'}),
-        DestinoPush.pedidosAjuda,
+        DestinoPush.agoraAjuda,
       );
     });
 
-    test('inicio_actividade vai ao Dashboard', () {
+    test('inicio_actividade vai ao Resumo', () {
       expect(
         destinoDoPush({'tipo': 'inicio_actividade'}),
-        DestinoPush.dashboard,
+        DestinoPush.resumo,
       );
     });
 
@@ -54,7 +54,7 @@ void main() {
     test('tipo tolera espaços e maiúsculas', () {
       expect(
         destinoDoPush({'tipo': '  Novo_Terminal '}),
-        DestinoPush.instalacoes,
+        DestinoPush.agoraTerminalNovo,
       );
     });
   });
