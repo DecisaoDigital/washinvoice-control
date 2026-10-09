@@ -32,6 +32,7 @@ import '../instalacoes/detalhe_cliente_screen.dart';
 import '../instalacoes/instalacoes_por_estado_screen.dart';
 import '../pedidos_ajuda/detalhe_pedido_ajuda_screen.dart';
 import '../pedidos_ajuda/pedidos_ajuda_screen.dart';
+import '../pedidos_site/envelope_pedidos_site.dart';
 import '../pesquisa/pesquisa_global_screen.dart';
 import '../sobre/sobre_screen.dart';
 import '../sugestoes/sugestoes_screen.dart';
@@ -256,6 +257,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         toolbarHeight: 44,
         centerTitle: true,
         titleSpacing: 0,
+        actions: const [EnvelopePedidosSite()],
         // A linha 1 inteira é o botão de "Sobre" — não só um ícone de "i":
         // é o alvo de toque mais fácil de acertar (a largura toda do ecrã) e
         // fica sempre legível, ao contrário do wordmark antigo que desaparecia

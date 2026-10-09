@@ -5,6 +5,11 @@
 // v8: aceita `body.app` opcional ('pos' | 'punho'). Se presente, prefixa o
 // título com `[POS] ` ou `[FIST] ` — assim o prefixo aparece na barra de
 // notificações do SO em background (não só com a app aberta).
+// v12: `app` = 'decisaodigital' (pedidos do site) prefixa com o envelope `✉ `
+// (sem texto «Decisão Digital» no título).
+// v13: aceita também o segredo próprio do site (header Bearer), mas SÓ com
+// app='decisaodigital' (outro app -> 401). Nesse caso valida `data.ref` e
+// guarda-a em `pedidos_site_avisos` (ignora duplicado) antes de enviar o push.
 //
 // Autenticação: header Authorization: Bearer <EDGE_INVOKE_SECRET>.
 // ============================================================================
@@ -84,12 +89,29 @@ async function obterAccessToken(sa: {
 /** Prefixo por app no título para aparecer na notificação do SO. */
 function prefixarTituloPorApp(title: string, app: string | undefined): string {
   if (!app) return title;
-  const tag = app === "pos" ? "[POS]" : app === "punho" ? "[FIST]" : null;
+  const tag = app === "pos"
+    ? "[POS]"
+    : app === "punho"
+    ? "[FIST]"
+    : app === "decisaodigital"
+    ? "✉"
+    : null;
   if (!tag) return title;
   // Evitar duplo prefixo se o caller já o incluiu.
   if (title.startsWith(tag)) return title;
   return `${tag} ${title}`;
 }
+
+/** Comparação em tempo constante (o comprimento pode revelar-se; o conteúdo não). */
+function igualConstante(a: string, b: string): boolean {
+  const x = new TextEncoder().encode(a);
+  const y = new TextEncoder().encode(b);
+  let d = x.length ^ y.length;
+  for (let i = 0; i < x.length; i++) d |= x[i] ^ (y[i % (y.length || 1)] ?? 0);
+  return d === 0;
+}
+
+const RE_REF_SITE = /^[2-9A-HJ-NP-Z]{6}$/;
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method !== "POST") {
@@ -101,7 +123,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({ erro: "EDGE_INVOKE_SECRET não configurado no servidor." }, 500);
   }
   const auth = req.headers.get("Authorization") ?? "";
-  if (auth !== `Bearer ${invokeSecret}`) {
+  const chaveSite = Deno.env.get("SITE_INVOKE_SECRET");
+  const comoSite = auth !== `Bearer ${invokeSecret}` && !!chaveSite &&
+    igualConstante(auth, `Bearer ${chaveSite}`);
+  if (auth !== `Bearer ${invokeSecret}` && !comoSite) {
     return json({ erro: "Não autorizado." }, 401);
   }
 
@@ -119,7 +144,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
   const rawTitle = typeof body.title === "string" ? body.title : "";
   const bodyText = typeof body.body === "string" ? body.body : "";
-  const userId = typeof body.user_id === "string" && body.user_id
+  const userId = !comoSite && typeof body.user_id === "string" && body.user_id
     ? body.user_id
     : ADMIN_USER_ID_FALLBACK;
   const app = typeof body.app === "string" ? body.app.toLowerCase() : undefined;
@@ -127,6 +152,26 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({ erro: "Faltam campos obrigatórios: title, body." }, 400);
   }
   const title = prefixarTituloPorApp(rawTitle, app);
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+  let avisoInsercao: string | undefined;
+  if (comoSite) {
+    // A chave do site só serve para os pedidos do site.
+    if (app !== "decisaodigital") return json({ erro: "Não autorizado." }, 401);
+    const ref = (body.data && typeof body.data === "object")
+      ? (body.data as Record<string, unknown>).ref
+      : undefined;
+    if (typeof ref !== "string" || !RE_REF_SITE.test(ref)) {
+      return json({ erro: "data.ref inválida." }, 400);
+    }
+    const { error: errIns } = await supabase
+      .from("pedidos_site_avisos")
+      .upsert({ ref }, { onConflict: "ref", ignoreDuplicates: true });
+    if (errIns) avisoInsercao = `Base: ${errIns.message}`;
+  }
 
   const saRaw = Deno.env.get("FCM_SERVICE_ACCOUNT_JSON");
   if (!saRaw) {
@@ -153,10 +198,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({ erro: `Falha OAuth2: ${String(e)}` }, 500);
   }
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
   const { data: dispositivos, error: errDisp } = await supabase
     .from("admin_dispositivos")
     .select("fcm_token, plataforma")
@@ -218,5 +259,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
   }
 
-  return json({ ok: true, enviados: dispositivos.length, resultados }, 200);
+  return json({
+    ok: true,
+    enviados: dispositivos.length,
+    resultados,
+    ...(avisoInsercao ? { aviso_insercao: avisoInsercao } : {}),
+  }, 200);
 });

@@ -13,6 +13,7 @@ import 'clientes_repository.dart';
 import 'licencas_repository.dart';
 import 'pedidos_ajuda_repository.dart';
 import 'pedidos_repository.dart';
+import 'pedidos_site_repository.dart';
 import 'pings_repository.dart';
 import 'punho_admin_repository.dart';
 import 'series_repository.dart';
@@ -22,6 +23,7 @@ final clientesRepoProvider = Provider((_) => ClientesRepository());
 final licencasRepoProvider = Provider((_) => LicencasRepository());
 final pingsRepoProvider = Provider((_) => PingsRepository());
 final pedidosRepoProvider = Provider((_) => PedidosRepository());
+final pedidosSiteRepoProvider = Provider((_) => PedidosSiteRepository());
 final aceitesRepoProvider = Provider((_) => AceitesRepository());
 final pedidosAjudaRepoProvider = Provider((_) => PedidosAjudaRepository());
 final sugestoesRepoProvider = Provider((_) => SugestoesRepository());
@@ -57,3 +59,10 @@ final actualizacaoServiceProvider =
 /// do banner (só quando não obrigatória) volta a pôr `null` para esta sessão.
 final actualizacaoDisponivelProvider =
     StateProvider<ActualizacaoInfo?>((_) => null);
+
+/// Pedidos do site decisaodigital.pt ainda por ver (alimenta o envelope).
+/// Invalidado pelo envelope quando chega um push ou se marca uma ref como vista.
+final pedidosSitePorVerProvider =
+    FutureProvider.autoDispose<List<PedidoSiteAviso>>(
+  (ref) => ref.watch(pedidosSiteRepoProvider).listarPorVer(),
+);

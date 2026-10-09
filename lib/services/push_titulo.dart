@@ -13,5 +13,7 @@ import '../core/apps_ui.dart';
 String tituloComApp(String titulo, String? app) {
   final a = app?.trim();
   if (a == null || a.isEmpty) return titulo;
+  // Pedidos do site: a Edge Function já pôs o envelope «✉» no título.
+  if (a == 'decisaodigital') return titulo;
   return '[${AppsUi.sigla(a)}] $titulo';
 }
