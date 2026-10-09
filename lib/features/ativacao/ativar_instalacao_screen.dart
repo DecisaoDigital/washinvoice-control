@@ -45,11 +45,7 @@ class _AtivarInstalacaoScreenState
 
   /// Planos oferecidos e a duração correspondente em meses. Fonte única de
   /// verdade — os botões de atalho (3/6/12) derivam daqui o plano nomeado.
-  static const _mesesPorPlano = {
-    'trimestral': 3,
-    'semestral': 6,
-    'anual': 12,
-  };
+  static const _mesesPorPlano = {'trimestral': 3, 'semestral': 6, 'anual': 12};
 
   /// Plano nomeado correspondente a uma duração de atalho (3/6/12 meses).
   String _planoParaMeses(int meses) =>
@@ -89,28 +85,33 @@ class _AtivarInstalacaoScreenState
         nif: nif,
         nome: _nomeCtrl.text.trim(),
         email: _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
-        telemovel:
-            _telemovelCtrl.text.trim().isEmpty ? null : _telemovelCtrl.text.trim(),
+        telemovel: _telemovelCtrl.text.trim().isEmpty
+            ? null
+            : _telemovelCtrl.text.trim(),
         notas: _notasCtrl.text.trim().isEmpty ? null : _notasCtrl.text.trim(),
       );
 
       final validade = _novaValidade;
-      await licencasRepo.criar(
+      // A RLS não deixa o Control escrever em `licencas`: nasce pelo
+      // `registar-terminal` (trial) e ajusta-se por `gerir-licenca`.
+      await licencasRepo.registarTerminal(
         machineId: widget.ping.machineId,
         nif: nif,
+      );
+      final gerir = ref.read(gerirLicencaProvider);
+      await gerir.definirValidade(widget.ping.machineId, validade);
+      await gerir.configurar(
+        widget.ping.machineId,
+        plano: _plano,
         nome: _nomeCtrl.text.trim().isEmpty ? null : _nomeCtrl.text.trim(),
         clienteId: cliente.id,
-        plano: _plano,
-        validade: validade,
-        activa: true,
         oferta: _oferta,
+        nif: nif,
       );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Licença criada até ${Dates.data(validade)}'),
-        ),
+        SnackBar(content: Text('Licença criada até ${Dates.data(validade)}')),
       );
       Navigator.of(context).pop(true);
     } catch (e, st) {
@@ -129,7 +130,8 @@ class _AtivarInstalacaoScreenState
     final uri = Uri(
       scheme: 'mailto',
       path: email,
-      query: 'subject=${Uri.encodeComponent(assuntoAcolhimento)}'
+      query:
+          'subject=${Uri.encodeComponent(assuntoAcolhimento)}'
           '&body=${Uri.encodeComponent(corpoAcolhimento())}',
     );
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -152,17 +154,22 @@ class _AtivarInstalacaoScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Instalação',
-                        style: TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w700)),
+                    const Text(
+                      'Instalação',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     _linha('NIF', ping.nif ?? '—'),
                     _linha('Machine ID', ping.machineId),
                     _linha(
-                        'Cidade',
-                        Localidades.traduzir(ping.cidade).isEmpty
-                            ? '—'
-                            : Localidades.traduzir(ping.cidade)),
+                      'Cidade',
+                      Localidades.traduzir(ping.cidade).isEmpty
+                          ? '—'
+                          : Localidades.traduzir(ping.cidade),
+                    ),
                     _linha('Versão', 'v${ping.versao ?? '?'}'),
                   ],
                 ),
@@ -205,8 +212,10 @@ class _AtivarInstalacaoScreenState
               ),
             ),
             const SizedBox(height: 12),
-            const Text('Plano',
-                style: TextStyle(color: AppColors.textSecondary)),
+            const Text(
+              'Plano',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
             const SizedBox(height: 6),
             // Atalhos: carregar preenche a duração e fixa o plano nomeado.
             // Editar a duração à mão limpa a selecção (plano personalizado).
@@ -218,8 +227,9 @@ class _AtivarInstalacaoScreenState
                 ButtonSegment(value: 6, label: Text('6 meses')),
                 ButtonSegment(value: 12, label: Text('12 meses')),
               ],
-              selected:
-                  _mesesSelecionado == null ? <int>{} : {_mesesSelecionado!},
+              selected: _mesesSelecionado == null
+                  ? <int>{}
+                  : {_mesesSelecionado!},
               onSelectionChanged: (sel) {
                 setState(() {
                   if (sel.isEmpty) {
@@ -288,7 +298,9 @@ class _AtivarInstalacaoScreenState
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2),
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
                     )
                   : const Icon(Icons.check_circle),
               label: const Text('Criar licença e ativar'),
@@ -313,12 +325,16 @@ class _AtivarInstalacaoScreenState
         children: [
           SizedBox(
             width: 100,
-            child: Text(rotulo,
-                style: const TextStyle(color: AppColors.textSecondary)),
+            child: Text(
+              rotulo,
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           Expanded(
-            child: Text(valor,
-                style: const TextStyle(fontWeight: FontWeight.w500)),
+            child: Text(
+              valor,
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
           ),
         ],
       ),

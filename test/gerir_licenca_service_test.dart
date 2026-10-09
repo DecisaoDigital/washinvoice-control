@@ -12,19 +12,18 @@ Map<String, dynamic> _resposta({
   String tier = 'pro',
   String plano = 'anual',
   Map<String, dynamic> prefs = const {'guias': true},
-}) =>
-    {
-      'ok': true,
-      'acao': acao,
-      'machine_id': 'abc123',
-      'licenca_actualizada': {
-        'activa': activa,
-        'validade': validade,
-        'tier': tier,
-        'plano': plano,
-        'preferencias_features': prefs,
-      },
-    };
+}) => {
+  'ok': true,
+  'acao': acao,
+  'machine_id': 'abc123',
+  'licenca_actualizada': {
+    'activa': activa,
+    'validade': validade,
+    'tier': tier,
+    'plano': plano,
+    'preferencias_features': prefs,
+  },
+};
 
 void main() {
   late List<Map<String, dynamic>> corpos;
@@ -89,11 +88,13 @@ void main() {
 
   group('parse da resposta', () {
     test('devolve a licença actualizada', () async {
-      final s = servicoCom(_resposta(
-        validade: '2026-12-31',
-        tier: 'pro',
-        prefs: {'guias': false, 'gestao': true},
-      ));
+      final s = servicoCom(
+        _resposta(
+          validade: '2026-12-31',
+          tier: 'pro',
+          prefs: {'guias': false, 'gestao': true},
+        ),
+      );
       final r = await s.prolongar('abc123', 30);
       expect(r.validade, DateTime(2026, 12, 31));
       expect(r.tier, Tier.pro);
@@ -102,14 +103,16 @@ void main() {
     });
 
     test('tier ausente → legado (não assume Base)', () async {
-      final s = GerirLicencaService.comInvocador((_) async => {
-            'ok': true,
-            'licenca_actualizada': {
-              'activa': true,
-              'validade': '2026-08-01',
-              'plano': 'anual',
-            },
-          });
+      final s = GerirLicencaService.comInvocador(
+        (_) async => {
+          'ok': true,
+          'licenca_actualizada': {
+            'activa': true,
+            'validade': '2026-08-01',
+            'plano': 'anual',
+          },
+        },
+      );
       final r = await s.suspender('abc123');
       expect(r.tier, Tier.legado);
       expect(r.preferenciasFeatures, isEmpty);
@@ -125,27 +128,33 @@ void main() {
   group('erros', () {
     test('ok:false lança com a mensagem do servidor', () async {
       final s = GerirLicencaService.comInvocador(
-          (_) async => {'ok': false, 'erro': 'sem permissões de administrador'});
+        (_) async => {'ok': false, 'erro': 'sem permissões de administrador'},
+      );
       expect(
         () => s.suspender('abc123'),
-        throwsA(isA<GerirLicencaException>().having(
-            (e) => e.mensagem, 'mensagem', contains('administrador'))),
+        throwsA(
+          isA<GerirLicencaException>().having(
+            (e) => e.mensagem,
+            'mensagem',
+            contains('administrador'),
+          ),
+        ),
       );
     });
 
     test('ok:true sem licenca_actualizada lança', () async {
       final s = GerirLicencaService.comInvocador((_) async => {'ok': true});
-      expect(() => s.cancelar('abc123'),
-          throwsA(isA<GerirLicencaException>()));
+      expect(() => s.cancelar('abc123'), throwsA(isA<GerirLicencaException>()));
     });
 
     test('resposta sem validade lança em vez de inventar uma data', () async {
-      final s = GerirLicencaService.comInvocador((_) async => {
-            'ok': true,
-            'licenca_actualizada': {'activa': false},
-          });
-      expect(() => s.cancelar('abc123'),
-          throwsA(isA<GerirLicencaException>()));
+      final s = GerirLicencaService.comInvocador(
+        (_) async => {
+          'ok': true,
+          'licenca_actualizada': {'activa': false},
+        },
+      );
+      expect(() => s.cancelar('abc123'), throwsA(isA<GerirLicencaException>()));
     });
   });
 
@@ -168,31 +177,36 @@ void main() {
     final daquiAUmAno = DateTime(hoje.year + 1, hoje.month, hoje.day);
 
     Licenca lic(String plano, {String app = 'punho'}) => Licenca(
-          id: 'lic-1',
-          app: app,
-          machineId: 'abc123',
-          nif: '500000001',
-          nome: 'Lavandaria Sol',
-          plano: plano,
-          // Bem longe: um trial só encurta se houver o que encurtar.
-          validade: daquiAUmAno,
-          activa: true,
-          criadoEm: DateTime(2026, 1, 1),
+      id: 'lic-1',
+      app: app,
+      machineId: 'abc123',
+      nif: '500000001',
+      nome: 'Lavandaria Sol',
+      plano: plano,
+      // Bem longe: um trial só encurta se houver o que encurtar.
+      validade: daquiAUmAno,
+      activa: true,
+      criadoEm: DateTime(2026, 1, 1),
+    );
+
+    test(
+      'num trial do Fist é uma janela a contar de hoje — e encurta',
+      () async {
+        final s = servicoCom(_resposta(acao: 'definir_validade'));
+        await s.darDias(lic('trial'), 5);
+
+        final esperada = DateTime(hoje.year, hoje.month, hoje.day + 5);
+        expect(corpos.single['acao'], 'definir_validade');
+        expect(corpos.single['parametros'], {
+          'validade': esperada.toIso8601String().substring(0, 10),
+        });
+        expect(
+          esperada.isBefore(daquiAUmAno),
+          isTrue,
+          reason: 'o pedido que sai tem de encurtar a validade, não somar-lhe',
         );
-
-    test('num trial do Fist é uma janela a contar de hoje — e encurta',
-        () async {
-      final s = servicoCom(_resposta(acao: 'definir_validade'));
-      await s.darDias(lic('trial'), 5);
-
-      final esperada = DateTime(hoje.year, hoje.month, hoje.day + 5);
-      expect(corpos.single['acao'], 'definir_validade');
-      expect(corpos.single['parametros'], {
-        'validade': esperada.toIso8601String().substring(0, 10),
-      });
-      expect(esperada.isBefore(daquiAUmAno), isTrue,
-          reason: 'o pedido que sai tem de encurtar a validade, não somar-lhe');
-    });
+      },
+    );
 
     test('numa licença paga é uma soma, feita pelo servidor', () async {
       final s = servicoCom(_resposta());
@@ -228,6 +242,39 @@ void main() {
       expect(
         (corpos.single['parametros'] as Map)['validade'],
         esperada.toIso8601String().substring(0, 10),
+      );
+    });
+  });
+
+  group('configurar (ficha comercial do Activar)', () {
+    test('só envia o que não é nulo', () async {
+      final s = servicoCom(_resposta(acao: 'configurar', plano: 'anual'));
+      await s.configurar('abc123', plano: 'anual', oferta: false);
+      expect(corpos.single['acao'], 'configurar');
+      expect(corpos.single['machine_id'], 'abc123');
+      expect(corpos.single['parametros'], {'plano': 'anual', 'oferta': false});
+    });
+
+    test('leva nome, cliente e NIF quando existem', () async {
+      final s = servicoCom(_resposta(acao: 'configurar'));
+      await s.configurar(
+        'abc123',
+        nome: 'Lavandaria X',
+        clienteId: '11111111-1111-1111-1111-111111111111',
+        nif: '123456789',
+      );
+      expect(corpos.single['parametros'], {
+        'nome': 'Lavandaria X',
+        'cliente_id': '11111111-1111-1111-1111-111111111111',
+        'nif': '123456789',
+      });
+    });
+
+    test('erro do servidor sobe como GerirLicencaException', () {
+      final s = servicoCom({'ok': false, 'erro': 'plano tem de ser um de x'});
+      expect(
+        () => s.configurar('abc123', plano: 'mensal'),
+        throwsA(isA<GerirLicencaException>()),
       );
     });
   });

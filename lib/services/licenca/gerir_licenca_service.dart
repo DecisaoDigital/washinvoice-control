@@ -37,8 +37,8 @@ class LicencaAtualizada {
       plano: json['plano'] as String? ?? '',
       chaveMestre: json['chave_mestre'] as String?,
       preferenciasFeatures: {
-        for (final e in (json['preferencias_features'] as Map? ?? const {})
-            .entries)
+        for (final e
+            in (json['preferencias_features'] as Map? ?? const {}).entries)
           if (e.key is String && e.value is bool)
             e.key as String: e.value as bool,
       },
@@ -67,35 +67,33 @@ class GerirLicencaException implements Exception {
 class GerirLicencaService {
   /// Invoca a function. Injectável para testes não saírem à rede.
   final Future<Map<String, dynamic>> Function(Map<String, dynamic> body)
-      _invocar;
+  _invocar;
 
   GerirLicencaService(SupabaseClient supabase)
-      : _invocar = ((body) async {
-          // O supabase_flutter auto-injecta a ANON key no `Authorization` do
-          // `functions.invoke`. Isso faz `verify_jwt: true` passar mas `getUser()`
-          // dentro da function não sabe QUEM está a chamar — o auth do
-          // utilizador tem de ser passado explicitamente aqui.
-          final sessao = supabase.auth.currentSession;
-          if (sessao == null) {
-            throw const GerirLicencaException(
-              'sem sessão activa — inicia sessão de novo',
-            );
-          }
-          final r = await supabase.functions
-              .invoke(
-                'gerir-licenca',
-                body: body,
-                headers: {
-                  'Authorization': 'Bearer ${sessao.accessToken}',
-                },
-              )
-              .timeout(const Duration(seconds: 15));
-          final data = r.data;
-          if (data is! Map<String, dynamic>) {
-            throw const GerirLicencaException('resposta inesperada do servidor');
-          }
-          return data;
-        });
+    : _invocar = ((body) async {
+        // O supabase_flutter auto-injecta a ANON key no `Authorization` do
+        // `functions.invoke`. Isso faz `verify_jwt: true` passar mas `getUser()`
+        // dentro da function não sabe QUEM está a chamar — o auth do
+        // utilizador tem de ser passado explicitamente aqui.
+        final sessao = supabase.auth.currentSession;
+        if (sessao == null) {
+          throw const GerirLicencaException(
+            'sem sessão activa — inicia sessão de novo',
+          );
+        }
+        final r = await supabase.functions
+            .invoke(
+              'gerir-licenca',
+              body: body,
+              headers: {'Authorization': 'Bearer ${sessao.accessToken}'},
+            )
+            .timeout(const Duration(seconds: 15));
+        final data = r.data;
+        if (data is! Map<String, dynamic>) {
+          throw const GerirLicencaException('resposta inesperada do servidor');
+        }
+        return data;
+      });
 
   GerirLicencaService.comInvocador(this._invocar);
 
@@ -135,6 +133,23 @@ class GerirLicencaService {
         'validade': data.toIso8601String().substring(0, 10),
       });
 
+  /// Ficha comercial de uma licença recém-criada: plano, nome, cliente, oferta
+  /// e NIF. Só viaja o que não for nulo.
+  Future<LicencaAtualizada> configurar(
+    String machineId, {
+    String? plano,
+    String? nome,
+    String? clienteId,
+    bool? oferta,
+    String? nif,
+  }) => _acao('configurar', machineId, {
+    'plano': ?plano,
+    'nome': ?nome,
+    'cliente_id': ?clienteId,
+    'oferta': ?oferta,
+    'nif': ?nif,
+  });
+
   Future<LicencaAtualizada> suspender(String machineId) =>
       _acao('suspender', machineId, const {});
 
@@ -163,11 +178,12 @@ class GerirLicencaService {
   /// ⚠️ A chave entra na base assinada do `licenca.json`. Chamar isto **sem**
   /// gerar e instalar o ficheiro novo a seguir deixa a base de dados e o
   /// terminal a dizer coisas diferentes.
-  Future<LicencaAtualizada> atribuirChaveMestre(String machineId,
-          {String? prefixo}) =>
-      _acao('atribuir_chave_mestre', machineId, {
-        if (prefixo != null && prefixo.isNotEmpty) 'prefixo': prefixo,
-      });
+  Future<LicencaAtualizada> atribuirChaveMestre(
+    String machineId, {
+    String? prefixo,
+  }) => _acao('atribuir_chave_mestre', machineId, {
+    if (prefixo != null && prefixo.isNotEmpty) 'prefixo': prefixo,
+  });
 
   Future<LicencaAtualizada> _acao(
     String acao,
@@ -181,7 +197,8 @@ class GerirLicencaService {
     });
     if (data['ok'] != true) {
       throw GerirLicencaException(
-          data['erro'] as String? ?? 'falha desconhecida');
+        data['erro'] as String? ?? 'falha desconhecida',
+      );
     }
     final licenca = data['licenca_actualizada'];
     if (licenca is! Map<String, dynamic>) {

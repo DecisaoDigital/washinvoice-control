@@ -65,33 +65,36 @@ class LicencasRepository {
         .toList();
   }
 
-  /// Cria uma licença nova (id e created_em gerados pela base de dados).
+  /// Garante que o terminal tem linha em `licencas`, pela Edge Function
+  /// `registar-terminal` (a RLS não deixa o Control inserir directamente).
   ///
-  /// [app] tem de ir sempre (`licencas.app` é `NOT NULL` sem default). Fica em
-  /// `pos` por omissão porque é a única app cujas licenças o Cesar cria à mão
-  /// aqui — o Fist auto-onboarda pela Edge Function `registar-terminal`.
-  Future<void> criar({
+  /// Nasce em trial de 5 dias, `pendente_revisao`, com o trial já assinado em
+  /// Ed25519. Idempotente: se a linha já existir não cria outra. A validade e a
+  /// ficha comercial definem-se a seguir em `GerirLicencaService`
+  /// (`definirValidade` + `configurar`). O pedido leva a sessão do admin: é
+  /// o que permite ao servidor aceitar um NIF diferente do guardado.
+  Future<void> registarTerminal({
     required String machineId,
-    required String nif,
-    String? nome,
-    String? clienteId,
-    required String plano,
-    required DateTime validade,
-    bool activa = true,
-    bool oferta = false,
-    String app = 'pos',
+    String? nif,
   }) async {
-    await _client.from('licencas').insert({
-      'app': app,
-      'machine_id': machineId,
-      'nif': nif,
-      'nome': nome,
-      'cliente_id': clienteId,
-      'plano': plano,
-      'validade': validade.toIso8601String(),
-      'activa': activa,
-      'oferta': oferta,
-    });
+    final sessao = _client.auth.currentSession;
+    if (sessao == null) {
+      throw StateError('sem sessão activa — inicia sessão de novo');
+    }
+    final r = await _client.functions
+        .invoke(
+          'registar-terminal',
+          body: {
+            'machine_id': machineId,
+            'app': 'pos',
+            if (nif != null && RegExp(r'^\d{9}$').hasMatch(nif)) 'nif': nif,
+          },
+          headers: {'Authorization': 'Bearer ${sessao.accessToken}'},
+        )
+        .timeout(const Duration(seconds: 15));
+    if (r.status != 200) {
+      throw StateError('registar-terminal respondeu ${r.status}');
+    }
   }
 
   /// Lista os machine_id que já têm licença (para detetar instalações novas).
@@ -100,7 +103,8 @@ class LicencasRepository {
     if (app != null) q = q.eq('app', app);
     final rows = await q;
     return {
-      for (final r in rows as List) (r as Map<String, dynamic>)['machine_id'] as String,
+      for (final r in rows as List)
+        (r as Map<String, dynamic>)['machine_id'] as String,
     };
   }
 

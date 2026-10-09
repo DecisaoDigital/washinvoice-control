@@ -54,7 +54,8 @@ type Accao =
   | 'reactivar'
   | 'cancelar'
   | 'mudar_tier'
-  | 'atribuir_chave_mestre';
+  | 'atribuir_chave_mestre'
+  | 'configurar';
 
 const ACCOES: Accao[] = [
   'prolongar',
@@ -64,6 +65,7 @@ const ACCOES: Accao[] = [
   'cancelar',
   'mudar_tier',
   'atribuir_chave_mestre',
+  'configurar',
 ];
 
 /** Prefixo legível da chave mestre, tirado do nome da máquina. Decoração para
@@ -248,6 +250,34 @@ Deno.serve(async (req) => {
       // Ao descer para base NÃO se limpa `preferencias_features`: os
       // interruptores ficam guardados para retomar num upgrade futuro.
       patch.tier = tier;
+      break;
+    }
+    case 'configurar': {
+      // Ficha comercial de uma licença acabada de criar (Activar): plano,
+      // nome, cliente, oferta e NIF. Só grava o que vier, e só valores
+      // conhecidos. A validade segue por `definir_validade`.
+      const PLANOS = ['trimestral', 'semestral', 'anual', 'personalizado'];
+      if (parametros.plano !== undefined) {
+        if (typeof parametros.plano !== 'string' || !PLANOS.includes(parametros.plano)) {
+          return json(400, { ok: false, erro: `plano tem de ser um de ${PLANOS.join(', ')}` });
+        }
+        patch.plano = parametros.plano;
+      }
+      if (typeof parametros.nome === 'string' && parametros.nome.trim()) {
+        patch.nome = parametros.nome.trim().slice(0, 120);
+      }
+      if (typeof parametros.cliente_id === 'string' &&
+          /^[0-9a-f-]{36}$/i.test(parametros.cliente_id)) {
+        patch.cliente_id = parametros.cliente_id;
+      }
+      if (typeof parametros.oferta === 'boolean') patch.oferta = parametros.oferta;
+      if (typeof parametros.nif === 'string' && /^\d{9}$/.test(parametros.nif) &&
+          parametros.nif !== '000000000') {
+        patch.nif = parametros.nif;
+      }
+      if (Object.keys(patch).length === 0) {
+        return json(400, { ok: false, erro: 'nada para configurar' });
+      }
       break;
     }
     case 'atribuir_chave_mestre': {
