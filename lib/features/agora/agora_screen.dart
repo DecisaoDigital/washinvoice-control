@@ -18,6 +18,7 @@ import '../acessos/punho/punho_pedidos_screen.dart';
 import '../ativacao/ativar_instalacao_screen.dart';
 import '../instalacoes/detalhe_cliente_screen.dart';
 import '../instalacoes/renovar_licenca.dart';
+import '../pedidos_site/envelope_pedidos_site.dart';
 import '../pedidos_ajuda/detalhe_pedido_ajuda_screen.dart';
 import '../pedidos_ajuda/resolver_pedido_ajuda.dart';
 import '../sugestoes/detalhe_sugestao_screen.dart';
@@ -195,6 +196,7 @@ class _AgoraScreenState extends ConsumerState<AgoraScreen>
           ],
         ),
         actions: const [
+          EnvelopePedidosSite(),
           WiAppSelector(),
           SizedBox(width: AppSpacing.sm),
         ],
