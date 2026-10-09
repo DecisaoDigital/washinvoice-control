@@ -181,6 +181,9 @@ Deno.serve(async (req) => {
     .from('licencas')
     .select('*')
     .eq('machine_id', machineId)
+    // A identidade de uma licença é (machine_id, app): o mesmo PC pode ter
+    // WashInvoice e Fist. Só o POS usa `licenca.json`, por isso é a linha dele.
+    .eq('app', 'pos')
     .order('validade', { ascending: false })
     .limit(1);
 
@@ -201,7 +204,8 @@ Deno.serve(async (req) => {
     const { error: erroSerie } = await supabase
       .from('licencas')
       .update({ serie })
-      .eq('machine_id', machineId);
+      .eq('machine_id', machineId)
+      .eq('app', 'pos');
     if (erroSerie) {
       console.error('erro update serie', erroSerie);
       return json(500, { ok: false, erro: erroSerie.message });
