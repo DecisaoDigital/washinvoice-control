@@ -21,6 +21,7 @@ import '../ativacao/ativar_instalacao_screen.dart';
 import '../instalacoes/detalhe_cliente_screen.dart';
 import '../instalacoes/renovar_licenca.dart';
 import '../nav/menu_control.dart';
+import '../sugestoes/responder_sugestao.dart';
 import '../pedidos_site/envelope_pedidos_site.dart';
 import '../pedidos_ajuda/detalhe_pedido_ajuda_screen.dart';
 import '../pedidos_ajuda/resolver_pedido_ajuda.dart';
@@ -160,7 +161,8 @@ class _AgoraScreenState extends ConsumerState<AgoraScreen>
 
   /// «Renovar» sem abrir a ficha: bottom sheet com o plano e as durações.
   Future<void> _renovar(ItemAgora i) async {
-    final l = i.licenca ??
+    final l =
+        i.licenca ??
         await ref.read(licencasRepoProvider).porMachineId(i.machineId!);
     if (l == null) {
       mostrarMensagem('Não encontrei a licença deste cliente.');
@@ -168,7 +170,8 @@ class _AgoraScreenState extends ConsumerState<AgoraScreen>
     }
     if (!mounted) return;
     // Se o cliente também pediu renovação, fica confirmado com esta.
-    final pedido = i.renovacao ??
+    final pedido =
+        i.renovacao ??
         await ref.read(pedidosRepoProvider).pendentePorNif(l.nif, app: l.app);
     if (!mounted) return;
     await renovarLicencaComSheet(
@@ -219,7 +222,9 @@ class _AgoraScreenState extends ConsumerState<AgoraScreen>
       'Negar',
     );
     if (!ok) return;
-    await ref.read(clientesAntigosRepoProvider).passarParaAntigo(
+    await ref
+        .read(clientesAntigosRepoProvider)
+        .passarParaAntigo(
           machineId: i.machineId!,
           app: i.app,
           titulo: i.titulo,
@@ -259,6 +264,16 @@ class _AgoraScreenState extends ConsumerState<AgoraScreen>
 
   Future<void> _marcarLida(ItemAgora i) async {
     final s = i.sugestao!;
+    // Só dá para responder a quem tem terminal identificado.
+    String resposta = '';
+    if (s.machineId != null) {
+      final escolha = await escolherRespostaSugestao(context);
+      if (escolha == null) return;
+      resposta = escolha;
+    }
+    if (resposta.isNotEmpty) {
+      await ref.read(sugestoesRepoProvider).responder(s.id, resposta);
+    }
     await ref.read(sugestoesRepoProvider).marcarLida(s.id);
     await registarAccao(
       ref,
@@ -267,7 +282,7 @@ class _AgoraScreenState extends ConsumerState<AgoraScreen>
       app: i.app,
       machineId: i.machineId,
       pedido: i.detalhe,
-      accao: 'Marcada como lida',
+      accao: resposta.isEmpty ? 'Marcada como lida' : 'Respondeu: $resposta',
     );
     _refrescar();
   }
@@ -308,7 +323,9 @@ class _AgoraScreenState extends ConsumerState<AgoraScreen>
     return switch (i.tipo) {
       TipoAgora.acessoFist => [
         _Accao(
-          (i.fistPedido?.porConvite ?? false) ? 'Aceitar' : 'Aceitar e criar empresa',
+          (i.fistPedido?.porConvite ?? false)
+              ? 'Aceitar'
+              : 'Aceitar e criar empresa',
           Icons.check,
           AppColors.verde700,
           com(() => _aceitarFist(i)),
@@ -322,7 +339,12 @@ class _AgoraScreenState extends ConsumerState<AgoraScreen>
         ),
       ],
       TipoAgora.expirada || TipoAgora.aExpirar => [
-        _Accao('Renovar', Icons.event_available, i.tipo.corForte, com(() => _renovar(i))),
+        _Accao(
+          'Renovar',
+          Icons.event_available,
+          i.tipo.corForte,
+          com(() => _renovar(i)),
+        ),
         _Accao(
           'Negar',
           Icons.block,
@@ -332,7 +354,12 @@ class _AgoraScreenState extends ConsumerState<AgoraScreen>
         ),
       ],
       TipoAgora.renovacao => [
-        _Accao('Renovar', Icons.event_available, i.tipo.corForte, com(() => _renovar(i))),
+        _Accao(
+          'Renovar',
+          Icons.event_available,
+          i.tipo.corForte,
+          com(() => _renovar(i)),
+        ),
         _Accao(
           'Negar',
           Icons.block,
@@ -354,7 +381,9 @@ class _AgoraScreenState extends ConsumerState<AgoraScreen>
           'Abrir',
           Icons.menu_book_outlined,
           i.tipo.corForte,
-          ocupado ? null : () => _abrir(DetalheSugestaoScreen(sugestao: i.sugestao!)),
+          ocupado
+              ? null
+              : () => _abrir(DetalheSugestaoScreen(sugestao: i.sugestao!)),
         ),
         _Accao(
           'Marcar como lida',
@@ -371,7 +400,12 @@ class _AgoraScreenState extends ConsumerState<AgoraScreen>
           AppColors.azul700,
           (i.telefone == null || ocupado) ? null : () => _ligar(i),
         ),
-        _Accao('Resolvido', Icons.check, AppColors.verde700, com(() => _resolver(i))),
+        _Accao(
+          'Resolvido',
+          Icons.check,
+          AppColors.verde700,
+          com(() => _resolver(i)),
+        ),
       ],
     };
   }
@@ -421,7 +455,8 @@ class _AgoraScreenState extends ConsumerState<AgoraScreen>
                 final contagem = contarPorTipo(fila);
                 // Se o tipo escolhido esvaziou (tratou-se o último), volta a
                 // mostrar tudo em vez de uma lista vazia que parece um erro.
-                final tipo = (escolhido != null && (contagem[escolhido] ?? 0) > 0)
+                final tipo =
+                    (escolhido != null && (contagem[escolhido] ?? 0) > 0)
                     ? escolhido
                     : null;
                 final visiveis = tipo == null
@@ -457,7 +492,8 @@ class _AgoraScreenState extends ConsumerState<AgoraScreen>
                           contagem: contagem,
                           escolhido: tipo,
                           onEscolher: (t) =>
-                              ref.read(agoraTipoFiltroProvider.notifier).state = t,
+                              ref.read(agoraTipoFiltroProvider.notifier).state =
+                                  t,
                         ),
                       if (visiveis.isEmpty)
                         const Padding(
@@ -510,7 +546,8 @@ class _AgoraScreenState extends ConsumerState<AgoraScreen>
                               child: _Cartao(
                                 key: ValueKey('ligado:${i.chave}'),
                                 item: i,
-                                nota: 'Chamada aberta. Falta marcar como resolvido.',
+                                nota:
+                                    'Chamada aberta. Falta marcar como resolvido.',
                                 accoes: [
                                   _Accao(
                                     'Resolvido',
@@ -518,7 +555,8 @@ class _AgoraScreenState extends ConsumerState<AgoraScreen>
                                     AppColors.verde700,
                                     _ocupados.contains(i.chave)
                                         ? null
-                                        : () => _comTrava(i, () => _resolver(i)),
+                                        : () =>
+                                              _comTrava(i, () => _resolver(i)),
                                   ),
                                   _Accao(
                                     'Voltar à fila',
@@ -567,7 +605,13 @@ class _Accao {
   /// Botão de contorno (acção secundária ou de recusa) em vez de preenchido.
   final bool contorno;
 
-  const _Accao(this.rotulo, this.icone, this.cor, this.onTap, {this.contorno = false});
+  const _Accao(
+    this.rotulo,
+    this.icone,
+    this.cor,
+    this.onTap, {
+    this.contorno = false,
+  });
 }
 
 /// Chips de contagem por tipo; tocar filtra a fila, tocar outra vez limpa. As

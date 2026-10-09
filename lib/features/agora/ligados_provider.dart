@@ -33,10 +33,9 @@ class LigadosNotifier extends StateNotifier<Set<String>> {
   Future<void> _guardar() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList(
-        _chave,
-        [for (final c in state) '${_hoje()}|$c'],
-      );
+      await prefs.setStringList(_chave, [
+        for (final c in state) '${_hoje()}|$c',
+      ]);
     } catch (_) {}
   }
 
@@ -51,5 +50,6 @@ class LigadosNotifier extends StateNotifier<Set<String>> {
   }
 }
 
-final ligadosProvider =
-    StateNotifierProvider<LigadosNotifier, Set<String>>((_) => LigadosNotifier());
+final ligadosProvider = StateNotifierProvider<LigadosNotifier, Set<String>>(
+  (_) => LigadosNotifier(),
+);

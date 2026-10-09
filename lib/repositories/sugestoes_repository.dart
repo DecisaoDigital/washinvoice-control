@@ -44,4 +44,13 @@ class SugestoesRepository {
         .update({'arquivada': true, 'lida': true})
         .eq('id', id);
   }
+
+  /// Grava a resposta do César; o terminal que enviou a sugestão vê-a no POS /
+  /// Fist / Fist OP através da edge function `respostas-sugestoes`.
+  Future<void> responder(String sugestaoId, String texto) async {
+    await _client.from('sugestoes_respostas').insert({
+      'sugestao_id': sugestaoId,
+      'texto': texto,
+    });
+  }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'responder_sugestao.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
@@ -33,8 +34,7 @@ class DetalheSugestaoScreen extends ConsumerStatefulWidget {
       _DetalheSugestaoScreenState();
 }
 
-class _DetalheSugestaoScreenState
-    extends ConsumerState<DetalheSugestaoScreen> {
+class _DetalheSugestaoScreenState extends ConsumerState<DetalheSugestaoScreen> {
   late Future<_DetalheData> _future;
   late Sugestao _sugestao;
 
@@ -65,13 +65,16 @@ class _DetalheSugestaoScreenState
       machineId: _sugestao.machineId,
       nif: _sugestao.nif,
     );
-    final licenca =
-        _sugestao.machineId == null ? null : ctx.licencaDe(_sugestao.machineId!);
+    final licenca = _sugestao.machineId == null
+        ? null
+        : ctx.licencaDe(_sugestao.machineId!);
     return _DetalheData(ctx, cliente, licenca);
   }
 
   Future<void> _recarregar() async {
-    setState(() { _future = _carregar(); });
+    setState(() {
+      _future = _carregar();
+    });
     await _future;
   }
 
@@ -82,21 +85,27 @@ class _DetalheSugestaoScreenState
   }
 
   Future<void> _arquivar() async {
+    if (_sugestao.machineId != null && !_sugestao.lida) {
+      final escolha = await escolherRespostaSugestao(context);
+      if (escolha == null) return;
+      if (escolha.isNotEmpty) {
+        await ref.read(sugestoesRepoProvider).responder(_sugestao.id, escolha);
+      }
+    }
     await ref.read(sugestoesRepoProvider).arquivar(_sugestao.id);
-    setState(() =>
-        _sugestao = _sugestao.copyWith(arquivada: true, lida: true));
+    setState(() => _sugestao = _sugestao.copyWith(arquivada: true, lida: true));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Sugestão arquivada.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Sugestão arquivada.')));
   }
 
   Future<void> _copiar(String machineId) async {
     await Clipboard.setData(ClipboardData(text: machineId));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Machine ID copiado.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Machine ID copiado.')));
   }
 
   @override
@@ -106,12 +115,16 @@ class _DetalheSugestaoScreenState
         title: FutureBuilder<_DetalheData>(
           future: _future,
           builder: (context, snapshot) {
-            final nome = snapshot.data?.ctx.nomeDe(
-                    machineId: _sugestao.machineId ?? '', nif: _sugestao.nif) ??
+            final nome =
+                snapshot.data?.ctx.nomeDe(
+                  machineId: _sugestao.machineId ?? '',
+                  nif: _sugestao.nif,
+                ) ??
                 (_sugestao.nif != null ? 'NIF ${_sugestao.nif}' : 'Sugestão');
-            return Text(nome,
-                style:
-                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w500));
+            return Text(
+              nome,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            );
           },
         ),
         actions: [
@@ -141,10 +154,12 @@ class _DetalheSugestaoScreenState
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  icon: Icon(_sugestao.marcada ? Icons.star : Icons.star_border),
-                  label: Text(_sugestao.marcada
-                      ? 'Desmarcar'
-                      : 'Marcar como importante'),
+                  icon: Icon(
+                    _sugestao.marcada ? Icons.star : Icons.star_border,
+                  ),
+                  label: Text(
+                    _sugestao.marcada ? 'Desmarcar' : 'Marcar como importante',
+                  ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.laranja700,
                     side: const BorderSide(color: AppColors.laranja700),
@@ -173,11 +188,13 @@ class _DetalheSugestaoScreenState
                 const SizedBox(height: AppSpacing.sm),
                 Center(
                   child: TextButton(
-                    onPressed: () =>
-                        Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => DetalheClienteScreen(
-                          machineId: _sugestao.machineId!),
-                    )),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => DetalheClienteScreen(
+                          machineId: _sugestao.machineId!,
+                        ),
+                      ),
+                    ),
                     child: const Text('Ver ficha completa do cliente'),
                   ),
                 ),
@@ -195,8 +212,14 @@ class _DetalheSugestaoScreenState
       chips.add(_Pill('Por ler', AppColors.roxo100, AppColors.roxo900));
     }
     if (_sugestao.marcada) {
-      chips.add(_Pill('Marcada', AppColors.laranja100, AppColors.laranja900,
-          icone: Icons.star));
+      chips.add(
+        _Pill(
+          'Marcada',
+          AppColors.laranja100,
+          AppColors.laranja900,
+          icone: Icons.star,
+        ),
+      );
     }
     if (_sugestao.arquivada) {
       chips.add(_Pill('Arquivada', AppColors.fundo, AppColors.textSecondary));
@@ -218,11 +241,14 @@ class _DetalheSugestaoScreenState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const WiCardTitulo(
-              icone: Icons.lightbulb_outline,
-              titulo: 'Sugestão',
-              corIcone: AppColors.roxo700),
-          SelectableText(_sugestao.texto,
-              style: AppText.body.copyWith(height: 1.5)),
+            icone: Icons.lightbulb_outline,
+            titulo: 'Sugestão',
+            corIcone: AppColors.roxo700,
+          ),
+          SelectableText(
+            _sugestao.texto,
+            style: AppText.body.copyWith(height: 1.5),
+          ),
           const SizedBox(height: AppSpacing.sm),
           WiLinhaKV(
             rotulo: 'Enviada em',
@@ -238,8 +264,11 @@ class _DetalheSugestaoScreenState
     final machineId = _sugestao.machineId;
     final machineCurto = machineId == null
         ? '—'
-        : (machineId.length > 12 ? '${machineId.substring(0, 12)}…' : machineId);
-    final loja = (data.cliente?.localidade != null &&
+        : (machineId.length > 12
+              ? '${machineId.substring(0, 12)}…'
+              : machineId);
+    final loja =
+        (data.cliente?.localidade != null &&
             data.cliente!.localidade!.trim().isNotEmpty)
         ? data.cliente!.localidade!.trim()
         : '—';
@@ -248,11 +277,15 @@ class _DetalheSugestaoScreenState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const WiCardTitulo(
-              icone: Icons.store_outlined, titulo: 'Cliente / Terminal'),
+            icone: Icons.store_outlined,
+            titulo: 'Cliente / Terminal',
+          ),
           WiLinhaKV(
             rotulo: 'Nome',
-            valor: data.ctx
-                .nomeDe(machineId: machineId ?? '', nif: _sugestao.nif),
+            valor: data.ctx.nomeDe(
+              machineId: machineId ?? '',
+              nif: _sugestao.nif,
+            ),
           ),
           WiLinhaKV(rotulo: 'NIF', valor: _sugestao.nif ?? '—'),
           WiLinhaKV(rotulo: 'Localidade', valor: loja),
@@ -273,11 +306,17 @@ class _DetalheSugestaoScreenState
             child: Row(
               children: [
                 const SizedBox(
-                    width: 100, child: Text('Licença', style: AppText.label)),
+                  width: 100,
+                  child: Text('Licença', style: AppText.label),
+                ),
                 if (data.licenca != null)
                   WiBadgeEstado(data.licenca!.estado)
                 else
-                  _Pill('Sem licença', AppColors.fundo, AppColors.textSecondary),
+                  _Pill(
+                    'Sem licença',
+                    AppColors.fundo,
+                    AppColors.textSecondary,
+                  ),
               ],
             ),
           ),
@@ -306,9 +345,14 @@ class _Pill extends StatelessWidget {
             Icon(icone, size: 12, color: forte),
             const SizedBox(width: 3),
           ],
-          Text(label,
-              style: TextStyle(
-                  color: forte, fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: TextStyle(
+              color: forte,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );

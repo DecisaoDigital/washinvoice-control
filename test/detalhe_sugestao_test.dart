@@ -36,6 +36,10 @@ class _FakeSugestoes extends SugestoesRepository {
       marcadas.add((id, valor));
   @override
   Future<void> arquivar(String id) async => arquivadas.add(id);
+  final List<(String, String)> respostas = [];
+  @override
+  Future<void> responder(String id, String texto) async =>
+      respostas.add((id, texto));
 }
 
 void main() {
@@ -98,7 +102,12 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Arquivar'));
-    await tester.pump();
+    await tester.pumpAndSettle();
+    // Pergunta se quer responder ao cliente.
+    expect(find.text('Responder ao cliente?'), findsOneWidget);
+    await tester.tap(find.textContaining('Vamos tê-la em conta'));
+    await tester.pumpAndSettle();
+    expect(fakeSug.respostas.single.$1, 's2');
     expect(fakeSug.arquivadas, ['s2']);
   });
 }
