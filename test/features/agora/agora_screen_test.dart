@@ -63,20 +63,14 @@ void main() {
     final c = await _montar(tester, _tudo());
 
     // Ordem vertical = prioridade.
-    final ordem = [
-      'Renovar', // expirada
-      'Decidir',
-      'Ligar',
-      'Activar',
-      'Ver pedido',
-      'Renovar', // a expirar
-      'Ler',
-    ];
     final tops = [
-      for (final e in ordem.indexed)
-        e.$2 == 'Renovar'
-            ? tester.getTopLeft(find.text('Renovar').at(e.$1 == 0 ? 0 : 1)).dy
-            : tester.getTopLeft(find.text(e.$2)).dy,
+      tester.getTopLeft(find.text('Decidir')).dy,
+      tester.getTopLeft(find.text('Ligar')).dy,
+      tester.getTopLeft(find.text('Activar')).dy,
+      tester.getTopLeft(find.text('Ver pedido')).dy,
+      tester.getTopLeft(find.text('Renovar').at(0)).dy, // expirada
+      tester.getTopLeft(find.text('Renovar').at(1)).dy, // a expirar
+      tester.getTopLeft(find.text('Ler')).dy,
     ];
     expect(tops, orderedEquals([...tops]..sort()));
     expect(find.text('Resolvido'), findsOneWidget);

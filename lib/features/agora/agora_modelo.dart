@@ -14,14 +14,14 @@ import '../../repositories/punho_admin_repository.dart';
 /// O que pode estar à espera do Cesar na fila «Agora».
 ///
 /// **A ordem dos valores É a prioridade**: o que vem primeiro passa à frente.
-/// Uma licença já expirada é um cliente parado agora; uma sugestão por ler pode
-/// esperar.
+/// Um pedido aberto tem alguém à espera de resposta e vem antes de tudo; uma
+/// licença expirada há muito não passa à frente de quem está a pedir ajuda.
 enum TipoAgora {
-  expirada,
   acessoFist,
   ajuda,
   terminalNovo,
   renovacao,
+  expirada,
   aExpirar,
   sugestao;
 

@@ -76,8 +76,12 @@ class _FistDecidirModalState extends State<FistDecidirModal> {
           child: const Text('Cancelar'),
         ),
         OutlinedButton(
-          onPressed: () =>
-              Navigator.pop(context, const DecisaoFist('recusar')),
+          onPressed: () async {
+            final ok = await confirmarRecusar(context, p.nomeApresentavel);
+            if (ok && context.mounted) {
+              Navigator.pop(context, const DecisaoFist('recusar'));
+            }
+          },
           style: OutlinedButton.styleFrom(foregroundColor: AppColors.vermelho),
           child: const Text('Recusar'),
         ),
@@ -240,4 +244,27 @@ class FistRevogarModal extends StatelessWidget {
       ),
     ],
   );
+}
+
+/// «Recusar» não se desfaz: pede confirmação com o nome de quem se recusa.
+Future<bool> confirmarRecusar(BuildContext context, String quem) async {
+  final r = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Recusar pedido?'),
+      content: Text('O pedido de $quem será recusado.'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Voltar'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          style: FilledButton.styleFrom(backgroundColor: AppColors.vermelho),
+          child: const Text('Recusar'),
+        ),
+      ],
+    ),
+  );
+  return r ?? false;
 }

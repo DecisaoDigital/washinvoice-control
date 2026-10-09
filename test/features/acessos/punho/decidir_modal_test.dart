@@ -294,8 +294,44 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(OutlinedButton, 'Recusar'));
     await tester.pumpAndSettle();
+    expect(find.text('Recusar pedido?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Recusar'));
+    await tester.pumpAndSettle();
 
     expect(escolhido!.decisao, 'recusar');
     expect(escolhido!.empresaId, isNull);
+  });
+
+  testWidgets('recusar e voltar na confirmação não decide nada', (tester) async {
+    DecisaoFist? escolhido;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () async {
+                escolhido = await showDialog<DecisaoFist>(
+                  context: context,
+                  builder: (_) => FistDecidirModal(
+                    pedido: pedidoFist(),
+                    empresas: const [],
+                  ),
+                );
+              },
+              child: const Text('abrir'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('abrir'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Recusar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Voltar'));
+    await tester.pumpAndSettle();
+
+    expect(escolhido, isNull);
+    expect(find.text('Decidir pedido'), findsOneWidget);
   });
 }

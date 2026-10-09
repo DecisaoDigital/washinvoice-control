@@ -7,6 +7,7 @@ import '../../core/erros.dart';
 import '../../repositories/acessos_repository.dart';
 import '../../repositories/providers.dart';
 import 'confirmar_apagar_pedido.dart';
+import 'punho/punho_decidir_modal.dart' show confirmarRecusar;
 
 /// Separador Acessos do admin global: aprova/recusa pedidos pendentes e
 /// revoga contas já aprovadas. Nada é automático — o admin confirma sempre
@@ -237,7 +238,11 @@ class _PedidoCardState extends State<_PedidoCard> {
             onPressed: () => widget.onDecidir(p, 'aprovado', _org),
             child: const Text('Aprovar')),
           OutlinedButton(
-            onPressed: () => widget.onDecidir(p, 'recusado', null),
+            onPressed: () async {
+              if (await confirmarRecusar(context, p.email)) {
+                await widget.onDecidir(p, 'recusado', null);
+              }
+            },
             style: OutlinedButton.styleFrom(foregroundColor: AppColors.vermelho),
             child: const Text('Recusar')),
           // Apagar não é uma decisão — é tirar a linha do servidor. Fica no

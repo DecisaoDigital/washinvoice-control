@@ -158,6 +158,9 @@ void main() {
 
       await tester.tap(find.text('Recusar'));
       await tester.pumpAndSettle();
+      expect(fake.decisoes, isEmpty);
+      await tester.tap(find.widgetWithText(FilledButton, 'Recusar'));
+      await tester.pumpAndSettle();
 
       expect(fake.decisoes, [['p1', 'recusado', null]]);
     });
