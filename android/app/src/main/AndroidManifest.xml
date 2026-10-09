@@ -11,6 +11,10 @@
         android:label="Control"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <!-- Ícone pequeno das notificações push: o olho em silhueta (sem isto o Android usa o ícone a cores e mostra um quadrado branco). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notificacao" />
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyC4dFkCF3p2yRiUFyJkt4YZx0FbbPmMnCI"/>
