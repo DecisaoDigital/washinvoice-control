@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/erros.dart';
 import '../../../repositories/providers.dart';
 import '../../../repositories/punho_admin_repository.dart';
+import '../../../services/registo_accoes.dart';
 import 'fist_pendentes_provider.dart';
 import 'punho_decidir_modal.dart';
 
@@ -38,6 +39,16 @@ Future<bool> aplicarDecisaoFist(
     );
     // O badge e a fila «Agora» contam estes pedidos: já não está pendente.
     ref.invalidate(fistPendentesProvider);
+    await registarAccao(
+      ref,
+      tipo: 'Pedido de acesso',
+      titulo: pedido.nomeApresentavel,
+      app: 'punho',
+      pedido: pedido.organizacaoIndicada.isEmpty
+          ? 'Pediu acesso'
+          : 'Pediu acesso (${pedido.organizacaoIndicada})',
+      accao: escolha.decisao == 'recusar' ? 'Recusado' : 'Aceite',
+    );
     return true;
   } catch (e) {
     mostrarErro(e);

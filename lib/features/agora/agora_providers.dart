@@ -7,6 +7,7 @@ import '../../repositories/providers.dart';
 import '../../repositories/punho_admin_repository.dart';
 import '../acessos/punho/fist_pendentes_provider.dart';
 import 'agora_modelo.dart';
+import 'ligados_provider.dart';
 
 /// O que a fila «Agora» mostra, já ordenado por urgência.
 class AgoraData {
@@ -50,6 +51,12 @@ final agoraProvider = FutureProvider<AgoraData>((ref) async {
   );
   // Erro aqui NÃO se engole: sem os pedidos Fist a fila mentiria («Nada
   // pendente»). Propaga-se e o ecrã mostra o erro com «Tentar de novo».
+  // Clientes que o Cesar passou a «antigos» não voltam à fila. Se a lista falhar,
+  // não se esconde nada (melhor ver a mais do que a menos).
+  final antigos = ref
+      .watch(clientesAntigosProvider.future)
+      .then((l) => {for (final a in l) a.machineId})
+      .catchError((_) => <String>{});
   final acessosFist = filtro.aceita(AppsUi.punho)
       ? ref.watch(fistPendentesProvider.future)
       : Future.value(<FistPedido>[]);
@@ -63,6 +70,7 @@ final agoraProvider = FutureProvider<AgoraData>((ref) async {
     clientes,
     nomesFist,
     acessosFist,
+    antigos,
   ).wait;
 
   final ctx = ContextoInstalacoes.build(
@@ -74,7 +82,10 @@ final agoraProvider = FutureProvider<AgoraData>((ref) async {
   return AgoraData(
     comporItensAgora(
       ctx: ctx,
-      licencas: r.$1,
+      licencas: [
+        for (final l in r.$1)
+          if (!r.$9.contains(l.machineId)) l,
+      ],
       pings: r.$2,
       // Uma licença por terminal: quem já tem linha em `licencas` não é novo.
       machineIdsComLicenca: {for (final l in r.$1) l.machineId},
@@ -88,6 +99,9 @@ final agoraProvider = FutureProvider<AgoraData>((ref) async {
 
 /// Total de itens pendentes — o badge do separador «Agora». 0 enquanto
 /// carrega ou se falhar (um badge nunca deve rebentar o ecrã).
-final agoraTotalProvider = Provider<int>(
-  (ref) => ref.watch(agoraProvider).valueOrNull?.itens.length ?? 0,
-);
+final agoraTotalProvider = Provider<int>((ref) {
+  // O que já se tratou hoje (chamada aberta) não conta como pendente.
+  final ligados = ref.watch(ligadosProvider);
+  final itens = ref.watch(agoraProvider).valueOrNull?.itens ?? const [];
+  return itens.where((i) => !ligados.contains(i.chave)).length;
+});

@@ -8,6 +8,7 @@ import '../../core/erros.dart';
 import '../../models/licenca.dart';
 import '../../models/pedido_renovacao.dart';
 import '../../repositories/providers.dart';
+import '../../services/registo_accoes.dart';
 
 /// O que a bottom sheet de renovação oferece.
 enum OpcaoRenovacao { dias30, meses3, ano1, outraData }
@@ -53,45 +54,79 @@ Future<void> renovarLicencaComSheet(
   required String quem,
   Future<void> Function()? depois,
 }) async {
-  final escolha = await showModalBottomSheet<OpcaoRenovacao>(
+  // Legado não é um plano atribuível: a folha parte de Base nesse caso.
+  final tierInicial = l.tier == Tier.pro ? Tier.pro : Tier.base;
+  var tierEscolhido = tierInicial;
+  final escolha = await showModalBottomSheet<({OpcaoRenovacao opcao, Tier tier})>(
     context: context,
     showDragHandle: true,
-    builder: (ctx) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              0,
-              AppSpacing.lg,
-              AppSpacing.sm,
-            ),
-            child: Text('Renovar $quem', style: AppText.h2),
-          ),
-          for (final o in OpcaoRenovacao.values)
-            ListTile(
-              minTileHeight: 56,
-              leading: Icon(
-                o == OpcaoRenovacao.outraData
-                    ? Icons.edit_calendar
-                    : Icons.event_available,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setSt) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                0,
+                AppSpacing.lg,
+                AppSpacing.sm,
               ),
-              title: Text(_rotulo(o)),
-              subtitle: o == OpcaoRenovacao.outraData
-                  ? null
-                  : Text('até ${Dates.data(validadeRenovada(l, o))}'),
-              onTap: () => Navigator.pop(ctx, o),
+              child: Text('Renovar $quem', style: AppText.h2),
             ),
-        ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                0,
+                AppSpacing.lg,
+                AppSpacing.sm,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Plano (atual: ${l.tier.rotulo})',
+                      style: AppText.bodyStrong,
+                    ),
+                  ),
+                  SegmentedButton<Tier>(
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment(value: Tier.base, label: Text('Base')),
+                      ButtonSegment(value: Tier.pro, label: Text('Pro')),
+                    ],
+                    selected: {tierEscolhido},
+                    onSelectionChanged: (v) =>
+                        setSt(() => tierEscolhido = v.first),
+                  ),
+                ],
+              ),
+            ),
+            for (final o in OpcaoRenovacao.values)
+              ListTile(
+                minTileHeight: 56,
+                leading: Icon(
+                  o == OpcaoRenovacao.outraData
+                      ? Icons.edit_calendar
+                      : Icons.event_available,
+                ),
+                title: Text(_rotulo(o)),
+                subtitle: o == OpcaoRenovacao.outraData
+                    ? null
+                    : Text('até ${Dates.data(validadeRenovada(l, o))}'),
+                onTap: () =>
+                    Navigator.pop(ctx, (opcao: o, tier: tierEscolhido)),
+              ),
+          ],
+        ),
       ),
     ),
   );
   if (escolha == null || !context.mounted) return;
 
   DateTime nova;
-  if (escolha == OpcaoRenovacao.outraData) {
+  if (escolha.opcao == OpcaoRenovacao.outraData) {
     final agora = DateTime.now();
     final d = await showDatePicker(
       context: context,
@@ -103,19 +138,34 @@ Future<void> renovarLicencaComSheet(
     if (d == null) return;
     nova = d;
   } else {
-    nova = validadeRenovada(l, escolha);
+    nova = validadeRenovada(l, escolha.opcao);
   }
 
   final anterior = l.validade;
+  // Licença legada que se renova sem tocar no plano continua legada.
+  final mudaPlano = escolha.tier != tierInicial;
   try {
     final servico = ref.read(gerirLicencaProvider);
     await servico.definirValidade(l.machineId, nova);
+    if (mudaPlano) await servico.mudarTier(l.machineId, escolha.tier);
     if (pedido != null) await ref.read(pedidosRepoProvider).confirmar(pedido.id);
+    final plano = (mudaPlano ? escolha.tier : l.tier).rotulo;
+    await registarAccao(
+      ref,
+      tipo: pedido != null ? 'Pedido de renovação' : 'Licença',
+      titulo: quem,
+      app: l.app,
+      machineId: l.machineId,
+      pedido: pedido != null
+          ? 'Pediu renovação (${pedido.planoDesejado})'
+          : (l.expirada ? 'Licença expirada' : 'Licença a expirar'),
+      accao: 'Renovada para $plano até ${Dates.data(nova)}',
+    );
     messengerKey.currentState
       ?..clearSnackBars()
       ..showSnackBar(
         SnackBar(
-          content: Text('Licença renovada até ${Dates.data(nova)}'),
+          content: Text('Licença renovada para $plano até ${Dates.data(nova)}'),
           duration: const Duration(seconds: 8),
           persist: false, // com acção, o SnackBar não fecha sozinho se não o disserem
           action: SnackBarAction(
@@ -123,6 +173,10 @@ Future<void> renovarLicencaComSheet(
             onPressed: () async {
               try {
                 await servico.definirValidade(l.machineId, anterior);
+                // Repõe também o plano, se a renovação o tinha mudado.
+                if (mudaPlano && l.tier != Tier.legado) {
+                  await servico.mudarTier(l.machineId, l.tier);
+                }
                 mostrarMensagem(
                   'Validade reposta: ${Dates.data(anterior)}.',
                 );

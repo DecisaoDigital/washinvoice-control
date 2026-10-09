@@ -4,6 +4,7 @@ library;
 export 'wi_accao_de_linha.dart';
 export 'wi_app_badge.dart';
 export 'wi_app_selector.dart';
+export 'wi_barra_apps.dart';
 export 'wi_badge_estado.dart';
 export 'wi_card.dart';
 export 'wi_card_destaque.dart';

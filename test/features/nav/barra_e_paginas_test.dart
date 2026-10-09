@@ -4,13 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timeago/timeago.dart' as timeago;
-import 'package:washinvoice_control/features/acessos/punho/punho_pedidos_screen.dart';
 import 'package:washinvoice_control/features/agora/agora_modelo.dart';
 import 'package:washinvoice_control/features/agora/agora_providers.dart';
 import 'package:washinvoice_control/features/agora/agora_screen.dart';
-import 'package:washinvoice_control/features/dashboard/dashboard_screen.dart';
 import 'package:washinvoice_control/features/nav/home_shell.dart';
-import 'package:washinvoice_control/features/nav/mais_screen.dart';
 import 'package:washinvoice_control/services/push_routing.dart';
 
 import '../acessos/punho/fake_punho_admin_repository.dart';
@@ -47,7 +44,7 @@ Future<ProviderContainer> _montar(
           paginasParaTeste: [
             AgoraScreen(),
             Center(child: Text('PAGINA_CLIENTES')),
-            MaisScreen(),
+            Center(child: Text('PAGINA_HISTORICO')),
           ],
         ),
       ),
@@ -76,76 +73,52 @@ void main() {
       expect(HomeShell.itens().length, 3);
     });
 
-    test('rótulos: Agora · Clientes · Mais', () {
+    test('rótulos: Agora · Clientes · Histórico', () {
       expect(HomeShell.itens().map((i) => i.label), [
         'Agora',
         'Clientes',
-        'Mais',
+        'Histórico',
       ]);
     });
   });
 
   testWidgets('sem botão flutuante em nenhum separador', (tester) async {
     await _montar(tester);
-    for (final rotulo in ['Agora', 'Clientes', 'Mais']) {
+    for (final rotulo in ['Agora', 'Clientes', 'Histórico']) {
       await tester.tap(find.text(rotulo).last);
       await tester.pumpAndSettle();
       expect(find.byType(FloatingActionButton), findsNothing, reason: rotulo);
     }
   });
 
-  testWidgets('badges: total no «Agora», pedidos Fist no «Mais»', (
-    tester,
-  ) async {
+  testWidgets('badge: total pendente no «Agora»', (tester) async {
     final c = await _montar(tester);
     // expirada + acesso Fist + ajuda + terminal novo = 4
     expect(c.read(agoraTotalProvider), 4);
-    expect(find.descendant(of: find.byType(BottomNavigationBar), matching: find.text('4')), findsOneWidget);
-    expect(find.descendant(of: find.byType(BottomNavigationBar), matching: find.text('1')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(BottomNavigationBar),
+        matching: find.text('4'),
+      ),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('navegar pelos três separadores', (tester) async {
+  testWidgets('navegar pelos três separadores, a tocar e a arrastar', (
+    tester,
+  ) async {
     await _montar(tester);
     expect(find.text('Nada pendente'), findsNothing);
     await tester.tap(find.text('Clientes'));
     await tester.pumpAndSettle();
     expect(find.text('PAGINA_CLIENTES'), findsOneWidget);
-    await tester.tap(find.text('Mais').last);
+    await tester.tap(find.text('Histórico').last);
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('mais_resumo')), findsOneWidget);
-  });
-
-  testWidgets('«Mais» lista as entradas; Pedidos Fist só ao admin', (
-    tester,
-  ) async {
-    await _montar(tester);
-    await tester.tap(find.text('Mais').last);
+    expect(find.text('PAGINA_HISTORICO'), findsOneWidget);
+    // Arrastar para a direita volta a Clientes.
+    await tester.fling(find.byType(PageView), const Offset(600, 0), 2000);
     await tester.pumpAndSettle();
-    for (final k in [
-      'resumo', 'pedidosFist', 'acessos', 'mapa', 'sugestoes',
-      'pedidosAjuda', 'sobre',
-    ]) {
-      expect(find.byKey(ValueKey('mais_$k')), findsOneWidget, reason: k);
-    }
-  });
-
-  testWidgets('«Mais» sem Pedidos Fist para quem não é admin global', (
-    tester,
-  ) async {
-    await _montar(tester, admin: false);
-    await tester.tap(find.text('Mais').last);
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('mais_pedidosFist')), findsNothing);
-    expect(find.byKey(const ValueKey('mais_resumo')), findsOneWidget);
-  });
-
-  testWidgets('«Pedidos Fist» em Mais abre o ecrã por cima', (tester) async {
-    await _montar(tester);
-    await tester.tap(find.text('Mais').last);
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('mais_pedidosFist')));
-    await tester.pumpAndSettle();
-    expect(find.byType(FistPedidosScreen), findsOneWidget);
+    expect(find.text('PAGINA_CLIENTES'), findsOneWidget);
   });
 
   group('push routing no shell', () {
@@ -173,33 +146,23 @@ void main() {
       expect(find.text('Activar'), findsNothing);
     });
 
-    testWidgets('novo_pedido → Pedidos Fist dentro de Mais (admin)', (
+    testWidgets('novo_pedido → Agora filtrado por acessos Fist', (
       tester,
     ) async {
       final c = await _montar(tester);
-      c.read(destinoPushProvider.notifier).state = DestinoPush.pedidosFist;
-      await tester.pumpAndSettle();
-      expect(find.byType(FistPedidosScreen), findsOneWidget);
-    });
-
-    testWidgets('novo_pedido sem ser admin: fica no Agora, sem erro', (
-      tester,
-    ) async {
-      final c = await _montar(tester, admin: false);
       await tester.tap(find.text('Clientes'));
       await tester.pumpAndSettle();
       c.read(destinoPushProvider.notifier).state = DestinoPush.pedidosFist;
       await tester.pumpAndSettle();
-      expect(find.byType(FistPedidosScreen), findsNothing);
-      expect(tester.takeException(), isNull);
-      expect(find.byType(AgoraScreen), findsOneWidget);
+      expect(c.read(agoraTipoFiltroProvider), TipoAgora.acessoFist);
+      expect(find.textContaining('Aceitar'), findsOneWidget);
     });
 
-    testWidgets('inicio_actividade → Resumo dentro de Mais', (tester) async {
+    testWidgets('inicio_actividade → Clientes', (tester) async {
       final c = await _montar(tester);
       c.read(destinoPushProvider.notifier).state = DestinoPush.resumo;
       await tester.pumpAndSettle();
-      expect(find.byType(DashboardScreen), findsOneWidget);
+      expect(find.text('PAGINA_CLIENTES'), findsOneWidget);
     });
   });
 }

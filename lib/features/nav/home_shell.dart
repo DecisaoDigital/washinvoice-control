@@ -5,22 +5,20 @@ import '../../core/app_colors.dart';
 import '../../models/actualizacao_info.dart';
 import '../../repositories/providers.dart';
 import '../../services/push_routing.dart';
-import '../acessos/gestao_acessos_screen.dart';
 import '../acessos/punho/fist_pendentes_provider.dart';
-import '../acessos/punho/punho_pedidos_screen.dart';
 import '../actualizacao/banner_actualizacao.dart';
 import '../agora/agora_modelo.dart';
 import '../agora/agora_providers.dart';
 import '../agora/agora_screen.dart';
-import '../dashboard/dashboard_screen.dart';
+import '../historico/historico_screen.dart';
 import '../instalacoes/instalacoes_screen.dart';
-import 'mais_screen.dart';
 
 /// A casca da app: três separadores por **acção**, e não por entidade.
 ///
 /// «Agora» (a fila do que está à espera) · «Clientes» (as instalações) ·
-/// «Mais» (Resumo, Pedidos Fist, Acessos, Mapa, Sugestões, Pedidos de ajuda,
-/// Sobre). Decisão do Council de 8/10/2026.
+/// «Histórico» (o que se tratou, por dia). O que se usa pouco (Acessos, Sobre,
+/// terminar sessão) vive no menu ⋮ de cada ecrã. Muda-se de separador a tocar
+/// na barra ou a arrastar para os lados.
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key, @visibleForTesting this.paginasParaTeste});
 
@@ -32,7 +30,7 @@ class HomeShell extends ConsumerStatefulWidget {
   /// a barra usam estes nomes, não números soltos.
   static const indiceAgora = 0;
   static const indiceClientes = 1;
-  static const indiceMais = 2;
+  static const indiceHistorico = 2;
 
   /// As páginas da barra, na ordem dos separadores.
   ///
@@ -43,14 +41,13 @@ class HomeShell extends ConsumerStatefulWidget {
   static const paginas = <Widget>[
     AgoraScreen(),
     InstalacoesScreen(),
-    MaisScreen(),
+    HistoricoScreen(),
   ];
 
   /// Os separadores da barra de baixo, com badge numérico quando há pendentes.
   ///
-  /// [agora]: total de itens na fila. [maisFist]: pedidos Fist pendentes (0 para
-  /// quem não é admin global, que nem os vê).
-  static List<BottomNavigationBarItem> itens({int agora = 0, int maisFist = 0}) =>
+  /// [agora]: total de itens na fila.
+  static List<BottomNavigationBarItem> itens({int agora = 0}) =>
       [
         BottomNavigationBarItem(
           icon: _comBadge(const Icon(Icons.bolt), agora),
@@ -60,9 +57,9 @@ class HomeShell extends ConsumerStatefulWidget {
           icon: Icon(Icons.devices),
           label: 'Clientes',
         ),
-        BottomNavigationBarItem(
-          icon: _comBadge(const Icon(Icons.more_horiz), maisFist),
-          label: 'Mais',
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.history),
+          label: 'Histórico',
         ),
       ];
 
@@ -77,6 +74,7 @@ class HomeShell extends ConsumerStatefulWidget {
 class _HomeShellState extends ConsumerState<HomeShell>
     with WidgetsBindingObserver {
   int _index = HomeShell.indiceAgora;
+  final _pagina = PageController();
 
   List<Widget> get _paginas =>
       widget.paginasParaTeste ?? HomeShell.paginas;
@@ -100,6 +98,7 @@ class _HomeShellState extends ConsumerState<HomeShell>
 
   @override
   void dispose() {
+    _pagina.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -133,19 +132,13 @@ class _HomeShellState extends ConsumerState<HomeShell>
         ref.read(agoraTipoFiltroProvider.notifier).state = TipoAgora.ajuda;
         _seleccionar(HomeShell.indiceAgora);
       case DestinoPush.pedidosFist:
-        // «Pedidos Fist» é só do admin global. Sem isso não há nada para
-        // mostrar: fica na fila «Agora» em vez de bater num erro.
-        final admin = ref.read(souAdminGlobalProvider).valueOrNull ?? false;
-        if (!admin) {
-          _seleccionar(HomeShell.indiceAgora);
-          return;
-        }
-        _seleccionar(HomeShell.indiceMais);
-        ref.read(punhoPedidosRefreshProvider.notifier).state++;
-        nav.push(MaterialPageRoute(builder: (_) => const FistPedidosScreen()));
+        // Os pedidos Fist vivem na fila «Agora», com Aceitar e Recusar.
+        ref.read(agoraTipoFiltroProvider.notifier).state =
+            TipoAgora.acessoFist;
+        _seleccionar(HomeShell.indiceAgora);
       case DestinoPush.resumo:
-        _seleccionar(HomeShell.indiceMais);
-        nav.push(MaterialPageRoute(builder: (_) => const DashboardScreen()));
+        // Os números do antigo Resumo estão no topo de «Clientes».
+        _seleccionar(HomeShell.indiceClientes);
     }
   }
 
@@ -154,6 +147,13 @@ class _HomeShellState extends ConsumerState<HomeShell>
   void _seleccionar(int i) {
     if (i < 0 || i >= _paginas.length) return;
     setState(() => _index = i);
+    if (_pagina.hasClients && _pagina.page?.round() != i) {
+      _pagina.animateToPage(
+        i,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   void _talvezModalObrigatorio(ActualizacaoInfo? info) {
@@ -186,7 +186,15 @@ class _HomeShellState extends ConsumerState<HomeShell>
         children: [
           const BannerActualizacao(),
           Expanded(
-            child: IndexedStack(index: indice, children: _paginas),
+            // Arrastar para os lados muda de separador. As filas de filtros
+            // quebram em linhas (não deslizam), por isso não disputam o gesto.
+            child: PageView(
+              controller: _pagina,
+              onPageChanged: (i) {
+                if (i != _index) setState(() => _index = i);
+              },
+              children: [for (final p in _paginas) _Manter(child: p)],
+            ),
           ),
         ],
       ),
@@ -196,11 +204,30 @@ class _HomeShellState extends ConsumerState<HomeShell>
         selectedItemColor: AppColors.azul,
         unselectedItemColor: AppColors.textTertiary,
         type: BottomNavigationBarType.fixed,
-        items: HomeShell.itens(
-          agora: ref.watch(agoraTotalProvider),
-          maisFist: ref.watch(fistPendentesTotalProvider),
-        ),
+        items: HomeShell.itens(agora: ref.watch(agoraTotalProvider)),
       ),
     );
+  }
+}
+
+/// Mantém cada separador vivo ao arrastar para o lado (o que o `IndexedStack`
+/// fazia): a fila, os filtros e a posição do scroll não se perdem.
+class _Manter extends StatefulWidget {
+  const _Manter({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_Manter> createState() => _ManterState();
+}
+
+class _ManterState extends State<_Manter> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }

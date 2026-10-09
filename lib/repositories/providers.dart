@@ -9,7 +9,9 @@ import '../services/licenca/gerir_licenca_service.dart';
 import 'aceites_repository.dart';
 import 'acessos_repository.dart';
 import 'audit_licencas_repository.dart';
+import 'clientes_antigos_repository.dart';
 import 'clientes_repository.dart';
+import 'historico_repository.dart';
 import 'licencas_repository.dart';
 import 'pedidos_ajuda_repository.dart';
 import 'pedidos_repository.dart';
@@ -65,4 +67,19 @@ final actualizacaoDisponivelProvider =
 final pedidosSitePorVerProvider =
     FutureProvider.autoDispose<List<PedidoSiteAviso>>(
   (ref) => ref.watch(pedidosSiteRepoProvider).listarPorVer(),
+);
+
+final historicoRepoProvider = Provider((_) => HistoricoRepository());
+final clientesAntigosRepoProvider = Provider((_) => ClientesAntigosRepository());
+
+/// O Histórico (mais recentes primeiro). Invalidado sempre que se regista uma
+/// acção; alimenta o separador «Histórico» e a secção «Tratados» do Agora.
+final historicoProvider = FutureProvider.autoDispose<List<RegistoHistorico>>(
+  (ref) => ref.watch(historicoRepoProvider).recentes(),
+);
+
+/// Clientes que o Cesar passou a «antigos». O Agora esconde-os; Clientes mostra-os
+/// na aba «Antigos».
+final clientesAntigosProvider = FutureProvider<List<ClienteAntigo>>(
+  (ref) => ref.watch(clientesAntigosRepoProvider).listar(),
 );

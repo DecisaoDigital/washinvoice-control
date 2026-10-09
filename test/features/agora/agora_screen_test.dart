@@ -64,13 +64,13 @@ void main() {
 
     // Ordem vertical = prioridade.
     final tops = [
-      tester.getTopLeft(find.text('Decidir')).dy,
+      tester.getTopLeft(find.textContaining('Aceitar')).dy,
       tester.getTopLeft(find.text('Ligar')).dy,
       tester.getTopLeft(find.text('Activar')).dy,
-      tester.getTopLeft(find.text('Ver pedido')).dy,
-      tester.getTopLeft(find.text('Renovar').at(0)).dy, // expirada
-      tester.getTopLeft(find.text('Renovar').at(1)).dy, // a expirar
-      tester.getTopLeft(find.text('Ler')).dy,
+      tester.getTopLeft(find.text('Renovar').at(0)).dy, // pedido de renovação
+      tester.getTopLeft(find.text('Renovar').at(1)).dy, // expirada
+      tester.getTopLeft(find.text('Renovar').at(2)).dy, // a expirar
+      tester.getTopLeft(find.text('Abrir')).dy,
     ];
     expect(tops, orderedEquals([...tops]..sort()));
     expect(find.text('Resolvido'), findsOneWidget);
@@ -93,20 +93,20 @@ void main() {
     addTearDown(tester.view.reset);
     await _montar(tester, _tudo());
 
-    expect(find.text('Todos (7)'), findsOneWidget);
+    expect(find.text('Tudo (7)'), findsOneWidget);
     expect(find.text('Ajuda (1)'), findsOneWidget);
     expect(find.text('Terminais novos (1)'), findsOneWidget);
 
     await tester.tap(find.text('Ajuda (1)'));
     await tester.pumpAndSettle();
     expect(find.text('Resolvido'), findsOneWidget);
-    expect(find.text('Decidir'), findsNothing);
+    expect(find.textContaining('Aceitar'), findsNothing);
     expect(find.text('Activar'), findsNothing);
 
     // Tocar outra vez no mesmo chip limpa o filtro.
     await tester.tap(find.text('Ajuda (1)'));
     await tester.pumpAndSettle();
-    expect(find.text('Decidir'), findsOneWidget);
+    expect(find.textContaining('Aceitar'), findsOneWidget);
   });
 
   testWidgets('filtro de app: «a ver: WashInvoice» e sem pedidos Fist', (
@@ -120,7 +120,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('a ver: WashInvoice'), findsOneWidget);
-    expect(find.text('Decidir'), findsNothing);
+    expect(find.textContaining('Aceitar'), findsNothing);
   });
 
   testWidgets('Resolvido chama o repositório e oferece Anular', (tester) async {

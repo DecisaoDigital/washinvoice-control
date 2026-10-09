@@ -20,13 +20,17 @@ import '../../models/licenca.dart';
 import '../../models/ping.dart';
 import '../../repositories/providers.dart';
 import '../../repositories/punho_admin_repository.dart';
+import '../mapa/mapa_screen.dart';
+import '../nav/menu_control.dart';
+import '../../repositories/clientes_antigos_repository.dart';
 import 'detalhe_cliente_screen.dart';
 
 class _InstalacoesData {
   final List<Licenca> licencas;
   final Map<String, Ping> pingPorMachine;
   final ContextoInstalacoes ctx;
-  _InstalacoesData(this.licencas, this.pingPorMachine, this.ctx);
+  final List<ClienteAntigo> antigos;
+  _InstalacoesData(this.licencas, this.pingPorMachine, this.ctx, this.antigos);
 }
 
 enum OrdenacaoInstalacoes { ultimoAcesso, nome, validade, localidade }
@@ -107,6 +111,7 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
   // Filtros aplicados client-side (R1). Por defeito mostra só Activas.
   String _filtro = '';
   bool _soActivas = true;
+  bool _verAntigos = false;
   String? _versao;
   String? _cidade;
   int? _semPingDias;
@@ -160,7 +165,11 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
     final licencasF = licencasRepo.listar(app: app);
     final pingsF = pingsRepo.ultimosPorInstalacao(app: app);
     final clientesF = clientesRepo.listar();
-    await Future.wait([licencasF, pingsF, clientesF, nomesFistF]);
+    final antigosF = ref
+        .read(clientesAntigosRepoProvider)
+        .listar()
+        .catchError((_) => <ClienteAntigo>[]);
+    await Future.wait([licencasF, pingsF, clientesF, nomesFistF, antigosF]);
 
     final licencas = await licencasF;
     final pings = await pingsF;
@@ -175,6 +184,7 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
         pings: pings,
         nomesFist: await nomesFistF,
       ),
+      await antigosF,
     );
   }
 
@@ -302,7 +312,9 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
   List<Licenca> _filtrar(_InstalacoesData data) {
     final q = _filtro.trim().toLowerCase();
     final agora = DateTime.now();
+    final idsAntigos = {for (final a in data.antigos) a.machineId};
     return data.licencas.where((l) {
+      if (idsAntigos.contains(l.machineId)) return false;
       if (q.isNotEmpty) {
         final bate =
             (l.nome?.toLowerCase().contains(q) ?? false) ||
@@ -390,120 +402,244 @@ class _InstalacoesScreenState extends ConsumerState<InstalacoesScreen> {
       appBar: AppBar(
         title: const Text('Clientes'),
         actions: [
-          const WiAppSelector(),
-          const SizedBox(width: AppSpacing.xs),
+          IconButton(
+            icon: const Icon(Icons.map_outlined),
+            tooltip: 'Mapa',
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const MapaScreen())),
+          ),
           IconButton(
             iconSize: 20,
             icon: const Icon(Icons.refresh),
             tooltip: 'Recarregar',
             onPressed: _recarregar,
           ),
-          const SizedBox(width: AppSpacing.sm),
+          const MenuControl(),
         ],
       ),
-      body: WiComPastilhaApp(
-        corpo: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: SearchBar(
-                hintText: 'Procurar por nome, NIF ou machine ID',
-                leading: const Icon(
-                  Icons.search,
-                  color: AppColors.textTertiary,
+      body: Column(
+        children: [
+          const WiBarraApps(),
+          Expanded(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    AppSpacing.sm,
+                    AppSpacing.lg,
+                    0,
+                  ),
+                  child: SegmentedButton<bool>(
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment(value: false, label: Text('Clientes')),
+                      ButtonSegment(value: true, label: Text('Antigos')),
+                    ],
+                    selected: {_verAntigos},
+                    onSelectionChanged: (v) =>
+                        setState(() => _verAntigos = v.first),
+                  ),
                 ),
-                backgroundColor: const WidgetStatePropertyAll(
-                  AppColors.surface,
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: SearchBar(
+                    hintText: 'Procurar por nome, NIF ou machine ID',
+                    leading: const Icon(
+                      Icons.search,
+                      color: AppColors.textTertiary,
+                    ),
+                    backgroundColor: const WidgetStatePropertyAll(
+                      AppColors.surface,
+                    ),
+                    elevation: const WidgetStatePropertyAll(1),
+                    shape: WidgetStatePropertyAll(
+                      RoundedRectangleBorder(borderRadius: AppRadius.mdAll),
+                    ),
+                    onChanged: (v) => setState(() => _filtro = v),
+                  ),
                 ),
-                elevation: const WidgetStatePropertyAll(1),
-                shape: WidgetStatePropertyAll(
-                  RoundedRectangleBorder(borderRadius: AppRadius.mdAll),
-                ),
-                onChanged: (v) => setState(() => _filtro = v),
-              ),
-            ),
-            Expanded(
-              child: FutureBuilder<_InstalacoesData>(
-                future: _future,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (snapshot.hasError) {
-                    return ErroView(
-                      erro: snapshot.error!,
-                      onRetry: _recarregar,
-                    );
-                  }
-                  final data = snapshot.data!;
-                  final classV = ClassificadorVersoes(
-                    data.pingPorMachine.values.map((p) => p.versao),
-                  );
-                  final versoes =
-                      data.pingPorMachine.values
-                          .map((p) => p.versao)
-                          .whereType<String>()
-                          .toSet()
-                          .toList()
-                        ..sort();
-                  final cidades =
-                      data.pingPorMachine.values
-                          .map((p) => p.cidade)
-                          .whereType<String>()
-                          .toSet()
-                          .toList()
-                        ..sort();
-                  final licencas = _ordenar(_filtrar(data), data);
-                  return Column(
-                    children: [
-                      _barraFiltros(versoes, cidades),
-                      const SizedBox(height: AppSpacing.sm),
-                      Expanded(
-                        child: licencas.isEmpty
-                            ? const WiEmptyState(
-                                icone: Icons.search_off,
-                                titulo: 'Sem resultados',
-                                mensagem:
-                                    'Nenhuma instalação corresponde aos filtros.',
-                              )
-                            : RefreshIndicator(
-                                onRefresh: _recarregar,
-                                child: ListView.separated(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    AppSpacing.lg,
-                                    0,
-                                    AppSpacing.lg,
-                                    AppSpacing.lg,
-                                  ),
-                                  itemCount: licencas.length,
-                                  separatorBuilder: (_, __) =>
-                                      const SizedBox(height: AppSpacing.sm),
-                                  itemBuilder: (context, i) {
-                                    final l = licencas[i];
-                                    final ping =
-                                        data.pingPorMachine[l.machineId];
-                                    return _CartaoInstalacao(
-                                      licenca: l,
-                                      ping: ping,
-                                      ctx: data.ctx,
-                                      estadoVersao: classV.estadoDe(
-                                        ping?.versao,
+                Expanded(
+                  child: FutureBuilder<_InstalacoesData>(
+                    future: _future,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (snapshot.hasError) {
+                        return ErroView(
+                          erro: snapshot.error!,
+                          onRetry: _recarregar,
+                        );
+                      }
+                      final data = snapshot.data!;
+                      if (_verAntigos) return _listaAntigos(data);
+                      final classV = ClassificadorVersoes(
+                        data.pingPorMachine.values.map((p) => p.versao),
+                      );
+                      final versoes =
+                          data.pingPorMachine.values
+                              .map((p) => p.versao)
+                              .whereType<String>()
+                              .toSet()
+                              .toList()
+                            ..sort();
+                      final cidades =
+                          data.pingPorMachine.values
+                              .map((p) => p.cidade)
+                              .whereType<String>()
+                              .toSet()
+                              .toList()
+                            ..sort();
+                      final licencas = _ordenar(_filtrar(data), data);
+                      return Column(
+                        children: [
+                          _resumo(data),
+                          _barraFiltros(versoes, cidades),
+                          const SizedBox(height: AppSpacing.sm),
+                          Expanded(
+                            child: licencas.isEmpty
+                                ? const WiEmptyState(
+                                    icone: Icons.search_off,
+                                    titulo: 'Sem resultados',
+                                    mensagem:
+                                        'Nenhuma instalação corresponde aos filtros.',
+                                  )
+                                : RefreshIndicator(
+                                    onRefresh: _recarregar,
+                                    child: ListView.separated(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        AppSpacing.lg,
+                                        0,
+                                        AppSpacing.lg,
+                                        AppSpacing.lg,
                                       ),
-                                      onTap: () => _abrirDetalhe(l.machineId),
-                                      onAccoesRapidas: () => _accoesRapidas(l),
-                                    );
-                                  },
-                                ),
-                              ),
+                                      itemCount: licencas.length,
+                                      separatorBuilder: (_, __) =>
+                                          const SizedBox(height: AppSpacing.sm),
+                                      itemBuilder: (context, i) {
+                                        final l = licencas[i];
+                                        final ping =
+                                            data.pingPorMachine[l.machineId];
+                                        return _CartaoInstalacao(
+                                          licenca: l,
+                                          ping: ping,
+                                          ctx: data.ctx,
+                                          estadoVersao: classV.estadoDe(
+                                            ping?.versao,
+                                          ),
+                                          onTap: () =>
+                                              _abrirDetalhe(l.machineId),
+                                          onAccoesRapidas: () =>
+                                              _accoesRapidas(l),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Os números do antigo Resumo, no topo de Clientes.
+  Widget _resumo(_InstalacoesData data) {
+    final ids = {for (final a in data.antigos) a.machineId};
+    final ls = data.licencas.where((l) => !ids.contains(l.machineId));
+    int n(EstadoLicenca e) => ls.where((l) => l.estado == e).length;
+    Widget kpi(String rot, int v, Color cor) => Expanded(
+      child: Column(
+        children: [
+          Text(
+            '$v',
+            style: AppText.bodyStrong.copyWith(color: cor, fontSize: 20),
+          ),
+          Text(rot, style: AppText.caption),
+        ],
+      ),
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        0,
+        AppSpacing.lg,
+        AppSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          kpi('Activas', n(EstadoLicenca.activa), AppColors.verde700),
+          kpi('A expirar', n(EstadoLicenca.aExpirar), AppColors.laranja700),
+          kpi('Expiradas', n(EstadoLicenca.expirada), AppColors.vermelho700),
+          kpi('Suspensas', n(EstadoLicenca.suspensa), AppColors.textTertiary),
+        ],
+      ),
+    );
+  }
+
+  Widget _listaAntigos(_InstalacoesData data) {
+    final app = ref.read(appFilterProvider);
+    final q = _filtro.trim().toLowerCase();
+    final lista = [
+      for (final a in data.antigos)
+        if ((a.app == null || app.aceita(a.app!)) &&
+            (q.isEmpty || (a.titulo ?? a.machineId).toLowerCase().contains(q)))
+          a,
+    ];
+    if (lista.isEmpty) {
+      return const WiEmptyState(
+        icone: Icons.inventory_2_outlined,
+        titulo: 'Sem clientes antigos',
+        mensagem: 'Os clientes a quem disseres «Negar» aparecem aqui.',
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      children: [
+        for (final a in lista) ...[
+          WiCard(
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(a.titulo ?? a.machineId, style: AppText.bodyStrong),
+                      Text(
+                        'Antigo desde ${Dates.data(a.desde)}',
+                        style: AppText.caption,
                       ),
                     ],
-                  );
-                },
-              ),
+                  ),
+                ),
+                OutlinedButton(
+                  onPressed: () async {
+                    try {
+                      await ref
+                          .read(clientesAntigosRepoProvider)
+                          .reactivar(a.machineId);
+                      ref.invalidate(clientesAntigosProvider);
+                      await _recarregar();
+                    } catch (e, st) {
+                      mostrarErro(e, stack: st);
+                    }
+                  },
+                  child: const Text('Reativar'),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+        ],
+      ],
     );
   }
 }

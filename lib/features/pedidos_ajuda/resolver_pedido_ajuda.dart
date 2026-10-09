@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/erros.dart';
 import '../../models/pedido_ajuda.dart';
 import '../../repositories/providers.dart';
+import '../../services/registo_accoes.dart';
 
 /// Pedidos com «Resolvido» a decorrer — trava o duplo toque no mesmo cartão,
 /// venha ele da lista de Pedidos de ajuda ou da fila «Agora».
@@ -18,11 +19,21 @@ Future<void> resolverPedidoAjuda(
   WidgetRef ref,
   PedidoAjuda p, {
   required Future<void> Function() depois,
+  String? quem,
 }) async {
   if (!_aResolver.add(p.id)) return;
   final repo = ref.read(pedidosAjudaRepoProvider);
   try {
     await repo.marcarResolvido(p.id);
+    await registarAccao(
+      ref,
+      tipo: 'Pedido de ajuda',
+      titulo: quem ?? ((p.nif?.isEmpty ?? true) ? 'Pedido de ajuda' : 'NIF ${p.nif}'),
+      app: p.app,
+      machineId: p.machineId,
+      pedido: (p.notas?.trim().isEmpty ?? true) ? 'Pediu ajuda' : p.notas!.trim(),
+      accao: 'Resolvido',
+    );
     messengerKey.currentState
       ?..clearSnackBars()
       ..showSnackBar(

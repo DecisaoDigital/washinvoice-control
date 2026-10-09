@@ -41,4 +41,12 @@ class PedidosRepository {
         })
         .eq('id', id);
   }
+
+  /// O Cesar recusou o pedido de renovação.
+  Future<void> recusar(String id) async {
+    await _client
+        .from('pedidos_renovacao')
+        .update({'estado': 'recusado'})
+        .eq('id', id);
+  }
 }
