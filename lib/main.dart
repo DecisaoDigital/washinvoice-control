@@ -21,6 +21,7 @@ import 'features/nav/home_shell.dart';
 import 'repositories/providers.dart';
 import 'services/fcm_background_handler.dart';
 import 'services/fcm_service.dart';
+import 'services/notificacao_local.dart';
 import 'services/push_routing.dart';
 import 'services/push_titulo.dart';
 
@@ -366,6 +367,10 @@ class _FcmForegroundListenerState
       // Recarrega o Dashboard. Single-admin: qualquer push que chega é
       // relevante (novo terminal / pedido de ajuda), por isso recarrega sempre.
       _dashboardRefreshCtrl.add(null);
+
+      // Com a app aberta o SO não desenha a notificação: desenha-se aqui, para
+      // o aviso ficar também na barra de estado. A barra em baixo mantém-se.
+      NotificacaoLocal.mostrar(titulo, corpo);
 
       final ctx = messengerKey.currentContext;
       if (ctx == null) return;
