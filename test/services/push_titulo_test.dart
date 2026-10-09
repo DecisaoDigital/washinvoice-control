@@ -8,9 +8,9 @@ void main() {
           '[FIST] Novo terminal XYZ');
     });
 
-    test('app pos → prefixo [POS]', () {
+    test('app pos → prefixo [WASHINVOICE]', () {
       expect(tituloComApp('Novo terminal ABC', 'pos'),
-          '[POS] Novo terminal ABC');
+          '[WASHINVOICE] Novo terminal ABC');
     });
 
     test('sem app (push antigo) → título intacto, sem prefixo vazio', () {

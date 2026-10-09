@@ -24,7 +24,7 @@ class AppsUi {
 
   /// Sigla curta, para badges por linha (pouco espaço horizontal).
   static String sigla(String app) => switch (app) {
-        pos => 'POS',
+        pos => 'WASHINVOICE',
         punho => 'FIST',
         _ => app.toUpperCase(),
       };

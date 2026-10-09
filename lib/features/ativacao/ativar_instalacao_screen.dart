@@ -30,14 +30,6 @@ class _AtivarInstalacaoScreenState
   final _telemovelCtrl = TextEditingController();
   final _notasCtrl = TextEditingController();
   final _mesesCtrl = TextEditingController();
-  final _userIdCtrl = TextEditingController();
-
-  /// Valida o formato UUID do `user_id` do POS (campo opcional). Vazio = licença
-  /// órfã (aceite); preenchido tem de ser um UUID válido.
-  static final _uuidRegex = RegExp(
-    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-'
-    r'[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
-  );
 
   /// Plano interno gravado no Supabase.
   String _plano = 'personalizado';
@@ -76,7 +68,6 @@ class _AtivarInstalacaoScreenState
     _telemovelCtrl.dispose();
     _notasCtrl.dispose();
     _mesesCtrl.dispose();
-    _userIdCtrl.dispose();
     super.dispose();
   }
 
@@ -104,7 +95,6 @@ class _AtivarInstalacaoScreenState
       );
 
       final validade = _novaValidade;
-      final userId = _userIdCtrl.text.trim();
       await licencasRepo.criar(
         machineId: widget.ping.machineId,
         nif: nif,
@@ -114,7 +104,6 @@ class _AtivarInstalacaoScreenState
         validade: validade,
         activa: true,
         oferta: _oferta,
-        userId: userId.isEmpty ? null : userId,
       );
 
       if (!mounted) return;
@@ -286,23 +275,6 @@ class _AtivarInstalacaoScreenState
                 labelText: 'Notas (opcional)',
                 border: OutlineInputBorder(),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _userIdCtrl,
-              decoration: const InputDecoration(
-                labelText: 'User ID do terminal (UUID, opcional)',
-                helperText: 'UUID do utilizador criado em Authentication → '
-                    'Users. Liga a licença ao POS (RLS). Vazio = licença órfã.',
-                helperMaxLines: 3,
-                border: OutlineInputBorder(),
-              ),
-              validator: (v) {
-                final t = v?.trim() ?? '';
-                if (t.isEmpty) return null; // opcional
-                if (!_uuidRegex.hasMatch(t)) return 'UUID inválido';
-                return null;
-              },
             ),
             const SizedBox(height: 20),
             FilledButton.icon(

@@ -17,11 +17,11 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   group('WiAppBadge', () {
-    testWidgets('pos → "POS" em azul', (tester) async {
+    testWidgets('pos → "WASHINVOICE" em azul', (tester) async {
       await tester.pumpWidget(_envolver(const WiAppBadge('pos')));
-      expect(find.text('POS'), findsOneWidget);
+      expect(find.text('WASHINVOICE'), findsOneWidget);
 
-      final texto = tester.widget<Text>(find.text('POS'));
+      final texto = tester.widget<Text>(find.text('WASHINVOICE'));
       expect(texto.style?.color, AppColors.azul900);
     });
 

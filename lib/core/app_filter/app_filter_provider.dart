@@ -18,7 +18,7 @@ extension AppFiltroExt on AppFiltro {
   /// estreito.
   String get etiquetaCurta => switch (this) {
         AppFiltro.todas => 'Todas',
-        AppFiltro.pos => 'POS',
+        AppFiltro.pos => 'WashInvoice',
         AppFiltro.punho => 'Fist',
       };
 

@@ -67,11 +67,6 @@ class LicencasRepository {
 
   /// Cria uma licença nova (id e created_em gerados pela base de dados).
   ///
-  /// [userId] liga a licença ao utilizador Supabase Auth do terminal (POS).
-  /// É o que o RLS usa para o POS ler só a SUA licença (`user_id = auth.uid()`).
-  /// Fica `null` quando ainda não há utilizador criado — a licença fica órfã
-  /// (o POS não a consegue ler) até ser reemitida com o `user_id` preenchido.
-  ///
   /// [app] tem de ir sempre (`licencas.app` é `NOT NULL` sem default). Fica em
   /// `pos` por omissão porque é a única app cujas licenças o Cesar cria à mão
   /// aqui — o Fist auto-onboarda pela Edge Function `registar-terminal`.
@@ -84,7 +79,6 @@ class LicencasRepository {
     required DateTime validade,
     bool activa = true,
     bool oferta = false,
-    String? userId,
     String app = 'pos',
   }) async {
     await _client.from('licencas').insert({
@@ -97,7 +91,6 @@ class LicencasRepository {
       'validade': validade.toIso8601String(),
       'activa': activa,
       'oferta': oferta,
-      'user_id': userId,
     });
   }
 
