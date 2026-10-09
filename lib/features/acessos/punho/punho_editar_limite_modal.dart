@@ -41,6 +41,13 @@ class _FistEditarLimiteModalState extends State<FistEditarLimiteModal> {
     return (n == null || n < 1) ? null : n;
   }
 
+  /// Sobe ou desce um pack (3). Parte de 0 se o campo estiver vazio ou inválido.
+  void _passo(int delta) {
+    final atual = _valorValido ?? 0;
+    final novo = (atual + delta).clamp(1, 9999);
+    setState(() => _limite.text = '$novo');
+  }
+
   @override
   Widget build(BuildContext context) {
     final e = widget.empresa;
@@ -61,9 +68,33 @@ class _FistEditarLimiteModalState extends State<FistEditarLimiteModal> {
             autofocus: true,
             decoration: const InputDecoration(
               labelText: 'Limite de colaboradores',
+              helperText: 'Os operadores vendem-se em packs de 3.',
             ),
             onChanged: (_) => setState(() {}),
           ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              OutlinedButton(
+                onPressed: (novo ?? 0) > 3 ? () => _passo(-3) : null,
+                child: const Text('− 1 pack'),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              OutlinedButton(
+                onPressed: () => _passo(3),
+                child: const Text('+ 1 pack'),
+              ),
+            ],
+          ),
+          if (novo != null && novo % 3 != 0)
+            const Padding(
+              padding: EdgeInsets.only(top: AppSpacing.sm),
+              child: Text(
+                'Não é múltiplo de 3. Podes gravar na mesma, mas os packs '
+                'vendem-se de 3 em 3.',
+                style: TextStyle(color: AppColors.laranja700, fontSize: 12),
+              ),
+            ),
           if (abaixoDosAtivos)
             const Padding(
               padding: EdgeInsets.only(top: AppSpacing.sm),
